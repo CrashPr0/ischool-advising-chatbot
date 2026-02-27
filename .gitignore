@@ -158,3 +158,4 @@ docker-data/
 # Project Specific
 # ===========================
 # Add project-specific ignores below
+.env
