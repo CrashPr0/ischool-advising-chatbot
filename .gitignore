@@ -5,6 +5,10 @@
 *.key
 secrets/
 credentials.json
+.env
+.env.local
+.env.*.local
+.env.example
 
 # ===========================
 # Dependencies
@@ -159,3 +163,5 @@ docker-data/
 # ===========================
 # Add project-specific ignores below
 .env
+.env.example
+.env.example

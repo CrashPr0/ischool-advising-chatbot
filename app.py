@@ -1,0 +1,158 @@
+"""Flask web app for the iSchool Advising Chatbot."""
+import sys
+import os
+
+# Add src to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
+from rag_chatbot import RAGAdvisingChatbot
+from document_processor import setup_sample_docs
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize Flask app
+app = Flask(__name__, template_folder='templates', static_folder='static')
+CORS(app)
+
+# Initialize chatbot (singleton)
+chatbot = None
+
+def get_chatbot():
+    """Get or create chatbot instance."""
+    global chatbot
+    if chatbot is None:
+        try:
+            chatbot = RAGAdvisingChatbot()
+            logger.info("Chatbot initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize chatbot: {e}")
+            raise
+    return chatbot
+
+# Routes
+
+@app.route('/')
+def index():
+    """Serve main page."""
+    return render_template('index.html')
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    """Handle chat requests."""
+    try:
+        data = request.json
+        user_message = data.get('message', '').strip()
+        
+        if not user_message:
+            return jsonify({'error': 'Empty message'}), 400
+        
+        # Get response from chatbot
+        chatbot_instance = get_chatbot()
+        result = chatbot_instance.chat(user_message)
+        
+        return jsonify({
+            'response': result['response'],
+            'source': result['source'],
+            'confidence': result['confidence'],
+            'retrieved_docs': len(result['retrieved_docs'])
+        })
+    
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/status', methods=['GET'])
+def status():
+    """Get chatbot status."""
+    try:
+        chatbot_instance = get_chatbot()
+        providers = RAGAdvisingChatbot.get_available_providers()
+        questions = chatbot_instance.get_knowledge_base_questions()
+        
+        return jsonify({
+            'status': 'ready',
+            'available_providers': providers,
+            'hardcoded_questions': len(questions)
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/history', methods=['GET'])
+def history():
+    """Get conversation history."""
+    try:
+        chatbot_instance = get_chatbot()
+        hist = chatbot_instance.get_history()
+        
+        # Return only user messages and responses (not full metadata)
+        simplified = [
+            {
+                'user': h['user_message'],
+                'assistant': h['response'],
+                'source': h['source']
+            }
+            for h in hist
+        ]
+        
+        return jsonify({'history': simplified})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/clear-history', methods=['POST'])
+def clear_history():
+    """Clear conversation history."""
+    try:
+        chatbot_instance = get_chatbot()
+        chatbot_instance.clear_history()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/load-docs', methods=['POST'])
+def load_docs():
+    """Load and process documents."""
+    try:
+        chatbot_instance = get_chatbot()
+        
+        # Setup sample documents if they don't exist
+        setup_sample_docs()
+        
+        # Process documents
+        chatbot_instance.process_documents()
+        
+        return jsonify({'success': True, 'message': 'Documents loaded successfully'})
+    except Exception as e:
+        logger.error(f"Error loading documents: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/questions', methods=['GET'])
+def get_questions():
+    """Get all hardcoded questions."""
+    try:
+        chatbot_instance = get_chatbot()
+        questions = chatbot_instance.get_knowledge_base_questions()
+        return jsonify({'questions': questions})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors."""
+    return jsonify({'error': 'Not found'}), 404
+
+@app.errorhandler(500)
+def server_error(error):
+    """Handle 500 errors."""
+    return jsonify({'error': 'Server error'}), 500
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

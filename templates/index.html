@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iSchool Advising Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🎓 iSchool Advising Chatbot</h1>
+                <p class="tagline">Get instant answers about your degree program</p>
+            </div>
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot"></span>
+                <span class="status-text">Loading...</span>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Chat Container -->
+            <div class="chat-container">
+                <!-- Messages Area -->
+                <div class="messages-area" id="messagesArea">
+                    <div class="message assistant-message welcome-message">
+                        <div class="message-content">
+                            <p><strong>Welcome to the iSchool Advising Chatbot!</strong></p>
+                            <p>I'm here to help you with questions about:</p>
+                            <ul>
+                                <li>Graduation requirements</li>
+                                <li>Program courses and prerequisites</li>
+                                <li>Course scheduling</li>
+                                <li>Academic policies</li>
+                                <li>Career guidance</li>
+                            </ul>
+                            <p style="margin-top: 15px; font-style: italic; font-size: 0.9em;">
+                                💡 Tip: Try asking "Hello" or "What do I need to graduate?"
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="input-area">
+                    <form id="chatForm" onsubmit="sendMessage(event)">
+                        <div class="input-wrapper">
+                            <input 
+                                type="text" 
+                                id="messageInput" 
+                                placeholder="Ask your advising question..." 
+                                autocomplete="off"
+                            >
+                            <button type="submit" class="send-button" id="sendButton">
+                                <span>Send</span>
+                                <span class="send-icon">➤</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <!-- Quick Actions -->
+                <section class="sidebar-section">
+                    <h3>Quick Actions</h3>
+                    <button class="action-button" onclick="loadDocuments()">
+                        <span class="icon">📄</span>
+                        <span>Load Documents</span>
+                    </button>
+                    <button class="action-button" onclick="showQuestions()">
+                        <span class="icon">❓</span>
+                        <span>Common Questions</span>
+                    </button>
+                    <button class="action-button" onclick="clearHistory()">
+                        <span class="icon">🗑️</span>
+                        <span>Clear History</span>
+                    </button>
+                </section>
+
+                <!-- Source Info -->
+                <section class="sidebar-section">
+                    <h3>Last Response</h3>
+                    <div id="sourceInfo" class="source-info">
+                        <p class="placeholder">No response yet</p>
+                    </div>
+                </section>
+
+                <!-- Stats -->
+                <section class="sidebar-section">
+                    <h3>Statistics</h3>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Messages:</span>
+                            <span class="stat-value" id="messageCount">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">KB Questions:</span>
+                            <span class="stat-value" id="kbCount">-</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Help -->
+                <section class="sidebar-section">
+                    <h3>Help</h3>
+                    <div class="help-text">
+                        <p><strong>Data Sources:</strong></p>
+                        <ul>
+                            <li><strong>Knowledge Base:</strong> Instant hardcoded answers</li>
+                            <li><strong>RAG:</strong> Document-enhanced responses</li>
+                            <li><strong>LLM:</strong> AI-generated answers</li>
+                        </ul>
+                    </div>
+                </section>
+            </aside>
+        </main>
+
+        <!-- Modals -->
+        <!-- Questions Modal -->
+        <div id="questionsModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Available Hardcoded Questions</h2>
+                    <button class="close-button" onclick="closeModal('questionsModal')">&times;</button>
+                </div>
+                <div class="modal-body" id="questionsModalBody">
+                    <p>Loading questions...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Modal -->
+        <div id="loadingModal" class="modal loading-modal">
+            <div class="modal-content small">
+                <div class="spinner"></div>
+                <p id="loadingText">Processing...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
