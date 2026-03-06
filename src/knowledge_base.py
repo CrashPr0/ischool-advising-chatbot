@@ -9,38 +9,63 @@ class KnowledgeBase:
     COMMON_QA = {
         # Graduation and Requirements
 "who is my assigned isda advisor": {
-"answer": """ISDA advising is typically handled by program advisors rather than a single assigned faculty advisor.
+    "answer": """ISDA students are typically supported by the iSchool advising team rather than being assigned a single personal advisor.
 
-Students can contact the iSchool advising office through the official advising webpage or scheduling system. Advisors can help with course planning, program requirements, and graduation preparation.
+Advisors can help you with:
+• Course planning and semester scheduling
+• Understanding degree requirements
+• Graduation planning
+• Academic policies and petitions
 
-For the most accurate contact information, visit the official SJSU iSchool advising page.""",
-"keywords": ["advisor", "isda advisor", "assigned advisor"],
-"priority": 1
+If you need advising support, you can contact the iSchool advising team or schedule an advising appointment.
+
+Official advising page:
+https://ischool.sjsu.edu/student-services/advising
+
+This page includes contact information, advising hours, and scheduling options.""",
+    "keywords": ["advisor", "isda advisor", "assigned advisor", "who is my advisor"],
+    "priority": 1
 },
 
 "how do i schedule an advising appointment": {
-"answer": """You can schedule an advising appointment by:
+    "answer": """You can schedule an advising appointment with the iSchool through the official advising page.
 
-1. Visiting the SJSU iSchool advising webpage
-2. Using the online advising appointment scheduling system
-3. Contacting the advising office by email
+Steps:
+1. Visit the iSchool advising page  
+2. Choose your student type (Regular Session or Special Session)  
+3. Use the scheduling instructions or contact information provided
 
-Advising options may differ for Regular Session and Special Session students, so check the advising page for the correct process.""",
-"keywords": ["schedule advising", "appointment", "meet advisor"],
-"priority": 1
-},
+Advising page:
+https://ischool.sjsu.edu/student-services/advising
 
-"do isda students get faculty advisors": {
-"answer": """ISDA advising is usually provided by program advisors or coordinators rather than individual faculty advisors.
-
-Advisors help students with:
-• Course planning
+Advisors can help with:
+• Course selection and planning
+• Degree progress questions
 • Graduation requirements
 • Academic policies
 
-Faculty members may still provide guidance on academic topics or research.""",
-"keywords": ["faculty advisor", "advisor structure"],
-"priority": 2
+If your question is urgent or complex, scheduling an appointment with an advisor is the best option.""",
+    "keywords": ["schedule advising", "advising appointment", "meet advisor", "book advising"],
+    "priority": 1
+},
+
+"do isda students get faculty advisors": {
+    "answer": """ISDA students are generally advised by the iSchool advising staff rather than being assigned a specific faculty advisor.
+
+The advising team provides guidance on:
+• Course planning
+• Degree requirements
+• Graduation preparation
+• Academic policies and petitions
+
+Faculty members may still provide academic mentorship related to research or specific courses, but most advising questions are handled by the advising team.
+
+You can learn more or contact advising here:
+https://ischool.sjsu.edu/student-services/advising
+
+If you need help planning your courses or checking your graduation progress, scheduling an advising appointment is recommended.""",
+    "keywords": ["faculty advisor", "advisor structure", "do i have a faculty advisor"],
+    "priority": 2
 },
 
 "what courses should i take in my first semester": {
