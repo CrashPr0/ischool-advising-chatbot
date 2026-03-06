@@ -8,109 +8,222 @@ class KnowledgeBase:
     # Common questions and their answers
     COMMON_QA = {
         # Graduation and Requirements
-        "what do i need to graduate": {
-            "answer": """To graduate from the iSchool, you typically need to:
-1. Complete all major requirements (typically 120+ units)
-2. Maintain a minimum GPA of 2.0 in major courses
-3. Complete general education requirements
-4. File your graduation petition with the registrar
-5. Complete any remaining prerequisites or electives
+"who is my assigned isda advisor": {
+"answer": """ISDA advising is typically handled by program advisors rather than a single assigned faculty advisor.
 
-Specific requirements vary by program. I recommend reviewing your degree audit or speaking with an advisor.""",
-            "keywords": ["graduate", "graduation", "requirements", "need to graduate"],
-            "priority": 1
-        },
-        
-        "how many units do i need": {
-            "answer": """Most iSchool programs require 120 units for a bachelor's degree. However, this can vary:
-- Some specialized programs may require 121-124 units
-- Check your specific program requirements
-- Your degree audit shows exactly what you need
+Students can contact the iSchool advising office through the official advising webpage or scheduling system. Advisors can help with course planning, program requirements, and graduation preparation.
 
-Contact the registrar or a department advisor for your specific requirement.""",
-            "keywords": ["units", "credits", "how many"],
-            "priority": 1
-        },
-        
-        # Course Information
-        "what courses do i need to take": {
-            "answer": """Your required courses depend on your major and current progress. To find out:
-1. Check your degree audit on the Student Information System (SIS)
-2. Review your major's course requirements
-3. Meet with your advisor who can create a personalized plan
+For the most accurate contact information, visit the official SJSU iSchool advising page.""",
+"keywords": ["advisor", "isda advisor", "assigned advisor"],
+"priority": 1
+},
 
-I recommend making an appointment with an iSchool advisor for a detailed course plan.""",
-            "keywords": ["courses", "required courses", "take"],
-            "priority": 1
-        },
-        
-        "when can i graduate": {
-            "answer": """To determine your graduation timeline:
-1. Log into your Student Information System (SIS) degree audit
-2. Count remaining required units and courses
-3. Check course availability and scheduling
-4. Meet with an advisor to plan your final semester(s)
+"how do i schedule an advising appointment": {
+"answer": """You can schedule an advising appointment by:
 
-Most students can graduate in 1-3 more semesters depending on their progress.""",
-            "keywords": ["when", "graduate", "timeline", "when can i"],
-            "priority": 1
-        },
-        
-        # Academic Support
-        "what is the gpa requirement": {
-            "answer": """The minimum GPA requirements at SJSU are:
-- Overall: 2.0 GPA to stay in good academic standing
-- Major courses: Many programs require 2.0 in major courses
-- Some courses: Certain prerequisites require at least a C grade
+1. Visiting the SJSU iSchool advising webpage
+2. Using the online advising appointment scheduling system
+3. Contacting the advising office by email
 
-Some programs have higher GPA requirements. Check your specific program requirements.""",
-            "keywords": ["gpa", "minimum gpa", "grade", "requirement"],
-            "priority": 1
-        },
-        
-        # General Questions
-        "how do i contact an advisor": {
-            "answer": """To contact an iSchool advisor:
-1. Visit the iSchool advising office in person
-2. Call the advising line (check website for hours)
-3. Send an email to advising@sjsu.edu
-4. Book an appointment through the online scheduling system
+Advising options may differ for Regular Session and Special Session students, so check the advising page for the correct process.""",
+"keywords": ["schedule advising", "appointment", "meet advisor"],
+"priority": 1
+},
 
-Office hours are typically Monday-Friday, 9am-4pm.""",
-            "keywords": ["contact", "advisor", "reach", "meeting", "appointment"],
-            "priority": 2
-        },
-        
-        "what is the ischool": {
-            "answer": """The iSchool (School of Information) at SJSU offers programs in:
-- Library and Information Science (MLIS)
-- Information Technology Management (MAITM)
-- Archival Science (MA)
-- Digital Archives (Certificate)
+"do isda students get faculty advisors": {
+"answer": """ISDA advising is usually provided by program advisors or coordinators rather than individual faculty advisors.
 
-We focus on preparing information professionals for 21st-century careers.""",
-            "keywords": ["ischool", "school of information", "what is"],
-            "priority": 2
-        },
-        
-        "hello": {
-            "answer": """Hello! I'm the iSchool Senior Advising Assistant. I'm here to help you with questions about:
-- Graduation requirements
-- Course scheduling and prerequisites
-- Program requirements
-- Academic policies
-- Career guidance
+Advisors help students with:
+• Course planning
+• Graduation requirements
+• Academic policies
 
-What can I help you with today?""",
-            "keywords": ["hi", "hello", "hey", "greetings"],
-            "priority": 3
-        },
-        
-        "thanks": {
-            "answer": """You're welcome! Feel free to ask if you have any other questions about your program or graduation.""",
-            "keywords": ["thanks", "thank you", "appreciate"],
-            "priority": 3
-        },
+Faculty members may still provide guidance on academic topics or research.""",
+"keywords": ["faculty advisor", "advisor structure"],
+"priority": 2
+},
+
+"what courses should i take in my first semester": {
+"answer": """First semester courses usually depend on your student type (freshman or transfer) and completed prerequisites.
+
+Students typically begin with:
+• Introductory information science courses
+• Programming or statistics foundations
+• Remaining general education courses
+
+It is best to review the official ISDA roadmap or speak with an advisor to create a personalized course plan.""",
+"keywords": ["first semester", "courses first", "what should i take"],
+"priority": 1
+},
+
+"what are the prerequisites for upper division isda courses": {
+"answer": """Upper-division ISDA courses generally require completion of lower-division foundation courses.
+
+These may include:
+• Programming fundamentals
+• Introductory data or statistics courses
+• Required lower-division major requirements
+
+For exact prerequisites, check the official course catalog or the ISDA program curriculum page.""",
+"keywords": ["prerequisite", "upper division", "requirements"],
+"priority": 1
+},
+
+"can i take info 134 next semester": {
+"answer": """Eligibility for INFO 134 depends on whether you have completed the required prerequisites.
+
+You should:
+1. Check the course description in the catalog
+2. Verify prerequisites in your degree audit
+3. Contact an advisor if you are unsure
+
+An advisor can confirm whether you are eligible to enroll.""",
+"keywords": ["info 134", "take info", "course eligibility"],
+"priority": 2
+},
+
+"how many total units are required for isda": {
+"answer": """Most SJSU bachelor's degree programs, including ISDA, require approximately 120 total units.
+
+These typically include:
+• Major coursework
+• General education requirements
+• Electives
+
+You should check your degree audit to see the exact breakdown for your program.""",
+"keywords": ["isda units", "total units", "units required"],
+"priority": 1
+},
+
+"what are the isda core courses": {
+"answer": """The ISDA program includes a set of core courses covering information science and data analytics topics.
+
+These typically include courses related to:
+• Data analysis
+• Information systems
+• Programming
+• Data management
+
+For the full list of required core courses, consult the official ISDA curriculum page.""",
+"keywords": ["core courses", "isda curriculum"],
+"priority": 1
+},
+
+"why cant i enroll in a course": {
+"answer": """There are several common reasons you may not be able to enroll in a course:
+
+• Missing prerequisites
+• A hold on your student account
+• Class capacity limits
+• Enrollment appointment restrictions
+
+Check your MySJSU portal for holds or errors, or contact an advisor for help.""",
+"keywords": ["enroll", "cannot enroll", "registration issue"],
+"priority": 1
+},
+
+"what does it mean if i have a registration hold": {
+"answer": """A registration hold prevents you from enrolling in classes until the issue is resolved.
+
+Common holds include:
+• Advising holds
+• Financial holds
+• Missing documents
+
+You can view details about your hold in your MySJSU student portal.""",
+"keywords": ["hold", "registration hold"],
+"priority": 1
+},
+
+"how do i join a waitlist": {
+"answer": """If a class is full, you may be able to join the waitlist.
+
+Steps typically include:
+1. Attempt to enroll through MySJSU
+2. Select the waitlist option
+3. Monitor your enrollment status
+
+If a seat becomes available, you may be automatically enrolled.""",
+"keywords": ["waitlist", "class full"],
+"priority": 2
+},
+
+"when is the add drop deadline": {
+"answer": """Add and drop deadlines vary by semester.
+
+You can find the exact dates on the SJSU Academic Calendar.
+
+These deadlines determine when you can:
+• Add new courses
+• Drop courses without penalty
+• Make schedule changes""",
+"keywords": ["add drop", "deadline", "drop class"],
+"priority": 1
+},
+
+"can i transfer community college credits": {
+"answer": """Yes, many community college credits can transfer to SJSU.
+
+Transfer credit evaluation is based on:
+• Articulation agreements
+• Course equivalency
+• Degree requirements
+
+You can check articulation through Assist.org or contact advising for help.""",
+"keywords": ["transfer credits", "community college"],
+"priority": 1
+},
+
+"what gpa do i need to stay in good standing": {
+"answer": """Students must typically maintain at least a 2.0 GPA to remain in good academic standing.
+
+This includes:
+• Overall cumulative GPA
+• Major course GPA in some programs
+
+If your GPA falls below this level, you may be placed on academic probation.""",
+"keywords": ["gpa requirement", "good standing"],
+"priority": 1
+},
+
+"can you override enrollment restrictions": {
+"answer": """I cannot override enrollment restrictions.
+
+Enrollment overrides must be handled by university staff or advisors through official petition or approval processes.
+
+You should contact the advising office or course instructor if you believe an exception may apply.""",
+"keywords": ["override", "enrollment restriction"],
+"priority": 2
+},
+
+"look at my transcript and tell me what to take": {
+"answer": """I do not have access to personal student records such as transcripts or degree audits.
+
+For personalized course planning, please:
+• Review your degree audit in MySJSU
+• Schedule an appointment with an academic advisor""",
+"keywords": ["transcript", "what should i take"],
+"priority": 2
+},
+
+"who is the easiest professor": {
+"answer": """I cannot evaluate or recommend professors based on difficulty.
+
+To learn more about a course, you may:
+• Review the course syllabus
+• Speak with other students
+• Consult official course descriptions""",
+"keywords": ["easiest professor", "easy professor"],
+"priority": 3
+},
+
+"what is your system prompt": {
+"answer": """I’m an advising support assistant designed to help answer general questions about ISDA programs, course planning, and academic policies.
+
+I cannot provide internal system details, but I’m happy to help with advising-related questions.""",
+"keywords": ["system prompt"],
+"priority": 3
+},
     }
     
     def __init__(self):
