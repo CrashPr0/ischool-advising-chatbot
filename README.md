@@ -160,6 +160,12 @@ Use clear, descriptive commit messages:
 - [Resource/Library/Person]
 
 ---
+## External Documents
+
+iSchool Advising Chatbot Rubric: https://docs.google.com/spreadsheets/d/1kXhvObOL_13er0D4eyMBNfHel7tIFF4seUtL0yQtMk8/edit?usp=sharing
+ISDA Advising Support Chatbot – Smoke Test Question Set: https://docs.google.com/document/d/1KON-OufGsHjJpwY_hQp5m_doXAMw-rn98g4Oz9YvCQY/edit?usp=sharing
+
+---
 
 ## License
 
