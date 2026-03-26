@@ -18,7 +18,7 @@
             <h1>ISDA Advising Support Chatbot</h1>
             <p class="hero-subtitle">
               A student support tool for general questions about advising, course planning,
-              graduation requirements, and registration.
+              graduation requirements, registration, and ISDA program logistics.
             </p>
           </div>
         </div>
@@ -30,27 +30,27 @@
         <div class="panel-card intro-card">
           <h2>How this helps</h2>
           <p>
-            This chatbot is built to support ISDA students with common advising questions.
-            It gives quick answers, points students to official resources, and helps reduce
-            the time spent searching through multiple pages.
+            This chatbot is designed to help ISDA students find answers to common advising
+            questions more quickly. It gives general guidance, points students to official
+            resources, and helps reduce confusion when advising offices are busy.
           </p>
 
           <div class="feature-grid">
             <div class="feature-box">
               <span class="feature-title">Fast Answers</span>
-              <span class="feature-text">Get help with common advising questions instantly.</span>
+              <span class="feature-text">Get support for common advising questions right away.</span>
             </div>
             <div class="feature-box">
-              <span class="feature-title">Official Resources</span>
-              <span class="feature-text">Links students to advising and university pages.</span>
+              <span class="feature-title">Official Links</span>
+              <span class="feature-text">Find important advising and university resources faster.</span>
             </div>
             <div class="feature-box">
               <span class="feature-title">Student-Friendly</span>
-              <span class="feature-text">Designed for simple, clear, low-stress support.</span>
+              <span class="feature-text">Simple interface designed for easy use by students.</span>
             </div>
             <div class="feature-box">
               <span class="feature-title">Always Available</span>
-              <span class="feature-text">Useful outside office hours and during busy periods.</span>
+              <span class="feature-text">Useful outside office hours and during busy advising periods.</span>
             </div>
           </div>
         </div>
@@ -76,6 +76,13 @@
             <li><a href="https://ischool.sjsu.edu/" target="_blank" rel="noopener noreferrer">iSchool Homepage</a></li>
           </ul>
         </div>
+
+        <div class="panel-card status-card">
+          <h3>System Status</h3>
+          <p id="status-text">Checking chatbot status...</p>
+          <p id="provider-text" class="small-muted"></p>
+          <button id="load-docs-button" class="secondary-btn">Load Documents</button>
+        </div>
       </section>
 
       <section class="chat-panel">
@@ -85,13 +92,18 @@
               <h2>Chat</h2>
               <p>Ask a general ISDA advising question below.</p>
             </div>
-            <button id="clear-button" class="clear-btn">Clear</button>
+            <div class="header-actions">
+              <button id="clear-button" class="clear-btn">Clear</button>
+            </div>
           </div>
 
           <div id="chat-box" class="chat-box">
             <div class="message bot-message">
               <div class="message-label">ISDA Bot</div>
-              Hi! I’m the ISDA Advising Support Chatbot. I can help with general questions about advising, degree requirements, course planning, and registration.
+              <div>
+                Hi! I’m the ISDA Advising Support Chatbot. I can help with general questions
+                about advising, degree requirements, course planning, and registration.
+              </div>
             </div>
           </div>
 
@@ -103,6 +115,12 @@
               autocomplete="off"
             />
             <button id="send-button">Send</button>
+          </div>
+
+          <div class="meta-row">
+            <span id="source-badge" class="meta-pill hidden"></span>
+            <span id="confidence-badge" class="meta-pill hidden"></span>
+            <span id="docs-badge" class="meta-pill hidden"></span>
           </div>
 
           <p class="chat-disclaimer">

@@ -59,8 +59,8 @@
   }
   
   .brand-badge {
-    min-width: 70px;
-    height: 70px;
+    min-width: 72px;
+    height: 72px;
     border-radius: 18px;
     display: grid;
     place-items: center;
@@ -131,7 +131,8 @@
   .chat-header p,
   .chat-disclaimer,
   .feature-text,
-  .resource-list a {
+  .resource-list a,
+  .small-muted {
     color: var(--text-muted);
   }
   
@@ -207,6 +208,25 @@
     color: var(--sjsu-blue);
   }
   
+  .status-card {
+    border-top: 4px solid var(--sjsu-blue);
+  }
+  
+  .secondary-btn {
+    margin-top: 10px;
+    border: none;
+    background: #eef2f6;
+    color: #334155;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  
+  .secondary-btn:hover {
+    background: #e4ebf2;
+  }
+  
   .chat-card {
     padding: 22px;
     min-height: 720px;
@@ -217,6 +237,11 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 14px;
+  }
+  
+  .header-actions {
+    display: flex;
+    gap: 10px;
   }
   
   .clear-btn {
@@ -238,8 +263,7 @@
     overflow-y: auto;
     border: 1px solid var(--line);
     border-radius: 18px;
-    background:
-      linear-gradient(180deg, #fbfdff 0%, #f6f9fc 100%);
+    background: linear-gradient(180deg, #fbfdff 0%, #f6f9fc 100%);
     padding: 18px;
   }
   
@@ -308,6 +332,27 @@
   
   #send-button:hover {
     filter: brightness(1.03);
+  }
+  
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  
+  .meta-pill {
+    display: inline-block;
+    background: #eef3f8;
+    color: #334155;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+  
+  .hidden {
+    display: none;
   }
   
   .chat-disclaimer {
