@@ -14,8 +14,9 @@ openai>=1.0.0
 anthropic>=0.7.0
 langchain-openai>=0.0.2
 
-# Vector stores and embeddings (simplified to avoid dependency conflicts)
+# Vector stores and embeddings
 chromadb>=0.3.21
+sentence-transformers>=2.2.0
 
 # Document processing
 pypdf>=3.17.0
