@@ -21,9 +21,10 @@ def _get_callbacks():
     return callbacks
 
 try:
-    from langchain_openai import ChatOpenAI
+    from langchain_openai import ChatOpenAI, AzureChatOpenAI
 except ImportError:
     ChatOpenAI = None
+    AzureChatOpenAI = None
 
 try:
     from langchain_community.chat_models import ChatAnthropic
@@ -45,7 +46,7 @@ class LLMFactory:
         Create an LLM instance for the specified provider.
         
         Args:
-            provider: LLM provider name (openai, anthropic, huggingface)
+            provider: LLM provider name (openai, azure_openai, anthropic, huggingface)
                      Defaults to config value
         
         Returns:
@@ -59,6 +60,8 @@ class LLMFactory:
         
         if provider == "openai":
             return LLMFactory._create_openai()
+        elif provider == "azure_openai":
+            return LLMFactory._create_azure_openai()
         elif provider == "anthropic":
             return LLMFactory._create_anthropic()
         elif provider == "huggingface":
@@ -78,6 +81,26 @@ class LLMFactory:
             model=Config.OPENAI_MODEL,
             temperature=0.7,
             api_key=Config.OPENAI_API_KEY
+        )
+
+    @staticmethod
+    def _create_azure_openai() -> LLM:
+        """Create Azure OpenAI LLM."""
+        if not Config.AZURE_OPENAI_API_KEY:
+            raise ValueError("AZURE_OPENAI_API_KEY not configured")
+        if not Config.AZURE_OPENAI_ENDPOINT:
+            raise ValueError("AZURE_OPENAI_ENDPOINT not configured")
+        if not Config.AZURE_OPENAI_DEPLOYMENT:
+            raise ValueError("AZURE_OPENAI_DEPLOYMENT not configured")
+        if AzureChatOpenAI is None:
+            raise ImportError("langchain-openai not installed. Run: pip install langchain-openai")
+
+        return AzureChatOpenAI(
+            azure_deployment=Config.AZURE_OPENAI_DEPLOYMENT,
+            azure_endpoint=Config.AZURE_OPENAI_ENDPOINT,
+            api_key=Config.AZURE_OPENAI_API_KEY,
+            api_version=Config.AZURE_OPENAI_API_VERSION,
+            temperature=0.7
         )
     
     @staticmethod

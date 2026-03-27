@@ -60,7 +60,9 @@ out/
 .next/
 .nuxt/
 .output/
-
+data/chroma/
+webapp-logs/
+deploy-package.zip
 # ===========================
 # IDE & Editors
 # ===========================
@@ -163,5 +165,4 @@ docker-data/
 # ===========================
 # Add project-specific ignores below
 .env
-.env.example
 .env.example

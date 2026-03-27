@@ -9,6 +9,7 @@ load_dotenv()
 class LLMProvider(str, Enum):
     """Supported LLM providers."""
     OPENAI = "openai"
+    AZURE_OPENAI = "azure_openai"
     ANTHROPIC = "anthropic"
     HUGGINGFACE = "huggingface"
 
@@ -22,6 +23,12 @@ class Config:
     # OpenAI
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+
+    # Azure OpenAI
+    AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+    AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+    AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
     
     # Anthropic
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -48,6 +55,12 @@ class Config:
         
         if provider == "openai":
             return bool(cls.OPENAI_API_KEY)
+        elif provider == "azure_openai":
+            return bool(
+                cls.AZURE_OPENAI_API_KEY
+                and cls.AZURE_OPENAI_ENDPOINT
+                and cls.AZURE_OPENAI_DEPLOYMENT
+            )
         elif provider == "anthropic":
             return bool(cls.ANTHROPIC_API_KEY)
         elif provider == "huggingface":
