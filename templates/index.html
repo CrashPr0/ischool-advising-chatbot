@@ -1,26 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>ISDA Advising Support Chatbot</title>
-      
-        <!-- Google Font -->
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-      
-        <!-- Your CSS -->
-        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-      </head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ISDA Advising Support Chatbot</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
 <body>
   <div class="page-shell">
     <header class="site-header">
+      <div class="header-image"></div>
       <div class="header-overlay"></div>
+
       <div class="header-content">
         <div class="brand-row">
-          <div class="brand-badge">SJSU</div>
-          <div>
+          <div class="brand-left">
+            <img
+              src="{{ url_for('static', filename='images/ischool-logo.png') }}"
+              alt="SJSU School of Information Logo"
+              class="ischool-logo"
+            />
+          </div>
+
+          <div class="brand-text">
             <p class="brand-kicker">San José State University</p>
             <h1>ISDA Advising Support Chatbot</h1>
             <p class="hero-subtitle">
@@ -35,12 +42,22 @@
     <main class="main-layout">
       <section class="left-panel">
         <div class="panel-card intro-card">
-          <h2>How this helps</h2>
-          <p>
-            This chatbot is designed to help ISDA students find answers to common advising
-            questions more quickly. It gives general guidance, points students to official
-            resources, and helps reduce confusion when advising offices are busy.
-          </p>
+          <div class="intro-top">
+            <div>
+              <h2>How this helps</h2>
+              <p>
+                This chatbot is designed to help ISDA students find answers to common advising
+                questions more quickly. It gives general guidance, points students to official
+                resources, and helps reduce confusion when advising offices are busy.
+              </p>
+            </div>
+
+            <img
+              src="{{ url_for('static', filename='images/spartan-logo.png') }}"
+              alt="SJSU Spartan Logo"
+              class="spartan-logo"
+            />
+          </div>
 
           <div class="feature-grid">
             <div class="feature-box">
