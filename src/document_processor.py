@@ -5,9 +5,27 @@ from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import DirectoryLoader, TextLoader, PyPDFLoader
 from langchain_core.documents import Document
-from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.vectorstores import Chroma
 from config import Config
+
+
+def _create_embeddings():
+    """Create the embeddings instance based on available config."""
+    if (Config.AZURE_OPENAI_API_KEY
+            and Config.AZURE_OPENAI_ENDPOINT
+            and Config.AZURE_OPENAI_EMBEDDING_DEPLOYMENT):
+        from langchain_openai import AzureOpenAIEmbeddings
+        return AzureOpenAIEmbeddings(
+            azure_deployment=Config.AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
+            azure_endpoint=Config.AZURE_OPENAI_ENDPOINT,
+            api_key=Config.AZURE_OPENAI_API_KEY,
+            api_version=Config.AZURE_OPENAI_API_VERSION,
+        )
+    if Config.OPENAI_API_KEY:
+        from langchain_openai import OpenAIEmbeddings
+        return OpenAIEmbeddings(api_key=Config.OPENAI_API_KEY)
+    from langchain_community.embeddings import SentenceTransformerEmbeddings
+    return SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
 class DocumentProcessor:
@@ -21,7 +39,7 @@ class DocumentProcessor:
             docs_path: Path to documents directory
         """
         self.docs_path = docs_path or "./data/advising_docs"
-        self.embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+        self.embeddings = _create_embeddings()
         self.vector_store = None
         self.loaded_documents: List[Document] = []
     
