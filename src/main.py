@@ -3,7 +3,8 @@ import sys
 import os
 from rag_chatbot import RAGAdvisingChatbot
 from document_processor import setup_sample_docs
-
+from llm_providers import LLMFactory
+from wordBlackList import search_words, load_keywords
 
 def print_header():
     """Print application header."""
@@ -27,11 +28,15 @@ def print_help():
 
 def main():
     """Main entry point for the RAG chatbot CLI."""
-    print_header()
-    
+    print_header()	
+    base_dir = os.path.dirname(__file__)
+    project_root = os.path.abspath(os.path.join(base_dir, ".."))
+    blacklist_path = os.path.join(project_root, "docs", "blackList.txt")
+    blacklist_words = load_keywords(blacklist_path)
+
     # Check available providers
     available_providers = RAGAdvisingChatbot.get_available_providers()
-    
+
     if not available_providers:
         print("ERROR: No LLM providers configured.")
         print("Please set up your API keys in the .env file")
@@ -95,7 +100,13 @@ def main():
                     print(f"  - {q}")
                 print()
                 continue
-            
+            matches = search_words(user_input, blacklist_words)
+            if matches:
+                print("\nAssistant: Error! Request can not be made due to containing an inappropriate word!")
+                print(f"[Inappropriate words: {', '.join(matches)}]")
+                print()
+                continue
+
             # Process user message with RAG
             print("\nAssistant: ", end="", flush=True)
             
