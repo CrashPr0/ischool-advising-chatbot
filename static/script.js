@@ -11,6 +11,34 @@ const sourceBadge = document.getElementById("source-badge");
 const confidenceBadge = document.getElementById("confidence-badge");
 const docsBadge = document.getElementById("docs-badge");
 
+const topicButtons = document.querySelectorAll(".topic-btn");
+const activeBanner = document.getElementById("active-topic-banner");
+const activeTopicLabel = document.getElementById("active-topic-label");
+
+let activeTopic = null;
+
+// ── TOPIC SELECTOR ──
+topicButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    // Deactivate all, activate clicked
+    topicButtons.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    activeTopic = btn.dataset.topic;
+
+    // Show the active banner
+    activeTopicLabel.textContent = `Topic: ${activeTopic}`;
+    activeBanner.classList.remove("hidden");
+
+    // Send the hint message to the chatbot so it focuses on this topic
+    const hint = btn.dataset.hint;
+    if (hint) {
+      sendMessage(hint, true); // true = silent (don't show user bubble)
+    }
+  });
+});
+
+// ── MESSAGES ──
 function addMessage(text, className, label) {
   const wrapper = document.createElement("div");
   wrapper.classList.add("message", className);
@@ -76,11 +104,16 @@ function updateMeta(info = {}) {
   }
 }
 
-async function sendMessage(prefilledMessage = null) {
+// ── SEND MESSAGE ──
+// silent=true means the user bubble is hidden (used for topic hint messages)
+async function sendMessage(prefilledMessage = null, silent = false) {
   const message = (prefilledMessage || userInput.value).trim();
   if (!message) return;
 
-  addMessage(message, "user-message", "You");
+  if (!silent) {
+    addMessage(message, "user-message", "You");
+  }
+
   userInput.value = "";
   showTypingIndicator();
   updateMeta({});
@@ -88,9 +121,7 @@ async function sendMessage(prefilledMessage = null) {
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: message })
     });
 
@@ -102,28 +133,41 @@ async function sendMessage(prefilledMessage = null) {
       return;
     }
 
-    addMessage(
-      data.response || "I couldn't find an answer for that question.",
-      "bot-message",
-      "ISDA Bot"
-    );
+    // Only show bot reply if not a silent topic-priming message
+    if (!silent) {
+      addMessage(
+        data.response || "I couldn't find an answer for that question.",
+        "bot-message",
+        "ISDA Bot"
+      );
+      updateMeta({
+        source: data.source,
+        confidence: data.confidence,
+        retrieved_docs: data.retrieved_docs
+      });
+    } else {
+      // For silent topic priming, show a brief acknowledgement
+      addMessage(
+        `Got it! I'm now focused on ${activeTopic}. What would you like to know?`,
+        "bot-message",
+        "ISDA Bot"
+      );
+    }
 
-    updateMeta({
-      source: data.source,
-      confidence: data.confidence,
-      retrieved_docs: data.retrieved_docs
-    });
   } catch (error) {
     removeTypingIndicator();
-    addMessage(
-      "Sorry, I couldn't connect to the chatbot backend right now.",
-      "bot-message",
-      "ISDA Bot"
-    );
+    if (!silent) {
+      addMessage(
+        "Sorry, I couldn't connect to the chatbot backend right now.",
+        "bot-message",
+        "ISDA Bot"
+      );
+    }
     console.error("Chat error:", error);
   }
 }
 
+// ── STATUS ──
 async function loadStatus() {
   try {
     const response = await fetch("/api/status");
@@ -142,25 +186,22 @@ async function loadStatus() {
   }
 }
 
+// ── CLEAR ──
 async function clearHistory() {
   try {
-    await fetch("/api/clear-history", {
-      method: "POST"
-    });
+    await fetch("/api/clear-history", { method: "POST" });
   } catch (error) {
     console.error("Clear history error:", error);
   }
 }
 
+// ── LOAD DOCS ──
 async function loadDocuments() {
   loadDocsButton.disabled = true;
   loadDocsButton.textContent = "Loading...";
 
   try {
-    const response = await fetch("/api/load-docs", {
-      method: "POST"
-    });
-
+    const response = await fetch("/api/load-docs", { method: "POST" });
     const data = await response.json();
 
     if (response.ok) {
@@ -176,21 +217,25 @@ async function loadDocuments() {
   }
 }
 
+// ── EVENT LISTENERS ──
 sendButton.addEventListener("click", () => sendMessage());
 
 userInput.addEventListener("keypress", (event) => {
-  if (event.key === "Enter") {
-    sendMessage();
-  }
+  if (event.key === "Enter") sendMessage();
 });
 
 clearButton.addEventListener("click", async () => {
   chatBox.innerHTML = `
     <div class="message bot-message">
       <div class="message-label">ISDA Bot</div>
-      <div>Hi! I’m the ISDA Advising Support Chatbot. I can help with general questions about advising, degree requirements, course planning, and registration.</div>
+      <div>Hi! I'm the ISDA Advising Support Chatbot. I can help with general questions about advising, degree requirements, course planning, and registration.<br><br>Select a topic on the left to get more focused answers, or just type your question below!</div>
     </div>
   `;
+  // Reset topic selection
+  topicButtons.forEach((b) => b.classList.remove("active"));
+  activeBanner.classList.add("hidden");
+  activeTopic = null;
+
   updateMeta({});
   await clearHistory();
 });
@@ -203,4 +248,5 @@ promptChips.forEach((chip) => {
 
 loadDocsButton.addEventListener("click", loadDocuments);
 
+// ── INIT ──
 loadStatus();

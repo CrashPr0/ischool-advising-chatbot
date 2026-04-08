@@ -4,19 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ISDA Advising Support Chatbot</title>
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
   <div class="page-shell">
+
     <header class="site-header">
       <div class="header-image"></div>
       <div class="header-overlay"></div>
-
       <div class="header-content">
         <div class="brand-row">
           <div class="brand-left">
@@ -26,7 +24,6 @@
               class="ischool-logo"
             />
           </div>
-
           <div class="brand-text">
             <p class="brand-kicker">San José State University</p>
             <h1>ISDA Advising Support Chatbot</h1>
@@ -40,45 +37,80 @@
     </header>
 
     <main class="main-layout">
+
       <section class="left-panel">
-        <div class="panel-card intro-card">
-          <div class="intro-top">
-            <div>
-              <h2>How this helps</h2>
-              <p>
-                This chatbot is designed to help ISDA students find answers to common advising
-                questions more quickly. It gives general guidance, points students to official
-                resources, and helps reduce confusion when advising offices are busy.
-              </p>
-            </div>
 
-            <img
-              src="{{ url_for('static', filename='images/spartan-logo.png') }}"
-              alt="SJSU Spartan Logo"
-              class="spartan-logo"
-            />
+        <!-- TOPIC SELECTOR -->
+        <div class="panel-card topics-card">
+          <div class="topics-header">
+            <h2>Advising Topics</h2>
+            <p>Select a topic to focus the chatbot on your specific need.</p>
           </div>
-
-          <div class="feature-grid">
-            <div class="feature-box">
-              <span class="feature-title">Fast Answers</span>
-              <span class="feature-text">Get support for common advising questions right away.</span>
-            </div>
-            <div class="feature-box">
-              <span class="feature-title">Official Links</span>
-              <span class="feature-text">Find important advising and university resources faster.</span>
-            </div>
-            <div class="feature-box">
-              <span class="feature-title">Student-Friendly</span>
-              <span class="feature-text">Simple interface designed for easy use by students.</span>
-            </div>
-            <div class="feature-box">
-              <span class="feature-title">Always Available</span>
-              <span class="feature-text">Useful outside office hours and during busy advising periods.</span>
-            </div>
+          <ul class="topic-list" id="topic-list">
+            <li>
+              <button class="topic-btn" data-topic="General Advising"
+                data-hint="I have a general advising question. Please help me with general ISDA advising.">
+                <span class="topic-name">General Advising</span>
+                <span class="topic-sub">All advising questions</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Graduation"
+                data-hint="I have a question about graduation. Can you help me understand graduation requirements, petitions, or how to apply to graduate from ISDA?">
+                <span class="topic-name">Graduation</span>
+                <span class="topic-sub">Requirements &amp; petitions</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Course Planning"
+                data-hint="I need help with course planning. Can you help me plan my courses or build my semester schedule for ISDA?">
+                <span class="topic-name">Course Planning</span>
+                <span class="topic-sub">Schedule &amp; semester planning</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Degree Requirements"
+                data-hint="I have a question about ISDA degree requirements. Can you explain the core courses, electives, and total units needed?">
+                <span class="topic-name">Degree Requirements</span>
+                <span class="topic-sub">Core courses &amp; units</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Registration"
+                data-hint="I have a question about registration. Can you help me with adding or dropping courses, waitlists, or registration holds?">
+                <span class="topic-name">Registration</span>
+                <span class="topic-sub">Add, drop &amp; waitlists</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Transfer Credits"
+                data-hint="I have a question about transferring credits. Can you help me understand how community college or university transfer credits work for ISDA?">
+                <span class="topic-name">Transfer Credits</span>
+                <span class="topic-sub">CC &amp; university transfers</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Academic Standing"
+                data-hint="I have a question about academic standing. Can you help me understand GPA requirements, academic probation, or how to file an appeal?">
+                <span class="topic-name">Academic Standing</span>
+                <span class="topic-sub">GPA, probation &amp; appeals</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Financial Aid"
+                data-hint="I have a question about financial aid. Can you help me with scholarships, payment deadlines, or how aid affects my enrollment?">
+                <span class="topic-name">Financial Aid</span>
+                <span class="topic-sub">Scholarships &amp; payments</span>
+              </button>
+            </li>
+          </ul>
+          <div class="active-topic-banner hidden" id="active-topic-banner">
+            <span class="banner-dot"></span>
+            <span id="active-topic-label">Topic selected</span>
           </div>
         </div>
 
+        <!-- SAMPLE QUESTIONS -->
         <div class="panel-card prompts-card">
           <h3>Try a sample question</h3>
           <div class="prompt-list">
@@ -91,22 +123,25 @@
           </div>
         </div>
 
+        <!-- HELPFUL LINKS -->
         <div class="panel-card links-card">
           <h3>Helpful resources</h3>
           <ul class="resource-list">
             <li><a href="https://ischool.sjsu.edu/student-services/advising" target="_blank" rel="noopener noreferrer">iSchool Advising</a></li>
             <li><a href="https://catalog.sjsu.edu/" target="_blank" rel="noopener noreferrer">SJSU Course Catalog</a></li>
-            <li><a href="https://www.sjsu.edu/registrar/" target="_blank" rel="noopener noreferrer">Registrar’s Office</a></li>
+            <li><a href="https://www.sjsu.edu/registrar/" target="_blank" rel="noopener noreferrer">Registrar's Office</a></li>
             <li><a href="https://ischool.sjsu.edu/" target="_blank" rel="noopener noreferrer">iSchool Homepage</a></li>
           </ul>
         </div>
 
+        <!-- STATUS -->
         <div class="panel-card status-card">
           <h3>System Status</h3>
           <p id="status-text">Checking chatbot status...</p>
           <p id="provider-text" class="small-muted"></p>
           <button id="load-docs-button" class="secondary-btn">Load Documents</button>
         </div>
+
       </section>
 
       <section class="chat-panel">
@@ -125,8 +160,9 @@
             <div class="message bot-message">
               <div class="message-label">ISDA Bot</div>
               <div>
-                Hi! I’m the ISDA Advising Support Chatbot. I can help with general questions
-                about advising, degree requirements, course planning, and registration.
+                Hi! I'm the ISDA Advising Support Chatbot. I can help with general questions about advising, degree requirements, course planning, and registration.
+                <br><br>
+                Select a topic on the left to get more focused answers, or just type your question below!
               </div>
             </div>
           </div>
@@ -153,6 +189,7 @@
           </p>
         </div>
       </section>
+
     </main>
   </div>
 
