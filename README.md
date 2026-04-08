@@ -1,176 +1,150 @@
-# Project Title
+# iSchool Senior Advising Chatbot (RAG)
 
-> One-line description of what your project does
+A LangChain-based advising chatbot for SJSU iSchool students. It supports:
 
-## Team
-
-| Name | GitHub | Email |
-|------|--------|-------|
-| Name 1 | [@username](https://github.com/username) | name@sjsu.edu |
-| Name 2 | [@username](https://github.com/username) | name@sjsu.edu |
-| Name 3 | [@username](https://github.com/username) | name@sjsu.edu |
-| Name 4 | [@username](https://github.com/username) | name@sjsu.edu |
-
-**Advisor:** [Advisor Name]
+- **Knowledge base answers** (instant responses for common questions)
+- **RAG** (retrieves relevant documents and grounds the answer)
+- **Multiple LLM providers** (OpenAI / Anthropic / Hugging Face)
+- **CLI** (`src/main.py`) and **Web UI** (`app.py` Flask + `templates/` + `static/`)
 
 ---
 
-## Problem Statement
-
-[2-3 sentences describing the problem you're solving and why it matters]
-
-## Solution
-
-[2-3 sentences describing your solution approach]
-
-### Key Features
-
-- Feature 1
-- Feature 2
-- Feature 3
-
----
-
-## Demo
-
-[Link to demo video or GIF]
-
-**Live Demo:** [URL if deployed]
-
----
-
-## Screenshots
-
-| Feature | Screenshot |
-|---------|------------|
-| [Feature 1] | ![Screenshot](docs/screenshots/feature1.png) |
-| [Feature 2] | ![Screenshot](docs/screenshots/feature2.png) |
-
----
-
-## Tech Stack
-
-| Category | Technology |
-|----------|------------|
-| Frontend | |
-| Backend | |
-| Database | |
-| Deployment | |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- [Prerequisite 1] v.X.X+
-- [Prerequisite 2] v.X.X+
-
-### Installation
+## Quick start (CLI)
 
 ```bash
-# Clone the repository
-git clone https://github.com/[org]/[repo].git
-cd [repo]
-
-# Install dependencies
-[install command]
-
-# Set up environment variables
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with your values
-
-# Run database migrations (if applicable)
-[migration command]
 ```
 
-### Running Locally
+Set at least one API key in `.env`, then run:
 
 ```bash
-# Development mode
-[dev command]
-
-# The app will be available at http://localhost:XXXX
+cd src
+python main.py
 ```
 
-### Running Tests
+### CLI commands
+
+- `help` - show commands
+- `docs` - create/load sample docs + build vector index
+- `questions` - list hardcoded questions
+- `clear` - clear conversation history
+- `exit` - quit
+
+---
+
+## Quick start (Web UI)
 
 ```bash
-[test command]
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+python app.py
+```
+
+Open `http://localhost:5000`.
+
+### Web API endpoints
+
+- `GET /api/status`
+- `POST /api/chat` `{ "message": "..." }`
+- `GET /api/history`
+- `POST /api/clear-history`
+- `POST /api/load-docs`
+- `GET /api/questions`
+
+---
+
+## Configuration (`.env`)
+
+Minimum configuration is one provider key plus a default:
+
+```env
+OPENAI_API_KEY=...
+DEFAULT_LLM_PROVIDER=openai
+```
+
+Optional:
+
+```env
+ANTHROPIC_API_KEY=...
+HUGGINGFACE_API_KEY=...
+```
+
+Important: **Never commit `.env`** (use `.env.example` as the template).
+
+---
+
+## Advising documents (for RAG)
+
+- **Folder**: `data/advising_docs/`
+- **Formats**: `.txt` and `.pdf`
+- **Recommended style**:
+  - Use clear headings (`#`, `##`)
+  - Keep docs scoped (ideally 500–2000 words per topic)
+  - Include concrete details (course codes, unit counts, GPA thresholds, deadlines)
+
+After adding/updating docs, rebuild the index:
+
+- **CLI**: run `docs`
+- **Web**: click “Load Documents” (or call `POST /api/load-docs`)
+
+If the vector store gets into a bad state, deleting `data/chroma/` and re-running `docs` is the quickest reset.
+
+---
+
+## Tests / formatting
+
+```bash
+pytest -v
+black .
+flake8 .
 ```
 
 ---
 
-## API Reference
+## Deploy to Azure (App Service)
 
-<details>
-<summary>Click to expand API endpoints</summary>
+This repo includes `Procfile` (`gunicorn app:app`) and an `app.py` that reads `PORT`.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/resource` | Get all resources |
-| GET | `/api/resource/:id` | Get resource by ID |
-| POST | `/api/resource` | Create new resource |
-| PUT | `/api/resource/:id` | Update resource |
-| DELETE | `/api/resource/:id` | Delete resource |
+High-level steps:
 
-</details>
+1. `az login`
+2. Create a resource group + App Service plan + web app
+3. Set app settings (environment variables) in Azure Portal:
+   - `OPENAI_API_KEY` (and/or other provider keys)
+   - `DEFAULT_LLM_PROVIDER`
+   - `WEBSITES_PORT=5000`
+4. Deploy from GitHub (or ZIP deploy)
 
 ---
 
-## Project Structure
+## Repository structure
 
 ```
 .
-├── [folder]/           # Description
-├── src/                # Source code files
-├── tests/              # Test files
-├── docs/               # Documentation files
+├── app.py                 # Flask web server
+├── src/                   # Chatbot logic (RAG + providers + config)
+├── templates/             # Web UI HTML (Flask template)
+├── static/                # Web UI assets (CSS/JS/images)
+├── tests/                 # Unit tests
+├── requirements.txt
+├── .env.example
 └── README.md
 ```
 
 ---
 
-## Contributing
+## External documents
 
-1. Create a feature branch (`git checkout -b feature/amazing-feature`)
-2. Commit your changes (`git commit -m 'Add amazing feature'`)
-3. Push to the branch (`git push origin feature/amazing-feature`)
-4. Open a Pull Request
-
-### Branch Naming
-
-- `feature/` - New features
-- `fix/` - Bug fixes
-- `docs/` - Documentation updates
-- `refactor/` - Code refactoring
-
-### Commit Messages
-
-Use clear, descriptive commit messages:
-- `Add user authentication endpoint`
-- `Fix database connection timeout issue`
-- `Update README with setup instructions`
-
----
-
-## Acknowledgments
-
-- [Resource/Library/Person]
-- [Resource/Library/Person]
-
----
-## External Documents
-
-iSchool Advising Chatbot Rubric: https://docs.google.com/spreadsheets/d/1kXhvObOL_13er0D4eyMBNfHel7tIFF4seUtL0yQtMk8/edit?usp=sharing
-ISDA Advising Support Chatbot – Smoke Test Question Set: https://docs.google.com/document/d/1KON-OufGsHjJpwY_hQp5m_doXAMw-rn98g4Oz9YvCQY/edit?usp=sharing
+- iSchool Advising Chatbot Rubric: `https://docs.google.com/spreadsheets/d/1kXhvObOL_13er0D4eyMBNfHel7tIFF4seUtL0yQtMk8/edit?usp=sharing`
+- ISDA Advising Support Chatbot – Smoke Test Question Set: `https://docs.google.com/document/d/1KON-OufGsHjJpwY_hQp5m_doXAMw-rn98g4Oz9YvCQY/edit?usp=sharing`
 
 ---
 
 ## License
 
-This project is licensed under the <FILL IN> License - see the [LICENSE](LICENSE) file for details.
-
----
-
-*CMPE 195A/B - Senior Design Project | San Jose State University | Spring 2026*
+See `LICENSE`.
