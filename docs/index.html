@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ISDA Advising Support Chatbot</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/style.css" />
+  <style>
+    .header-image {
+      background-image: url("https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/images/sjsu-campus.jpg") !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <div class="header-image"></div>
+      <div class="header-overlay"></div>
+
+      <div class="header-content">
+        <div class="brand-row">
+          <div class="brand-left">
+            <img
+              src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/images/ischool-logo.png"
+              alt="SJSU School of Information Logo"
+              class="ischool-logo"
+            />
+          </div>
+
+          <div class="brand-text">
+            <p class="brand-kicker">San Jose State University</p>
+            <h1>ISDA Advising Support Chatbot</h1>
+            <p class="hero-subtitle">
+              A student support tool for general questions about advising, course planning,
+              graduation requirements, registration, and ISDA program logistics.
+            </p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-layout">
+      <section class="left-panel">
+        <div class="panel-card intro-card">
+          <div class="intro-top">
+            <div>
+              <h2>How this helps</h2>
+              <p>
+                This chatbot is designed to help ISDA students find answers to common advising
+                questions more quickly. It gives general guidance, points students to official
+                resources, and helps reduce confusion when advising offices are busy.
+              </p>
+            </div>
+
+            <img
+              src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/images/spartan-logo.png"
+              alt="SJSU Spartan Logo"
+              class="spartan-logo"
+            />
+          </div>
+
+          <div class="feature-grid">
+            <div class="feature-box">
+              <span class="feature-title">Fast Answers</span>
+              <span class="feature-text">Get support for common advising questions right away.</span>
+            </div>
+            <div class="feature-box">
+              <span class="feature-title">Official Links</span>
+              <span class="feature-text">Find important advising and university resources faster.</span>
+            </div>
+            <div class="feature-box">
+              <span class="feature-title">Student-Friendly</span>
+              <span class="feature-text">Simple interface designed for easy use by students.</span>
+            </div>
+            <div class="feature-box">
+              <span class="feature-title">Always Available</span>
+              <span class="feature-text">Useful outside office hours and during busy advising periods.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card prompts-card">
+          <h3>Try a sample question</h3>
+          <div class="prompt-list">
+            <button class="prompt-chip">Who is my assigned ISDA advisor?</button>
+            <button class="prompt-chip">How do I schedule an advising appointment?</button>
+            <button class="prompt-chip">How many total units are required for ISDA?</button>
+            <button class="prompt-chip">What are the ISDA core courses?</button>
+            <button class="prompt-chip">Can I transfer community college credits?</button>
+            <button class="prompt-chip">What GPA do I need to stay in good standing?</button>
+          </div>
+        </div>
+
+        <div class="panel-card links-card">
+          <h3>Helpful resources</h3>
+          <ul class="resource-list">
+            <li><a href="https://ischool.sjsu.edu/student-services/advising" target="_blank" rel="noopener noreferrer">iSchool Advising</a></li>
+            <li><a href="https://catalog.sjsu.edu/" target="_blank" rel="noopener noreferrer">SJSU Course Catalog</a></li>
+            <li><a href="https://www.sjsu.edu/registrar/" target="_blank" rel="noopener noreferrer">Registrar's Office</a></li>
+            <li><a href="https://ischool.sjsu.edu/" target="_blank" rel="noopener noreferrer">iSchool Homepage</a></li>
+          </ul>
+        </div>
+
+        <div class="panel-card status-card">
+          <h3>System Status</h3>
+          <p id="status-text">Checking chatbot status...</p>
+          <p id="provider-text" class="small-muted"></p>
+          <button id="load-docs-button" class="secondary-btn">Load Documents</button>
+        </div>
+      </section>
+
+      <section class="chat-panel">
+        <div class="chat-card">
+          <div class="chat-header">
+            <div>
+              <h2>Chat</h2>
+              <p>Ask a general ISDA advising question below.</p>
+            </div>
+            <div class="header-actions">
+              <button id="clear-button" class="clear-btn">Clear</button>
+            </div>
+          </div>
+
+          <div id="chat-box" class="chat-box">
+            <div class="message bot-message">
+              <div class="message-label">ISDA Bot</div>
+              <div>
+                Hi! I'm the ISDA Advising Support Chatbot. I can help with general questions
+                about advising, degree requirements, course planning, and registration.
+              </div>
+            </div>
+          </div>
+
+          <div class="input-container">
+            <input
+              type="text"
+              id="user-input"
+              placeholder="Type your question here..."
+              autocomplete="off"
+            />
+            <button id="send-button">Send</button>
+          </div>
+
+          <div class="meta-row">
+            <span id="source-badge" class="meta-pill hidden"></span>
+            <span id="confidence-badge" class="meta-pill hidden"></span>
+            <span id="docs-badge" class="meta-pill hidden"></span>
+          </div>
+
+          <p class="chat-disclaimer">
+            This chatbot provides general program guidance only. It does not access personal records,
+            transcripts, or private academic information. For individualized advising, please contact an advisor.
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    window.API_BASE = "https://ischooladvisingchatbot-dx4ynl.azurewebsites.net";
+  </script>
+  <script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/script.js"></script>
+</body>
+</html>
