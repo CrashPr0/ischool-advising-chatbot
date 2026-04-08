@@ -17,7 +17,20 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__, template_folder='templates', static_folder='static')
-CORS(app)
+
+
+def _get_allowed_origins():
+    """Read allowed CORS origins from environment."""
+    raw = os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:5000,http://127.0.0.1:5000,https://ischooladvisingchatbot-dx4ynl.azurewebsites.net"
+    )
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+allowed_origins = _get_allowed_origins()
+CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
+logger.info("CORS allowed origins: %s", allowed_origins)
 
 # Initialize chatbot (singleton)
 chatbot = None

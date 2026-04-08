@@ -3,7 +3,6 @@
 __version__ = "0.2.0"
 __author__ = "SJSU CMPE 195 Team 22"
 
-from chatbot import AdvisingChatbot
 from rag_chatbot import RAGAdvisingChatbot
 from config import Config, LLMProvider
 from llm_providers import LLMFactory
@@ -11,7 +10,6 @@ from knowledge_base import KnowledgeBase, get_knowledge_base
 from document_processor import DocumentProcessor, setup_sample_docs
 
 __all__ = [
-    "AdvisingChatbot",
     "RAGAdvisingChatbot",
     "Config",
     "LLMProvider",

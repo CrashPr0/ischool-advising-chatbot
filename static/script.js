@@ -10,6 +10,11 @@ const loadDocsButton = document.getElementById("load-docs-button");
 const sourceBadge = document.getElementById("source-badge");
 const confidenceBadge = document.getElementById("confidence-badge");
 const docsBadge = document.getElementById("docs-badge");
+const API_BASE = (window.API_BASE || "").replace(/\/+$/, "");
+
+function apiUrl(path) {
+  return `${API_BASE}${path}`;
+}
 
 const topicButtons = document.querySelectorAll(".topic-btn");
 const activeBanner = document.getElementById("active-topic-banner");
@@ -119,7 +124,7 @@ async function sendMessage(prefilledMessage = null, silent = false) {
   updateMeta({});
 
   try {
-    const response = await fetch("/api/chat", {
+    const response = await fetch(apiUrl("/api/chat"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: message })
@@ -170,7 +175,7 @@ async function sendMessage(prefilledMessage = null, silent = false) {
 // ── STATUS ──
 async function loadStatus() {
   try {
-    const response = await fetch("/api/status");
+    const response = await fetch(apiUrl("/api/status"));
     const data = await response.json();
 
     if (data.status === "ready") {
@@ -189,7 +194,9 @@ async function loadStatus() {
 // ── CLEAR ──
 async function clearHistory() {
   try {
-    await fetch("/api/clear-history", { method: "POST" });
+    await fetch(apiUrl("/api/clear-history"), {
+      method: "POST"
+    });
   } catch (error) {
     console.error("Clear history error:", error);
   }
@@ -201,7 +208,10 @@ async function loadDocuments() {
   loadDocsButton.textContent = "Loading...";
 
   try {
-    const response = await fetch("/api/load-docs", { method: "POST" });
+    const response = await fetch(apiUrl("/api/load-docs"), {
+      method: "POST"
+    });
+
     const data = await response.json();
 
     if (response.ok) {
