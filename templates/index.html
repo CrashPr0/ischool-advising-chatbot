@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <style>.message { white-space: normal !important; }</style>
 </head>
 <body>
   <div class="page-shell">
@@ -40,7 +41,6 @@
 
       <section class="left-panel">
 
-        <!-- TOPIC SELECTOR -->
         <div class="panel-card topics-card">
           <div class="topics-header">
             <h2>Advising Topics</h2>
@@ -118,7 +118,6 @@
           </div>
         </div>
 
-        <!-- HELPFUL LINKS -->
         <div class="panel-card links-card">
           <h3>Helpful resources</h3>
           <ul class="resource-list">
@@ -129,7 +128,6 @@
           </ul>
         </div>
 
-        <!-- STATUS -->
         <div class="panel-card status-card">
           <h3>System Status</h3>
           <p id="status-text">Checking chatbot status...</p>
@@ -155,22 +153,15 @@
           <div id="chat-box" class="chat-box">
             <div class="message bot-message">
               <div class="message-label">ISDA Bot</div>
-              <div>
-                Hi! I'm the ISDA Advising Support Chatbot. I can help with general questions
-                about advising, degree requirements, course planning, and registration.
-                <br><br>
-                Select a topic on the left to get focused answers and sample questions!
-              </div>
+              <div>Hi! I'm the ISDA Advising Support Chatbot. I can help with general questions about advising, degree requirements, course planning, and registration. Select a topic on the left to get focused answers and sample questions!</div>
             </div>
           </div>
 
-          <!-- SAMPLE CHIPS AREA — shown after topic is selected -->
           <div class="sample-chips-area hidden" id="sample-chips-area">
             <p class="sample-chips-label" id="sample-chips-label">Try asking:</p>
             <div class="sample-chips" id="sample-chips"></div>
           </div>
 
-          <!-- INPUT ROW WITH SPARTAN -->
           <div class="input-row-wrapper">
             <div class="spartan-send-col">
               <img
