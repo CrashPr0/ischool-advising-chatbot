@@ -7,6 +7,11 @@ on things that don't need document retrieval.
 """
 from typing import Optional, Dict, List
 
+ADVISING_LINK = "https://ischool.sjsu.edu/student-services/advising"
+CATALOG_LINK = "https://catalog.sjsu.edu/"
+REGISTRAR_LINK = "https://www.sjsu.edu/registrar/"
+MYSJSU_LINK = "https://one.sjsu.edu/"
+
 
 class KnowledgeBase:
     """Manages hardcoded answers for greetings, boundaries, and meta questions."""
@@ -20,7 +25,11 @@ class KnowledgeBase:
                 "Try asking something like:\n"
                 "• What are the ISDA core courses?\n"
                 "• How many units do I need to graduate?\n"
-                "• What are the prerequisites for upper-division courses?"
+                "• What are the prerequisites for upper-division courses?\n\n"
+                f"Helpful links:\n"
+                f"• iSchool Advising: {ADVISING_LINK}\n"
+                f"• SJSU Course Catalog: {CATALOG_LINK}\n"
+                f"• Registrar: {REGISTRAR_LINK}"
             ),
             "keywords": ["hello", "hi", "hey", "good morning", "good afternoon"],
             "priority": 1,
@@ -28,7 +37,8 @@ class KnowledgeBase:
         "thanks": {
             "answer": (
                 "You're welcome! If you have more questions about the ISDA program, "
-                "courses, or advising, feel free to ask anytime."
+                "courses, or advising, feel free to ask anytime.\n\n"
+                f"• iSchool Advising: {ADVISING_LINK}"
             ),
             "keywords": ["thanks", "thank you", "thx", "appreciate"],
             "priority": 1,
@@ -38,8 +48,8 @@ class KnowledgeBase:
                 "I do not have access to personal student records such as transcripts "
                 "or degree audits.\n\n"
                 "For personalized course planning, please:\n"
-                "• Review your degree audit in MySJSU\n"
-                "• Schedule an appointment with an academic advisor via Spartan Connect"
+                f"• Review your degree audit in MySJSU: {MYSJSU_LINK}\n"
+                f"• Schedule an advising appointment: {ADVISING_LINK}"
             ),
             "keywords": [
                 "transcript", "my records", "my grades", "degree audit",
@@ -51,8 +61,9 @@ class KnowledgeBase:
             "answer": (
                 "I cannot override enrollment restrictions.\n\n"
                 "Enrollment overrides must be handled by university staff or advisors "
-                "through official petition or approval processes. Contact the advising "
-                "office or course instructor if you believe an exception may apply."
+                "through official petition or approval processes.\n\n"
+                f"• Contact iSchool Advising: {ADVISING_LINK}\n"
+                f"• Registrar's Office: {REGISTRAR_LINK}"
             ),
             "keywords": ["override", "enrollment restriction", "add code", "permission number"],
             "priority": 2,
@@ -63,7 +74,7 @@ class KnowledgeBase:
                 "To learn more about a course, you may:\n"
                 "• Review the course syllabus\n"
                 "• Speak with other students\n"
-                "• Consult official course descriptions in the SJSU catalog"
+                f"• Consult official course descriptions: {CATALOG_LINK}"
             ),
             "keywords": ["easiest professor", "easy professor", "best professor", "rate my professor"],
             "priority": 3,
@@ -73,7 +84,8 @@ class KnowledgeBase:
                 "I'm an advising support assistant designed to help answer general "
                 "questions about the ISDA program, course planning, and academic "
                 "policies. I cannot provide internal system details, but I'm happy to "
-                "help with advising-related questions."
+                "help with advising-related questions.\n\n"
+                f"• iSchool Advising: {ADVISING_LINK}"
             ),
             "keywords": ["system prompt", "how do you work", "what are you"],
             "priority": 3,

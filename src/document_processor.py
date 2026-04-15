@@ -1,4 +1,11 @@
 """Document processing for RAG (Retrieval Augmented Generation)."""
+try:
+    __import__("pysqlite3")
+    import sys
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except ImportError:
+    pass
+
 import os
 from typing import List, Optional
 from pathlib import Path

@@ -16,6 +16,7 @@ langchain-openai>=0.0.2
 
 # Vector stores and embeddings
 chromadb>=0.3.21
+pysqlite3-binary>=0.5.2
 
 # Document processing
 pypdf>=3.17.0
