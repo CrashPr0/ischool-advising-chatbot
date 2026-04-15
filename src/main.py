@@ -4,7 +4,7 @@ import os
 from rag_chatbot import RAGAdvisingChatbot
 from document_processor import setup_sample_docs
 from llm_providers import LLMFactory
-from wordBlackList import search_words, load_keywords
+from wordBlackList import search_words, load_keywords, print_if_blacklist
 
 def print_header():
     """Print application header."""
@@ -100,13 +100,9 @@ def main():
                     print(f"  - {q}")
                 print()
                 continue
-            matches = search_words(user_input, blacklist_words)
-            if matches:
-                print("\nAssistant: Error! Request can not be made due to containing an inappropriate word!")
-                print(f"[Inappropriate words: {', '.join(matches)}]")
-                print()
+            ifBlackListed = print_if_blacklist(user_input, blacklist_words)
+            if ifBlackListed:
                 continue
-
             # Process user message with RAG
             print("\nAssistant: ", end="", flush=True)
             
