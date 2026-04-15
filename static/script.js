@@ -2,7 +2,6 @@ const chatBox = document.getElementById("chat-box");
 const userInput = document.getElementById("user-input");
 const sendButton = document.getElementById("send-button");
 const clearButton = document.getElementById("clear-button");
-const promptChips = document.querySelectorAll(".prompt-chip");
 const statusText = document.getElementById("status-text");
 const providerText = document.getElementById("provider-text");
 const loadDocsButton = document.getElementById("load-docs-button");
@@ -14,62 +13,52 @@ const docsBadge = document.getElementById("docs-badge");
 const topicButtons = document.querySelectorAll(".topic-btn");
 const activeBanner = document.getElementById("active-topic-banner");
 const activeTopicLabel = document.getElementById("active-topic-label");
+const sampleChipsArea = document.getElementById("sample-chips-area");
+const sampleChipsLabel = document.getElementById("sample-chips-label");
+const sampleChipsContainer = document.getElementById("sample-chips");
 
 let activeTopic = null;
 
 // ── TOPIC SELECTOR ──
 topicButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
-    // Deactivate all, activate clicked
     topicButtons.forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
 
     activeTopic = btn.dataset.topic;
-
-    // Show the active banner
     activeTopicLabel.textContent = `Topic: ${activeTopic}`;
     activeBanner.classList.remove("hidden");
 
-    // Send the hint message to the chatbot so it focuses on this topic
+    // Show sample chips for this topic
+    const samples = JSON.parse(btn.dataset.samples || "[]");
+    showSampleChips(activeTopic, samples);
+
+    // Send silent priming message to backend
     const hint = btn.dataset.hint;
     if (hint) {
-      sendMessage(hint, true); // true = silent (don't show user bubble)
+      sendMessage(hint, true);
     }
   });
 });
 
+function showSampleChips(topic, samples) {
+  sampleChipsLabel.textContent = `Try asking about ${topic}:`;
+  sampleChipsContainer.innerHTML = "";
+
+  samples.forEach((q) => {
+    const chip = document.createElement("button");
+    chip.classList.add("sample-chip");
+    chip.textContent = q;
+    chip.addEventListener("click", () => {
+      sendMessage(q);
+    });
+    sampleChipsContainer.appendChild(chip);
+  });
+
+  sampleChipsArea.classList.remove("hidden");
+}
+
 // ── MESSAGES ──
-function escapeHtml(unsafe) {
-  return String(unsafe)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function linkify(text) {
-  // Escape first so we can safely set innerHTML.
-  let html = escapeHtml(text);
-
-  // Convert markdown links: [label](https://example.com)
-  // Also handles common LLM formatting where the "(" is on the next line.
-  html = html.replace(
-    /\[([^\]]+)\]\s*\(\s*(https?:\/\/[^\s)]+)\s*\)/g,
-    (_m, label, url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`
-  );
-
-  // Convert plain URLs into links (avoid matching inside existing href/src attributes).
-  html = html.replace(
-    /(^|[^"'=])(https?:\/\/[^\s<]+[^\s<\.)\]])/g,
-    (_m, prefix, url) => `${prefix}<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
-  );
-
-  // Preserve newlines.
-  html = html.replace(/\n/g, "<br>");
-  return html;
-}
-
 function addMessage(text, className, label) {
   const wrapper = document.createElement("div");
   wrapper.classList.add("message", className);
@@ -79,7 +68,7 @@ function addMessage(text, className, label) {
   labelDiv.textContent = label;
 
   const textDiv = document.createElement("div");
-  textDiv.innerHTML = linkify(text);
+  textDiv.textContent = text;
 
   wrapper.appendChild(labelDiv);
   wrapper.appendChild(textDiv);
@@ -136,7 +125,6 @@ function updateMeta(info = {}) {
 }
 
 // ── SEND MESSAGE ──
-// silent=true means the user bubble is hidden (used for topic hint messages)
 async function sendMessage(prefilledMessage = null, silent = false) {
   const message = (prefilledMessage || userInput.value).trim();
   if (!message) return;
@@ -164,7 +152,6 @@ async function sendMessage(prefilledMessage = null, silent = false) {
       return;
     }
 
-    // Only show bot reply if not a silent topic-priming message
     if (!silent) {
       addMessage(
         data.response || "I couldn't find an answer for that question.",
@@ -177,9 +164,8 @@ async function sendMessage(prefilledMessage = null, silent = false) {
         retrieved_docs: data.retrieved_docs
       });
     } else {
-      // For silent topic priming, show a brief acknowledgement
       addMessage(
-        `Got it! I'm now focused on ${activeTopic}. What would you like to know?`,
+        `Got it! I'm now focused on ${activeTopic}. Click a sample question above or type your own below!`,
         "bot-message",
         "ISDA Bot"
       );
@@ -259,25 +245,18 @@ clearButton.addEventListener("click", async () => {
   chatBox.innerHTML = `
     <div class="message bot-message">
       <div class="message-label">ISDA Bot</div>
-      <div>Hi! I'm the ISDA Advising Support Chatbot. I can help with general questions about advising, degree requirements, course planning, and registration.<br><br>Select a topic on the left to get more focused answers, or just type your question below!</div>
+      <div>Hi! I'm the ISDA Advising Support Chatbot. I can help with general questions about advising, degree requirements, course planning, and registration.<br><br>Select a topic on the left to get focused answers and sample questions!</div>
     </div>
   `;
-  // Reset topic selection
   topicButtons.forEach((b) => b.classList.remove("active"));
   activeBanner.classList.add("hidden");
+  sampleChipsArea.classList.add("hidden");
+  sampleChipsContainer.innerHTML = "";
   activeTopic = null;
-
   updateMeta({});
   await clearHistory();
 });
 
-promptChips.forEach((chip) => {
-  chip.addEventListener("click", () => {
-    sendMessage(chip.textContent);
-  });
-});
-
 loadDocsButton.addEventListener("click", loadDocuments);
 
-// ── INIT ──
 loadStatus();

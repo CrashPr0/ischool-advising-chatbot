@@ -113,7 +113,7 @@ html, body {
   margin: 28px auto 48px;
   padding: 0 24px;
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 340px 1fr;
   gap: 24px;
 }
 
@@ -136,29 +136,6 @@ html, body {
 
 .panel-card {
   padding: 22px;
-}
-
-/* ── SPARTAN MASCOT ── */
-.spartan-mascot {
-  position: absolute;
-  bottom: -10px;
-  right: -10px;
-  width: 130px;
-  height: auto;
-  z-index: 10;
-  pointer-events: none;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
-  animation: spartanBounce 3s ease-in-out infinite;
-}
-
-@keyframes spartanBounce {
-  0%,  100% { transform: translateY(0); }
-  50%        { transform: translateY(-8px); }
-}
-
-.chat-card {
-  position: relative;
-  overflow: visible;
 }
 
 /* ── TOPIC SELECTOR ── */
@@ -263,7 +240,6 @@ html, body {
 }
 
 /* ── PANEL HEADINGS ── */
-.prompts-card h3,
 .links-card h3,
 .status-card h3 {
   font-size: 1rem;
@@ -271,33 +247,6 @@ html, body {
   margin-top: 0;
   margin-bottom: 12px;
   color: var(--text-main);
-  letter-spacing: -0.1px;
-}
-
-/* ── PROMPT CHIPS ── */
-.prompt-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.prompt-chip {
-  border: 1px solid rgba(0, 85, 162, 0.22);
-  background: #f4f8ff;
-  color: var(--sjsu-blue);
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-family: "Source Sans 3", sans-serif;
-  cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.prompt-chip:hover {
-  background: #e5efff;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0, 85, 162, 0.10);
 }
 
 /* ── LINKS ── */
@@ -360,7 +309,7 @@ html, body {
   background: #e3eaf2;
 }
 
-/* ── CHAT ── */
+/* ── CHAT CARD ── */
 .chat-card {
   padding: 24px;
   min-height: 740px;
@@ -420,8 +369,8 @@ html, body {
   border-radius: 16px;
   background: linear-gradient(180deg, #fafcff 0%, #f5f8fc 100%);
   padding: 18px;
-  margin-bottom: 16px;
-  min-height: 480px;
+  margin-bottom: 14px;
+  min-height: 420px;
 }
 
 .message {
@@ -456,14 +405,64 @@ html, body {
   margin-left: auto;
 }
 
-.input-container {
+/* ── SAMPLE CHIPS AREA ── */
+.sample-chips-area {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  background: #f4f8ff;
+  border: 1px solid #d0e4f7;
+  border-radius: 14px;
+  animation: fadeUp 0.25s ease;
+}
+
+.sample-chips-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--sjsu-blue-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 0 0 8px;
+}
+
+.sample-chips {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sample-chip {
+  border: 1px solid rgba(0, 85, 162, 0.25);
+  background: white;
+  color: var(--sjsu-blue);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  font-family: "Source Sans 3", sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.sample-chip:hover {
+  background: #e5efff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 85, 162, 0.10);
+}
+
+/* ── INPUT ROW WITH SPARTAN ── */
+.input-row-wrapper {
+  display: flex;
+  align-items: flex-end;
   gap: 10px;
   margin-bottom: 12px;
 }
 
-#user-input {
+.input-container {
   flex: 1;
+}
+
+#user-input {
+  width: 100%;
   padding: 14px 16px;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -480,17 +479,38 @@ html, body {
   box-shadow: 0 0 0 3px rgba(0, 85, 162, 0.11);
 }
 
+.spartan-send-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.spartan-mascot {
+  width: 72px;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.15));
+  animation: spartanBounce 3s ease-in-out infinite;
+}
+
+@keyframes spartanBounce {
+  0%,  100% { transform: translateY(0); }
+  50%        { transform: translateY(-6px); }
+}
+
 #send-button {
   border: none;
   background: linear-gradient(135deg, var(--sjsu-blue), var(--sjsu-blue-dark));
   color: white;
   border-radius: 12px;
-  padding: 14px 24px;
+  padding: 14px 20px;
   font-weight: 700;
   font-size: 1rem;
   font-family: "Source Sans 3", sans-serif;
   cursor: pointer;
-  min-width: 100px;
+  width: 100%;
   box-shadow: 0 6px 20px rgba(0, 85, 162, 0.22);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
@@ -500,6 +520,7 @@ html, body {
   box-shadow: 0 10px 26px rgba(0, 85, 162, 0.28);
 }
 
+/* ── META ── */
 .meta-row {
   display: flex;
   flex-wrap: wrap;
@@ -569,13 +590,7 @@ html, body {
   .message {
     max-width: 92%;
   }
-  .input-container {
-    flex-direction: column;
-  }
-  #send-button {
-    width: 100%;
-  }
   .spartan-mascot {
-    width: 90px;
+    width: 56px;
   }
 }
