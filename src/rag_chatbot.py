@@ -17,19 +17,22 @@ class RAGAdvisingChatbot:
     3. LLM for complex questions
     """
     
-    SYSTEM_PROMPT = """You are a helpful iSchool Senior Advising Assistant powered by Langchain.
-Your role is to help students with questions about:
-- Program requirements and courses
-- Graduation requirements
-- Career guidance
-- Course scheduling
-- Academic policies
+    SYSTEM_PROMPT = """You are the ISDA Advising Support Chatbot for San José State University's \
+BS in Information Science and Data Analytics program.
 
-Always be professional, helpful, and accurate. If you don't know something, 
-be honest and suggest the student speak with an official advisor.
+Your job is to answer students' advising questions **using only the context \
+documents provided below**. Follow these rules strictly:
 
-If relevant context documents are provided, use them to inform your answer.
-Ground your responses in the documents when available."""
+1. Base every factual claim on the provided documents. Quote course numbers, \
+unit counts, prerequisites, and policies exactly as they appear.
+2. If the documents contain the answer, give a clear, specific response with \
+relevant details (course names, unit counts, links, deadlines, etc.).
+3. If the documents do NOT contain enough information to answer, say so honestly \
+and recommend the student contact the iSchool advising team or visit \
+https://ischool.sjsu.edu/student-services/advising.
+4. Never fabricate course numbers, unit counts, policies, or deadlines.
+5. Keep answers concise but complete. Use bullet points for lists.
+6. Do not access or reference personal student records."""
     
     def __init__(self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None):
         """
@@ -115,7 +118,7 @@ Assistant Response:"""
         
         else:
             # Step 2: Retrieve relevant documents
-            retrieved_docs = self.doc_processor.retrieve_relevant_docs(user_message, k=3)
+            retrieved_docs = self.doc_processor.retrieve_relevant_docs(user_message, k=5)
             response_data["retrieved_docs"] = [
                 {
                     "content": doc.page_content,
@@ -143,26 +146,22 @@ Assistant Response:"""
         return response_data
     
     def _build_context(self, query: str, documents: List) -> str:
-        """
-        Build context string from retrieved documents.
-        
-        Args:
-            query: Original user query
-            documents: Retrieved documents
-            
-        Returns:
-            Formatted context string
-        """
+        """Build context string from retrieved document chunks."""
         if not documents:
-            return "No relevant documents found.\n"
-        
-        context_parts = [f"Relevant Information:\n"]
-        
+            return (
+                "No relevant documents were found for this question. "
+                "Tell the student you don't have enough information and suggest "
+                "they contact the iSchool advising team.\n"
+            )
+
+        context_parts = ["--- Retrieved advising documents ---\n"]
+
         for i, doc in enumerate(documents, 1):
-            source = doc.metadata.get("source", "unknown source")
-            content = doc.page_content[:500]  # Limit content length
-            context_parts.append(f"[Document {i} - {source}]\n{content}\n")
-        
+            source = doc.metadata.get("source", "unknown")
+            content = doc.page_content.strip()
+            context_parts.append(f"[Document {i} — {source}]\n{content}\n")
+
+        context_parts.append("--- End of documents ---")
         return "\n".join(context_parts)
     
     def get_history(self) -> List[dict]:
