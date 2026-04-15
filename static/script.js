@@ -39,6 +39,37 @@ topicButtons.forEach((btn) => {
 });
 
 // ── MESSAGES ──
+function escapeHtml(unsafe) {
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function linkify(text) {
+  // Escape first so we can safely set innerHTML.
+  let html = escapeHtml(text);
+
+  // Convert markdown links: [label](https://example.com)
+  // Also handles common LLM formatting where the "(" is on the next line.
+  html = html.replace(
+    /\[([^\]]+)\]\s*\(\s*(https?:\/\/[^\s)]+)\s*\)/g,
+    (_m, label, url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`
+  );
+
+  // Convert plain URLs into links (avoid matching inside existing href/src attributes).
+  html = html.replace(
+    /(^|[^"'=])(https?:\/\/[^\s<]+[^\s<\.)\]])/g,
+    (_m, prefix, url) => `${prefix}<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+  );
+
+  // Preserve newlines.
+  html = html.replace(/\n/g, "<br>");
+  return html;
+}
+
 function addMessage(text, className, label) {
   const wrapper = document.createElement("div");
   wrapper.classList.add("message", className);
@@ -48,7 +79,7 @@ function addMessage(text, className, label) {
   labelDiv.textContent = label;
 
   const textDiv = document.createElement("div");
-  textDiv.textContent = text;
+  textDiv.innerHTML = linkify(text);
 
   wrapper.appendChild(labelDiv);
   wrapper.appendChild(textDiv);
