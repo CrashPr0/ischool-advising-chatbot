@@ -29,7 +29,7 @@ unit counts, prerequisites, and policies exactly as they appear.
 relevant details (course names, unit counts, links, deadlines, etc.).
 3. If the documents do NOT contain enough information to answer, say so honestly \
 and recommend the student contact the iSchool advising team or visit \
-https://ischool.sjsu.edu/student-services/advising.
+https://ischoolapps.sjsu.edu/advising/index.php.
 4. Never fabricate course numbers, unit counts, policies, or deadlines.
 5. Keep answers concise but complete. Use bullet points for lists.
 6. Do not access or reference personal student records."""

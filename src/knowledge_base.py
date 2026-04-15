@@ -7,7 +7,7 @@ on things that don't need document retrieval.
 """
 from typing import Optional, Dict, List
 
-ADVISING_LINK = "https://ischool.sjsu.edu/student-services/advising"
+ADVISING_LINK = "https://ischoolapps.sjsu.edu/advising/index.php"
 CATALOG_LINK = "https://catalog.sjsu.edu/"
 REGISTRAR_LINK = "https://www.sjsu.edu/registrar/"
 MYSJSU_LINK = "https://one.sjsu.edu/"
