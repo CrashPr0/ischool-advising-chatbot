@@ -7,8 +7,25 @@ A LangChain-based advising chatbot for SJSU iSchool students. It supports:
 - **Multiple LLM providers** (OpenAI / Anthropic / Hugging Face)
 - **CLI** (`src/main.py`) and **Web UI** (`app.py` Flask + `templates/` + `static/`)
 
+The chatbot takes in student questions and makes an answer based on what it knows. This is to make sure that students get answers faster than emailing students, which should also decrease the workloads of advisors.
+
 ---
 
+## Team
+- Christopher Velez (GitHub: CrashPr0)
+- Marios Tawdros (GitHub: mariostawdros)
+- Joshua Rieta (GitHub: cho-sua)
+
+---
+## Proof of Concept Scope
+Currently on the main branch, there is an Azure site where it takes in inputs in a chatbox and answers based on sentence structures and its own thought process. On a different branch there is no Azure site, but a filter to make sure that the students are not asking inappropriate questions. As a whole, the website needs a bit of tweaking to make sure the links are correct, the sentence structures is not the main focus, and the chat filter actually works. We also need a bit more information for the chatbot to use so that it can answer questions correctly. If it does not have the required information, the chatbot will state so.
+
+---
+## Prerequisites/Running the PoC
+For testing it own your own, you would need to make sure that Python is installed to run main.py and input an API key for chatbot uses. If an API key is not provided, then it will only answer based off of sentence structures. For testing the Azure site (using the current main branch), you can run the link in the “External Documents” section (School Advising Chatbot Azure Website) to test the current main branch.
+
+---
+# Installation
 ## Quick start (CLI)
 
 ```bash
@@ -137,13 +154,34 @@ High-level steps:
 ```
 
 ---
+## Running the PoC and Demo
+Below in "External documents", there is a link marked for use (the Azure link). In this section, there are screenshots of the website to show it working along with descriptions:
 
+<img width="2234" height="1290" alt="image" src="https://github.com/user-attachments/assets/3505bb5e-6b1a-4736-838f-66edc799c035" />
+Main page of the chatbot on Azure
+
+<img width="2229" height="1288" alt="image" src="https://github.com/user-attachments/assets/91fd3991-dece-41ae-9fa4-537afdafddc4" />
+Selecting "General Advising" and pre-written question
+
+<img width="1532" height="568" alt="image" src="https://github.com/user-attachments/assets/19ea81d5-05c9-4a7a-920b-f21214bcf06f" />
+Bottom of the site
+
+---
+
+## Technical Stack
+Currently we are mostly using Python as the bulk of the code, HTML for organizing the website, and CSS and Javascript as supplementaries. We will use GPT 5.2 as our API and are currently using Azure to host the site for the time being, but also manage our project.
+
+---
+## What's Next
+We want to fix up what we currently have at this moment since for next semester we will hopefully be deploying this chatbot onto the actual iSchool site. We need to make sure that parameters for questions are within the bounds of the School of Information, and that the chatbot responds with accurate information.
+
+---
 ## External documents
 
 - iSchool Advising Chatbot Rubric: `https://docs.google.com/spreadsheets/d/1kXhvObOL_13er0D4eyMBNfHel7tIFF4seUtL0yQtMk8/edit?usp=sharing`
 - ISDA Advising Support Chatbot – Smoke Test Question Set: `https://docs.google.com/document/d/1KON-OufGsHjJpwY_hQp5m_doXAMw-rn98g4Oz9YvCQY/edit?usp=sharing`
 - Figma Website Design `https://www.figma.com/design/J5cIoGXTAs7K07Q5X988Z6/iSchool-Chatbot-Site-RD?node-id=0-1&p=f&t=z4ZYAu1mDT8v6J8y-0`
-- iSchool Advising Chatbot Azure Website: `https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/`
+- iSchool Advising Chatbot Azure Website (use for PoC): `https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/`
 ---
 
 ## License
