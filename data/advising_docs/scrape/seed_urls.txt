@@ -1,0 +1,21 @@
+# Add official iSchool pages you want to ingest (one URL per line).
+# Example (uncomment to use):
+# https://ischool.sjsu.edu/student-services/advising
+
+https://ischool.sjsu.edu/post/academic-advising
+https://ischool.sjsu.edu/registration-and-enrollment
+https://ischool.sjsu.edu/seven-year-limit
+https://ischool.sjsu.edu/new-student-checklists
+https://ischoolapps.sjsu.edu/gss/textbooks/
+https://ischoolapps.sjsu.edu/mara289/e-portfolio-handbook.php
+https://ischoolapps.sjsu.edu/mara289/e-portfolio-faqs.php
+https://ischool.sjsu.edu/welcome-new-students
+https://ischool.sjsu.edu/student-assistantships
+https://ischool.sjsu.edu/coursera-career-academy
+https://ischool.sjsu.edu/graduation
+https://ischool.sjsu.edu/awards-graduating-students
+https://www.sjsu.edu/it/services/applications/peoplesoft/students/enrollment-appts.php
+https://www.sjsu.edu/registrar/registration/registration-basics/add-a-class.php
+https://www.sjsu.edu/registrar/registration/registration-basics/index.php
+https://ischoolapps.sjsu.edu/gss/ajax/schedule.php?search=1
+https://ischool.sjsu.edu/student-id

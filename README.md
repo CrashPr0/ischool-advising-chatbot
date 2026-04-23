@@ -4,8 +4,8 @@ A LangChain-based advising chatbot for SJSU iSchool students. It supports:
 
 - **Knowledge base answers** (instant responses for common questions)
 - **RAG** (retrieves relevant documents and grounds the answer)
-- **Multiple LLM providers** (OpenAI / Anthropic / Hugging Face)
-- **CLI** (`src/main.py`) and **Web UI** (`app.py` Flask + `templates/` + `static/`)
+- **Multiple LLM providers** (OpenAI / Azure OpenAI / Anthropic / Hugging Face / Gemini)
+- **CLI** (`python -m src.main`) and **Web UI** (`app.py` Flask + `templates/` + `static/`)
 
 The chatbot takes in student questions and makes an answer based on what it knows. This is to make sure that students get answers faster than emailing students, which should also decrease the workloads of advisors.
 
@@ -38,9 +38,64 @@ cp .env.example .env
 Set at least one API key in `.env`, then run:
 
 ```bash
-cd src
-python main.py
+python -m src.main
 ```
+
+## Advising documents (RAG)
+
+### Where to put documents
+
+- **PDFs**: `data/advising_docs/pdfs/`
+- **Scraped/cleaned webpage text (optional)**: `data/advising_docs/txt/`
+- **Companion metadata (YAML)**: `data/advising_docs/meta/`
+
+The loader searches recursively under `data/advising_docs/`, but the `pdfs/` + `meta/` layout is the recommended convention.
+
+### Offline website ingestion (scrape into txt + meta)
+
+The scraper is **not** meant to run at query-time. It writes files your existing `DocumentProcessor` already ingests.
+
+1. Put seed URLs in `data/advising_docs/scrape/seed_urls.txt` (one URL per line)
+2. Run:
+
+```bash
+python -m src.scrape_ischool --docs-root ./data/advising_docs --seeds ./data/advising_docs/scrape/seed_urls.txt --allow-host ischool.sjsu.edu --allow-host ischoolapps.sjsu.edu --allow-host www.sjsu.edu --max-urls 200 --delay-s 1.0
+```
+
+Optional: also pass a sitemap (bounded) to add more pages:
+
+```bash
+python -m src.scrape_ischool --docs-root ./data/advising_docs --seeds ./data/advising_docs/scrape/seed_urls.txt --sitemap https://ischool.sjsu.edu/sitemap.xml --allow-host ischool.sjsu.edu --allow-host ischoolapps.sjsu.edu --allow-host www.sjsu.edu --max-urls 200 --delay-s 1.0
+```
+
+3. Rebuild the vector index (see below).
+
+### Companion metadata format
+
+Create one YAML file per PDF with the same basename.
+
+Example:
+- `data/advising_docs/pdfs/degree_requirements.pdf`
+- `data/advising_docs/meta/degree_requirements.yml`
+
+Minimal fields:
+- `doc_id`: stable slug used in citations
+- `title`: human-friendly title
+- `topics`: list of tags (used for filtering/eval)
+
+See `data/advising_docs/meta/example.yml` for a full template.
+
+### Rebuild the vector index
+
+```bash
+# Build (reuses existing chroma dir unless --clean)
+python -m src.build_index --docs ./data/advising_docs
+
+# Clean rebuild
+python -m src.build_index --docs ./data/advising_docs --clean
+```
+
+The index persists to `Config.VECTOR_STORE_PATH` (default: `./data/chroma`).
 
 ### CLI commands
 
@@ -95,28 +150,10 @@ Important: **Never commit `.env`** (use `.env.example` as the template).
 
 ---
 
-## Advising documents (for RAG)
-
-- **Folder**: `data/advising_docs/`
-- **Formats**: `.txt` and `.pdf`
-- **Recommended style**:
-  - Use clear headings (`#`, `##`)
-  - Keep docs scoped (ideally 500–2000 words per topic)
-  - Include concrete details (course codes, unit counts, GPA thresholds, deadlines)
-
-After adding/updating docs, rebuild the index:
-
-- **CLI**: run `docs`
-- **Web**: click “Load Documents” (or call `POST /api/load-docs`)
-
-If the vector store gets into a bad state, deleting `data/chroma/` and re-running `docs` is the quickest reset.
-
----
-
 ## Tests / formatting
 
 ```bash
-pytest -v
+python -m pytest -q
 black .
 flake8 .
 ```

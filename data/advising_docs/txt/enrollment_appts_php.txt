@@ -1,0 +1,6 @@
+View My Enrollment Appointments
+- Go to one.SJSU -> Sign In using SJSU ID and Password.
+- Select MySJSU.
+- Navigate to Student Center > Enrollment Dates on the right side - Enrollment Dates Page displays.
+- Select a term.
+Note: If an enrollment appointment for your term is not listed, contact the Office of the Registrar. - Click Continue - Your enrollment appointments for the term you selected display.
