@@ -2,10 +2,18 @@
 import sys
 import os
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+# Add src to path so imports work consistently on Azure App Service.
+# Depending on run-from-package / Oryx, __file__ may resolve under /tmp, but
+# the built app lives under /home/site/wwwroot.
+_src_candidates = [
+    os.path.join(os.path.dirname(__file__), "src"),
+    "/home/site/wwwroot/src",
+]
+for _p in _src_candidates:
+    if os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 from rag_chatbot import RAGAdvisingChatbot
 from document_processor import setup_sample_docs
@@ -16,7 +24,27 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
-app = Flask(__name__, template_folder='templates', static_folder='static')
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def _first_existing_dir(candidates: list[str], fallback: str) -> str:
+    for d in candidates:
+        try:
+            if os.path.isdir(d):
+                return d
+        except Exception:
+            pass
+    return fallback
+
+_TEMPLATES_DIR = _first_existing_dir(
+    [os.path.join(_BASE_DIR, "templates"), "/home/site/wwwroot/templates"],
+    os.path.join(_BASE_DIR, "templates"),
+)
+_STATIC_DIR = _first_existing_dir(
+    [os.path.join(_BASE_DIR, "static"), "/home/site/wwwroot/static"],
+    os.path.join(_BASE_DIR, "static"),
+)
+
+app = Flask(__name__, template_folder=_TEMPLATES_DIR, static_folder=_STATIC_DIR)
 
 
 def _get_allowed_origins():
@@ -52,7 +80,29 @@ def get_chatbot():
 @app.route('/')
 def index():
     """Serve main page."""
-    return render_template('index.html')
+    # On Azure App Service, the app may run from a temp package path; templates
+    # sometimes aren’t visible to Jinja’s loader. Serve the HTML directly from
+    # whichever location exists.
+    candidates = [
+        os.path.join(_TEMPLATES_DIR, "index.html"),
+        "/home/site/wwwroot/templates/index.html",
+        os.path.join(_BASE_DIR, "docs", "index.html"),
+        "/home/site/wwwroot/docs/index.html",
+    ]
+    for p in candidates:
+        try:
+            if os.path.isfile(p):
+                return send_file(p)
+        except Exception:
+            pass
+    # Fallback to Jinja if the file lookup fails.
+    try:
+        return render_template("index.html")
+    except Exception:
+        return (
+            "Chatbot backend is running, but the web UI HTML file was not found on the server. "
+            "Try the API at /api/status or redeploy including the templates/docs folders."
+        ), 500
 
 @app.route('/api/chat', methods=['POST'])
 def chat():

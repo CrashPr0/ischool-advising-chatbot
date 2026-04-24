@@ -1,7 +1,11 @@
 """LLM Provider abstraction for multi-provider support."""
 from typing import Optional
 from langchain_core.language_models import LLM
-from config import Config, LLMProvider
+try:
+    from .config import Config, LLMProvider
+except ImportError:  # pragma: no cover
+    # Support running with `src/` on sys.path (legacy/tests).
+    from config import Config, LLMProvider
 
 # tracer imports - may fail if tracing is not configured
 try:

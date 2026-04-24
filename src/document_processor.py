@@ -13,7 +13,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import DirectoryLoader, TextLoader, PyPDFLoader
 from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
-from config import Config
+try:
+    from .config import Config
+except ImportError:  # pragma: no cover
+    from config import Config
 
 
 def _create_embeddings():

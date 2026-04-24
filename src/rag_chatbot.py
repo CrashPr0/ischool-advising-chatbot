@@ -1,10 +1,17 @@
 """RAG-enhanced chatbot with knowledge base and document retrieval."""
 from typing import List, Optional, Dict
 from langchain_core.prompts import PromptTemplate
-from llm_providers import LLMFactory
-from knowledge_base import get_knowledge_base
-from document_processor import DocumentProcessor
-from config import Config
+try:
+    from .llm_providers import LLMFactory
+    from .knowledge_base import get_knowledge_base
+    from .document_processor import DocumentProcessor
+    from .config import Config
+except ImportError:  # pragma: no cover
+    # Support running with `src/` on sys.path (legacy/tests).
+    from llm_providers import LLMFactory
+    from knowledge_base import get_knowledge_base
+    from document_processor import DocumentProcessor
+    from config import Config
 
 
 class RAGAdvisingChatbot:
