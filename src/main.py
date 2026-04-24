@@ -3,7 +3,7 @@ import sys
 import os
 from rag_chatbot import RAGAdvisingChatbot
 from document_processor import setup_sample_docs
-
+from wordBlackList import search_words, load_keywords, print_if_blacklist
 
 def print_header():
     """Print application header."""
@@ -96,6 +96,15 @@ def main():
                 print()
                 continue
             
+            #blacklist checking
+            base_dir = os.path.dirname(__file__)
+            project_root = os.path.abspath(os.path.join(base_dir, ".."))
+            blacklist_path = os.path.join(project_root, "docs", "blackList.txt")
+            blacklist_words = load_keywords(blacklist_path)
+            ifBlackListed = print_if_blacklist(user_input, blacklist_words)
+            if ifBlackListed:
+                continue
+
             # Process user message with RAG
             print("\nAssistant: ", end="", flush=True)
             
