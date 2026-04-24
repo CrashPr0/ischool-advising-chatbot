@@ -50,7 +50,7 @@ The app already handles this - it reads `PORT` env var!
 2. **Add** `Procfile` for Azure App Service:
 
 ```
-web: gunicorn app:app
+web: gunicorn --bind 0.0.0.0:${PORT:-8000} app:app
 ```
 
 3. **Update** `.gitignore` (already done):
@@ -78,7 +78,7 @@ az webapp create \
 az webapp config appsettings set \
   --resource-group ischool-chatbot-rg \
   --name ischool-chatbot-prod \
-  --settings WEBSITES_PORT=5000
+  --settings DEFAULT_LLM_PROVIDER=openai
 
 # Deploy from GitHub
 az webapp deployment github-actions add \
@@ -330,7 +330,9 @@ az webapp log tail --name ischool-chatbot-prod --resource-group ischool-chatbot-
 
 **Common issues:**
 - Missing `OPENAI_API_KEY` → Set in Configuration
-- Port not 5000 → Verify `WEBSITES_PORT=5000`
+- App won't respond / wrong port:
+  - **App Service (code deploy)**: ensure `Procfile` binds to `$PORT` (this repo uses `gunicorn --bind 0.0.0.0:${PORT:-8000} app:app`)
+  - **App Service (custom container)**: set `WEBSITES_PORT=5000` (matches the container’s exposed port)
 - Module not found → Ensure all packages in `requirements.txt`
 
 ### High memory usage
