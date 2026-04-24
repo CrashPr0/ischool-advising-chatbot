@@ -18,6 +18,7 @@ from flask_cors import CORS
 from rag_chatbot import RAGAdvisingChatbot
 from document_processor import setup_sample_docs
 import logging
+from pathlib import Path
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -139,13 +140,29 @@ def status():
         return jsonify({
             'status': 'ready',
             'available_providers': providers,
-            'hardcoded_questions': len(questions)
+            'hardcoded_questions': len(questions),
         })
     except Exception as e:
         return jsonify({
             'status': 'error',
             'error': str(e)
         }), 500
+
+
+@app.route('/api/docs-stats', methods=['GET'])
+def docs_stats():
+    """Debug endpoint to verify which docs are being indexed on the server."""
+    try:
+        bot = get_chatbot()
+        dp = bot.doc_processor
+        scan = dp.scan_source_files()
+        return jsonify({
+            "docs_path": dp.docs_path,
+            "scan": scan,
+            "vector_store_chunks": dp.vector_store_count(),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/history', methods=['GET'])
 def history():

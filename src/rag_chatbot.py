@@ -1,4 +1,5 @@
 """RAG-enhanced chatbot with knowledge base and document retrieval."""
+import os
 from typing import List, Optional, Dict
 from langchain_core.prompts import PromptTemplate
 try:
@@ -125,7 +126,8 @@ Assistant Response:"""
         
         else:
             # Step 2: Retrieve relevant documents
-            retrieved_docs = self.doc_processor.retrieve_relevant_docs(user_message, k=5)
+            top_k = int(os.getenv("RAG_TOP_K", "5"))
+            retrieved_docs = self.doc_processor.retrieve_relevant_docs(user_message, k=top_k)
             response_data["retrieved_docs"] = [
                 {
                     "content": doc.page_content,
