@@ -1,5 +1,6 @@
 """RAG-enhanced chatbot with knowledge base and document retrieval."""
 
+import os
 from typing import List, Optional, Dict
 
 from langchain_core.prompts import PromptTemplate
@@ -85,7 +86,8 @@ Assistant Response:""",
             response_data["confidence"] = kb_answer["confidence"]
             print(f"[Knowledge Base Hit] Matched: {kb_answer['matched_question']}")
         else:
-            retrieved_docs = self.doc_processor.retrieve_relevant_docs(user_message, k=5)
+            top_k = int(os.getenv("RAG_TOP_K", "5"))
+            retrieved_docs = self.doc_processor.retrieve_relevant_docs(user_message, k=top_k)
             response_data["retrieved_docs"] = [
                 {"content": doc.page_content, "source": doc.metadata.get("source", "unknown")}
                 for doc in retrieved_docs

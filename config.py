@@ -43,6 +43,7 @@ class Config:
 
     # Application
     VECTOR_STORE_PATH = os.getenv("VECTOR_STORE_PATH", "./data/chroma")
+    DOCS_PATH = os.getenv("DOCS_PATH", "").strip() or None
     DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
     # LangSmith (Langchain tracing)

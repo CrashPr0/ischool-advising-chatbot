@@ -10,6 +10,7 @@ except ImportError:
 
 import os
 from typing import List, Optional
+from pathlib import Path
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import DirectoryLoader, TextLoader, PyPDFLoader
@@ -45,9 +46,21 @@ def _create_embeddings():
     return SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
+def _first_existing_dir(candidates: list[str], fallback: str) -> str:
+    for d in candidates:
+        try:
+            if d and os.path.isdir(d):
+                return d
+        except Exception:
+            pass
+    return fallback
+
+
 DOCS_DIRECTORIES = [
     "./data/advising_docs",
     "./docs",
+    "/home/site/wwwroot/data/advising_docs",
+    "/home/site/wwwroot/docs",
 ]
 
 
@@ -55,10 +68,44 @@ class DocumentProcessor:
     """Handles loading and processing advising documents."""
 
     def __init__(self, docs_path: Optional[str] = None):
-        self.docs_path = docs_path or "./data/advising_docs"
+        fallback = "./data/advising_docs"
+        self.docs_path = _first_existing_dir(
+            [
+                docs_path,
+                getattr(Config, "DOCS_PATH", None),
+                "/home/site/wwwroot/data/advising_docs",
+                os.path.join(os.getcwd(), "data", "advising_docs"),
+                fallback,
+            ],
+            fallback,
+        )
         self.embeddings = _create_embeddings()
         self.vector_store = None
         self.loaded_documents: List[Document] = []
+
+    def scan_source_files(self) -> dict:
+        roots = list(dict.fromkeys([self.docs_path] + DOCS_DIRECTORIES))
+        txt = 0
+        pdf = 0
+        for root in roots:
+            try:
+                if not os.path.isdir(root):
+                    continue
+                txt += len(list(Path(root).rglob("*.txt")))
+                pdf += len(list(Path(root).rglob("*.pdf")))
+            except Exception:
+                continue
+        return {"roots": roots, "txt_files": txt, "pdf_files": pdf, "total_files": txt + pdf}
+
+    def vector_store_count(self) -> Optional[int]:
+        try:
+            if not self.vector_store:
+                self.load_vector_store()
+            if not self.vector_store:
+                return None
+            return int(self.vector_store._collection.count())  # type: ignore[attr-defined]
+        except Exception:
+            return None
 
     def _load_from_directory(self, directory: str) -> List[Document]:
         if not os.path.exists(directory):
