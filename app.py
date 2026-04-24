@@ -80,12 +80,14 @@ def get_chatbot():
 @app.route('/')
 def index():
     """Serve main page."""
-    # On Azure App Service, the app may run from a temp package path; templates
-    # sometimes aren’t visible to Jinja’s loader. Serve the HTML directly from
-    # whichever location exists.
+    try:
+        # Prefer Jinja rendering so `url_for('static', ...)` resolves correctly.
+        return render_template("index.html")
+    except Exception as e:
+        logger.warning("Failed to render templates/index.html, falling back to docs HTML: %s", e)
+
+    # Absolute-URL fallback (works even if templates aren't discoverable).
     candidates = [
-        os.path.join(_TEMPLATES_DIR, "index.html"),
-        "/home/site/wwwroot/templates/index.html",
         os.path.join(_BASE_DIR, "docs", "index.html"),
         "/home/site/wwwroot/docs/index.html",
     ]
@@ -95,14 +97,11 @@ def index():
                 return send_file(p)
         except Exception:
             pass
-    # Fallback to Jinja if the file lookup fails.
-    try:
-        return render_template("index.html")
-    except Exception:
-        return (
-            "Chatbot backend is running, but the web UI HTML file was not found on the server. "
-            "Try the API at /api/status or redeploy including the templates/docs folders."
-        ), 500
+
+    return (
+        "Chatbot backend is running, but the web UI HTML file was not found on the server. "
+        "Try the API at /api/status or redeploy including the templates/docs folders."
+    ), 500
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
