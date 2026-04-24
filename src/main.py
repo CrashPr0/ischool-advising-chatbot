@@ -27,11 +27,15 @@ def print_help():
 
 def main():
     """Main entry point for the RAG chatbot CLI."""
-    print_header()
-    
+    print_header()	
+    base_dir = os.path.dirname(__file__)
+    project_root = os.path.abspath(os.path.join(base_dir, ".."))
+    blacklist_path = os.path.join(project_root, "docs", "blackList.txt")
+    blacklist_words = load_keywords(blacklist_path)
+
     # Check available providers
     available_providers = RAGAdvisingChatbot.get_available_providers()
-    
+
     if not available_providers:
         print("ERROR: No LLM providers configured.")
         print("Please set up your API keys in the .env file")
