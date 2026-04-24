@@ -87,15 +87,29 @@ class DocumentProcessor:
         roots = list(dict.fromkeys([self.docs_path] + DOCS_DIRECTORIES))
         txt = 0
         pdf = 0
+        sample_txt: list[str] = []
         for root in roots:
             try:
                 if not os.path.isdir(root):
                     continue
-                txt += len(list(Path(root).rglob("*.txt")))
-                pdf += len(list(Path(root).rglob("*.pdf")))
+                txt_paths = list(Path(root).rglob("*.txt"))
+                pdf_paths = list(Path(root).rglob("*.pdf"))
+                txt += len(txt_paths)
+                pdf += len(pdf_paths)
+                if len(sample_txt) < 30:
+                    for p in txt_paths:
+                        sample_txt.append(str(p))
+                        if len(sample_txt) >= 30:
+                            break
             except Exception:
                 continue
-        return {"roots": roots, "txt_files": txt, "pdf_files": pdf, "total_files": txt + pdf}
+        return {
+            "roots": roots,
+            "txt_files": txt,
+            "pdf_files": pdf,
+            "total_files": txt + pdf,
+            "sample_txt": sample_txt,
+        }
 
     def vector_store_count(self) -> Optional[int]:
         try:
