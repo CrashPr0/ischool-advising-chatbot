@@ -1,0 +1,72 @@
+Registration Basics
+- What Are Enrollment Appointments?
+- How Are Enrollment Appointments Set, and Why Do Some Students Register Earlier?
+- Why Don't I Have an Enrollment Appointment?
+- Check for Any Registration Holds
+- Use MyScheduler to Begin Planning Your Schedule
+- Understand Your Enrollment Limits and How the Waitlist Works.
+- How to Add Classes? and How to Drop Classes?
+- Where to Enter a Permission Number(Add Code)?
+- Swap Class Enrollment Function
+- Repeating a Class: When and How to Register?
+- Common Registration Issues
+- 1290R Enrollment for Graduate Students
+Enrollment Appointments
+Your enrollment appointment is when you can start registering for classes online through MySJSU—no in-person visit required. It will be posted on MySJSU about three months before the semester starts and will end the day before the Enrollment Census Date. New students will receive their appointments later than continuing students. See Registration Calendar for more details.
+To view your enrollment appointment, login to your MySJSU, click "Academics: Enrollment" link, then click Enrollment Dates, your available terms will show in the middle window. See screenshot:
+How Are Enrollment Appointments Set, and Why Do Some Students Register Earlier?
+Registration start dates are based on class level(freshmen, sophomores, juniors or seniors) and priority registration policy.
+See F17-4 Academic Senate policy [pdf] for descriptions of priority students & registration groups.
+Students are grouped by class level, then priority groups, then last name groups. The order of the last name groups within the same class level rotates each semester.
+All priority students and registration groups are approved by the Student Success Committee of the Academic Senate.
+Class level is determined by a student's earned units and current work-in-progress.
+Why Don't I Have an Enrollment Appointment?
+Check these 3 reasons:
+1. If it is your first semester at SJSU, you must wait until the Admissions office fully admits you. Contact Admissions office for your admission status.
+2. Graduation Date has passed. You applied to graduate in the last semester but did not graduate.
+-
+- You will not receive enrollment appointments for any term after your graduation date.
+- You need to submit a graduation date change.
+3. You have not enrolled for 2 consecutive semesters(Spring & Fall).
+-
+- You will need to re-apply. Check Admissions website for Former Student returning(FSR).
+Contact our office if you still have questions.
+Swap Class Enrollment Function
+The Swap class enrollment function allows you to replace an enrolled class with another open or waitlisted class. To learn more, go to FAQs for Swapping Classes.
+Common Registration Issues:
+-
+Your enrollment appointment has not yet started.
+- Verify the exact start date and time of your appointment.
+- You can register at any time once your appointment has started.
+- You have registration hold(s) on your account.
+-
+- You will not receive enrollment appointments for any term after your graduation date.
+- You need to submit a graduation date change.
+- Prerequisites are missing.
+- If you took a prerequisite course elsewhere, show proof of that course (unofficial transcript) to the instructor. Then, ask for a permission number from him/ her.
+- Use that permission number to enroll in the class via MySJSU(see page 5) [pdf].
+- See the Transfer Credit page for more details.
+- Co-requisite is required.
+- Some classes require you to simultaneously enroll in a component class such as a lab
+or workshop.
+- You must register for both the lecture & a component at the same time.
+- If you are exempt from co-requisite, a memo on a department letterhead is required. Email registrar@sjsu.edu this letter, our staff need to register for you.
+- Some classes require you to simultaneously enroll in a component class such as a lab
+or workshop.
+- Time Conflict (schedules of two or more classes are overlapping).
+- Initiate the Time Conflict Consent Request (DocuSign) to the instructor of the class you are not yet enrolled in -- the one that will accommodate the time conflict. See step-by-step instructions.
+- You have exceeded the number of enrollment units or waitlist limit allowed.
+- You are a "special session" student trying to enroll in "regular session" classes
+or vice versa.
+- Choose "special session" section of the class if you are a special session student or choose "regular session" section of the class if you are a regular session student. Look at class details. Section# 10 and above are usually "special session" sections, section# 1 through 9 are usually "regular session" sections. See screenshot:
+10. You already enrolled in another section of the same class.
+-
+- You must drop the other section of the same class in order to add the new section.
+- You cannot be enrolled from the waitlist until you drop the other enrolled section.
+11. Permission number you received is not valid or has been used.
+-
+- Contact the instructor of the class to obtain a new one.
+12. You want to enroll in SJSU Studies class (Areas: R, S, V or Z) but have not earned 60 units or above (upper division standing).
+-
+- Petition to enroll with less than 60 units is needed.
+For all other issues, please contact us.

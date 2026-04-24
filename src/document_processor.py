@@ -1,96 +1,115 @@
 """Document processing for RAG (Retrieval Augmented Generation)."""
+try:
+    __import__("pysqlite3")
+    import sys
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except ImportError:
+    pass
+
 import os
 from typing import List, Optional
 from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import DirectoryLoader, TextLoader, PyPDFLoader
 from langchain_core.documents import Document
-from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.vectorstores import Chroma
-from config import Config
+try:
+    from .config import Config
+except ImportError:  # pragma: no cover
+    from config import Config
+
+
+def _create_embeddings():
+    """Create the embeddings instance based on available config."""
+    if (Config.AZURE_OPENAI_API_KEY
+            and Config.AZURE_OPENAI_ENDPOINT
+            and Config.AZURE_OPENAI_EMBEDDING_DEPLOYMENT):
+        from langchain_openai import AzureOpenAIEmbeddings
+        return AzureOpenAIEmbeddings(
+            azure_deployment=Config.AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
+            azure_endpoint=Config.AZURE_OPENAI_ENDPOINT,
+            api_key=Config.AZURE_OPENAI_API_KEY,
+            api_version=Config.AZURE_OPENAI_API_VERSION,
+        )
+    if Config.OPENAI_API_KEY:
+        from langchain_openai import OpenAIEmbeddings
+        return OpenAIEmbeddings(api_key=Config.OPENAI_API_KEY)
+    from langchain_community.embeddings import SentenceTransformerEmbeddings
+    return SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+
+
+DOCS_DIRECTORIES = [
+    "./data/advising_docs",
+    "./docs",
+]
 
 
 class DocumentProcessor:
     """Handles loading and processing advising documents."""
-    
+
     def __init__(self, docs_path: Optional[str] = None):
-        """
-        Initialize the document processor.
-        
-        Args:
-            docs_path: Path to documents directory
-        """
         self.docs_path = docs_path or "./data/advising_docs"
-        self.embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+        self.embeddings = _create_embeddings()
         self.vector_store = None
         self.loaded_documents: List[Document] = []
-    
-    def load_documents(self) -> List[Document]:
-        """
-        Load all documents from the docs directory.
-        
-        Supports .txt and .pdf files.
-        
-        Returns:
-            List of loaded documents
-        """
-        if not os.path.exists(self.docs_path):
-            print(f"Docs directory not found: {self.docs_path}")
+
+    def _load_from_directory(self, directory: str) -> List[Document]:
+        """Load .txt and .pdf files from a single directory."""
+        if not os.path.exists(directory):
             return []
-        
-        documents = []
-        
-        # Load text files
+
+        documents: List[Document] = []
+
         try:
             txt_loader = DirectoryLoader(
-                self.docs_path,
-                glob="**/*.txt",
-                loader_cls=TextLoader,
-                recursive=True
+                directory, glob="**/*.txt",
+                loader_cls=TextLoader, recursive=True,
             )
             documents.extend(txt_loader.load())
-            print(f"Loaded {len([d for d in documents if d.metadata.get('source', '').endswith('.txt')])} text documents")
         except Exception as e:
-            print(f"Error loading text files: {e}")
-        
-        # Load PDF files
+            print(f"Error loading text files from {directory}: {e}")
+
         try:
             pdf_loader = DirectoryLoader(
-                self.docs_path,
-                glob="**/*.pdf",
-                loader_cls=PyPDFLoader,
-                recursive=True
+                directory, glob="**/*.pdf",
+                loader_cls=PyPDFLoader, recursive=True,
             )
             documents.extend(pdf_loader.load())
-            print(f"Loaded {len([d for d in documents if d.metadata.get('source', '').endswith('.pdf')])} PDF documents")
         except Exception as e:
-            print(f"Error loading PDF files: {e}")
-        
+            print(f"Error loading PDF files from {directory}: {e}")
+
+        return documents
+
+    def load_documents(self) -> List[Document]:
+        """Load documents from all configured directories."""
+        documents: List[Document] = []
+
+        search_dirs = list(dict.fromkeys([self.docs_path] + DOCS_DIRECTORIES))
+
+        for directory in search_dirs:
+            loaded = self._load_from_directory(directory)
+            if loaded:
+                print(f"Loaded {len(loaded)} documents from {directory}")
+                documents.extend(loaded)
+
+        if not documents:
+            print("No documents found in any directory.")
+
         self.loaded_documents = documents
         return documents
     
-    def split_documents(self, documents: List[Document], 
-                       chunk_size: int = 1000,
-                       chunk_overlap: int = 200) -> List[Document]:
-        """
-        Split documents into chunks for better retrieval.
-        
-        Args:
-            documents: Documents to split
-            chunk_size: Size of each chunk
-            chunk_overlap: Overlap between chunks
-            
-        Returns:
-            List of split documents
-        """
+    def split_documents(self, documents: List[Document],
+                       chunk_size: int = 600,
+                       chunk_overlap: int = 150) -> List[Document]:
+        """Split documents into chunks optimised for advising-style Q&A retrieval."""
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            separators=["\n\n", "\n", " ", ""]
+            separators=["\n\n", "\n", ". ", " ", ""],
         )
-        
+
         split_docs = splitter.split_documents(documents)
-        print(f"Split into {len(split_docs)} chunks")
+        print(f"Split into {len(split_docs)} chunks (size={chunk_size}, overlap={chunk_overlap})")
         return split_docs
     
     def create_vector_store(self, documents: List[Document]) -> Chroma:

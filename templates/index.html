@@ -1,147 +1,202 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iSchool Advising Chatbot</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ISDA Advising Support Chatbot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <style>.message { white-space: normal !important; }</style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <h1>🎓 iSchool Advising Chatbot</h1>
-                <p class="tagline">Get instant answers about your degree program</p>
-            </div>
-            <div class="status-indicator" id="statusIndicator">
-                <span class="status-dot"></span>
-                <span class="status-text">Loading...</span>
-            </div>
-        </header>
+  <div class="page-shell">
 
-        <main class="main-content">
-            <!-- Chat Container -->
-            <div class="chat-container">
-                <!-- Messages Area -->
-                <div class="messages-area" id="messagesArea">
-                    <div class="message assistant-message welcome-message">
-                        <div class="message-content">
-                            <p><strong>Welcome to the iSchool Advising Chatbot!</strong></p>
-                            <p>I'm here to help you with questions about:</p>
-                            <ul>
-                                <li>Graduation requirements</li>
-                                <li>Program courses and prerequisites</li>
-                                <li>Course scheduling</li>
-                                <li>Academic policies</li>
-                                <li>Career guidance</li>
-                            </ul>
-                            <p style="margin-top: 15px; font-style: italic; font-size: 0.9em;">
-                                💡 Tip: Try asking "Hello" or "What do I need to graduate?"
-                            </p>
-                        </div>
-                    </div>
-                </div>
+    <header class="site-header">
+      <div class="header-image"></div>
+      <div class="header-overlay"></div>
+      <div class="header-content">
+        <div class="brand-row">
+          <div class="brand-left">
+            <img
+              src="{{ url_for('static', filename='images/ischool-logo.png') }}"
+              alt="SJSU School of Information Logo"
+              class="ischool-logo"
+            />
+          </div>
+          <div class="brand-text">
+            <p class="brand-kicker">San José State University</p>
+            <h1>ISDA Advising Support Chatbot</h1>
+            <p class="hero-subtitle">
+              A student support tool for general questions about advising, course planning,
+              graduation requirements, registration, and ISDA program logistics.
+            </p>
+          </div>
+        </div>
+      </div>
+    </header>
 
-                <!-- Input Area -->
-                <div class="input-area">
-                    <form id="chatForm" onsubmit="sendMessage(event)">
-                        <div class="input-wrapper">
-                            <input 
-                                type="text" 
-                                id="messageInput" 
-                                placeholder="Ask your advising question..." 
-                                autocomplete="off"
-                            >
-                            <button type="submit" class="send-button" id="sendButton">
-                                <span>Send</span>
-                                <span class="send-icon">➤</span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+    <main class="main-layout">
 
-            <!-- Sidebar -->
-            <aside class="sidebar">
-                <!-- Quick Actions -->
-                <section class="sidebar-section">
-                    <h3>Quick Actions</h3>
-                    <button class="action-button" onclick="loadDocuments()">
-                        <span class="icon">📄</span>
-                        <span>Load Documents</span>
-                    </button>
-                    <button class="action-button" onclick="showQuestions()">
-                        <span class="icon">❓</span>
-                        <span>Common Questions</span>
-                    </button>
-                    <button class="action-button" onclick="clearHistory()">
-                        <span class="icon">🗑️</span>
-                        <span>Clear History</span>
-                    </button>
-                </section>
+      <section class="left-panel">
 
-                <!-- Source Info -->
-                <section class="sidebar-section">
-                    <h3>Last Response</h3>
-                    <div id="sourceInfo" class="source-info">
-                        <p class="placeholder">No response yet</p>
-                    </div>
-                </section>
-
-                <!-- Stats -->
-                <section class="sidebar-section">
-                    <h3>Statistics</h3>
-                    <div class="stats">
-                        <div class="stat-item">
-                            <span class="stat-label">Messages:</span>
-                            <span class="stat-value" id="messageCount">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">KB Questions:</span>
-                            <span class="stat-value" id="kbCount">-</span>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Help -->
-                <section class="sidebar-section">
-                    <h3>Help</h3>
-                    <div class="help-text">
-                        <p><strong>Data Sources:</strong></p>
-                        <ul>
-                            <li><strong>Knowledge Base:</strong> Instant hardcoded answers</li>
-                            <li><strong>RAG:</strong> Document-enhanced responses</li>
-                            <li><strong>LLM:</strong> AI-generated answers</li>
-                        </ul>
-                    </div>
-                </section>
-            </aside>
-        </main>
-
-        <!-- Modals -->
-        <!-- Questions Modal -->
-        <div id="questionsModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Available Hardcoded Questions</h2>
-                    <button class="close-button" onclick="closeModal('questionsModal')">&times;</button>
-                </div>
-                <div class="modal-body" id="questionsModalBody">
-                    <p>Loading questions...</p>
-                </div>
-            </div>
+        <div class="panel-card topics-card">
+          <div class="topics-header">
+            <h2>Advising Topics</h2>
+            <p>Select a topic to focus the chatbot on your specific need.</p>
+          </div>
+          <ul class="topic-list" id="topic-list">
+            <li>
+              <button class="topic-btn" data-topic="General Advising"
+                data-hint="I have a general advising question. Please help me with general ISDA advising."
+                data-samples='["Who is my assigned ISDA advisor?","How do I schedule an advising appointment?","Where is the iSchool advising office?"]'>
+                <span class="topic-name">General Advising</span>
+                <span class="topic-sub">All advising questions</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Graduation"
+                data-hint="I have a question about graduation. Can you help me understand graduation requirements, petitions, or how to apply to graduate from ISDA?"
+                data-samples='["How do I apply to graduate from ISDA?","What is a graduation petition?","What are the graduation deadlines?"]'>
+                <span class="topic-name">Graduation</span>
+                <span class="topic-sub">Requirements &amp; petitions</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Course Planning"
+                data-hint="I need help with course planning. Can you help me plan my courses or build my semester schedule for ISDA?"
+                data-samples='["How do I plan my courses for next semester?","What classes should I take first?","Can I take two core courses at the same time?"]'>
+                <span class="topic-name">Course Planning</span>
+                <span class="topic-sub">Schedule &amp; semester planning</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Degree Requirements"
+                data-hint="I have a question about ISDA degree requirements. Can you explain the core courses, electives, and total units needed?"
+                data-samples='["How many total units are required for ISDA?","What are the ISDA core courses?","How many elective units do I need?"]'>
+                <span class="topic-name">Degree Requirements</span>
+                <span class="topic-sub">Core courses &amp; units</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Registration"
+                data-hint="I have a question about registration. Can you help me with adding or dropping courses, waitlists, or registration holds?"
+                data-samples='["How do I add or drop a course?","How do waitlists work at SJSU?","How do I clear a registration hold?"]'>
+                <span class="topic-name">Registration</span>
+                <span class="topic-sub">Add, drop &amp; waitlists</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Transfer Credits"
+                data-hint="I have a question about transferring credits. Can you help me understand how community college or university transfer credits work for ISDA?"
+                data-samples='["Can I transfer community college credits?","How do I get transfer credits evaluated?","Do AP credits count toward ISDA requirements?"]'>
+                <span class="topic-name">Transfer Credits</span>
+                <span class="topic-sub">CC &amp; university transfers</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Academic Standing"
+                data-hint="I have a question about academic standing. Can you help me understand GPA requirements, academic probation, or how to file an appeal?"
+                data-samples='["What GPA do I need to stay in good standing?","What happens if I go on academic probation?","How do I file an academic appeal?"]'>
+                <span class="topic-name">Academic Standing</span>
+                <span class="topic-sub">GPA, probation &amp; appeals</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Financial Aid"
+                data-hint="I have a question about financial aid. Can you help me with scholarships, payment deadlines, or how aid affects my enrollment?"
+                data-samples='["Are there scholarships for ISDA students?","How does financial aid affect my enrollment?","What is the fee payment deadline?"]'>
+                <span class="topic-name">Financial Aid</span>
+                <span class="topic-sub">Scholarships &amp; payments</span>
+              </button>
+            </li>
+          </ul>
+          <div class="active-topic-banner hidden" id="active-topic-banner">
+            <span class="banner-dot"></span>
+            <span id="active-topic-label">Topic selected</span>
+          </div>
         </div>
 
-        <!-- Loading Modal -->
-        <div id="loadingModal" class="modal loading-modal">
-            <div class="modal-content small">
-                <div class="spinner"></div>
-                <p id="loadingText">Processing...</p>
-            </div>
+        <div class="panel-card links-card">
+          <h3>Helpful resources</h3>
+          <ul class="resource-list">
+            <li><a href="https://ischool.sjsu.edu/student-services/advising" target="_blank" rel="noopener noreferrer">iSchool Advising</a></li>
+            <li><a href="https://catalog.sjsu.edu/" target="_blank" rel="noopener noreferrer">SJSU Course Catalog</a></li>
+            <li><a href="https://www.sjsu.edu/registrar/" target="_blank" rel="noopener noreferrer">Registrar's Office</a></li>
+            <li><a href="https://ischool.sjsu.edu/" target="_blank" rel="noopener noreferrer">iSchool Homepage</a></li>
+          </ul>
         </div>
-    </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+        <div class="panel-card status-card">
+          <h3>System Status</h3>
+          <p id="status-text">Checking chatbot status...</p>
+          <p id="provider-text" class="small-muted"></p>
+          <button id="load-docs-button" class="secondary-btn">Load Documents</button>
+        </div>
+
+      </section>
+
+      <section class="chat-panel">
+        <div class="chat-card">
+
+          <div class="chat-header">
+            <div>
+              <h2>Chat</h2>
+              <p>Ask a general ISDA advising question below.</p>
+            </div>
+            <div class="header-actions">
+              <button id="clear-button" class="clear-btn">Clear</button>
+            </div>
+          </div>
+
+          <div id="chat-box" class="chat-box">
+            <div class="message bot-message">
+              <div class="message-label">ISDA Bot</div>
+              <div>Hi! I'm the ISDA Advising Support Chatbot. I can help with general questions about advising, degree requirements, course planning, and registration. Select a topic on the left to get focused answers and sample questions!</div>
+            </div>
+          </div>
+
+          <div class="sample-chips-area hidden" id="sample-chips-area">
+            <p class="sample-chips-label" id="sample-chips-label">Try asking:</p>
+            <div class="sample-chips" id="sample-chips"></div>
+          </div>
+
+          <div class="input-row-wrapper">
+            <div class="spartan-send-col">
+              <img
+                src="{{ url_for('static', filename='images/animated spartan.png') }}"
+                alt="SJSU Spartan Mascot"
+                class="spartan-mascot"
+              />
+              <button id="send-button">Send</button>
+            </div>
+            <div class="input-container">
+              <input
+                type="text"
+                id="user-input"
+                placeholder="Type your question here..."
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div class="meta-row">
+            <span id="source-badge" class="meta-pill hidden"></span>
+            <span id="confidence-badge" class="meta-pill hidden"></span>
+            <span id="docs-badge" class="meta-pill hidden"></span>
+          </div>
+
+          <p class="chat-disclaimer">
+            This chatbot provides general program guidance only. It does not access personal records,
+            transcripts, or private academic information. For individualized advising, please contact an advisor.
+          </p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

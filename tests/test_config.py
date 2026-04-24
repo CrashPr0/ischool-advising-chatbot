@@ -21,6 +21,7 @@ class TestConfig:
     def test_llm_provider_enum(self):
         """Test LLM provider enum."""
         assert LLMProvider.OPENAI.value == "openai"
+        assert LLMProvider.AZURE_OPENAI.value == "azure_openai"
         assert LLMProvider.ANTHROPIC.value == "anthropic"
         assert LLMProvider.HUGGINGFACE.value == "huggingface"
 

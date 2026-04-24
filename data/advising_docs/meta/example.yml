@@ -1,0 +1,17 @@
+doc_id: degree_requirements
+title: "iSchool Degree Requirements (Example)"
+owner: "iSchool Advising"
+source_url: ""
+effective_date: ""
+expires_date: ""
+version: ""
+last_reviewed: ""
+programs:
+  - ISDA
+topics:
+  - degree_requirements
+  - graduation
+notes: >
+  Keep this YAML filename aligned with the PDF basename.
+  Example: `pdfs/degree_requirements.pdf` -> `meta/degree_requirements.yml`.
+
