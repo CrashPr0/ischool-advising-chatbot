@@ -64,7 +64,7 @@ def linksIndividual():
                 writer.write(infos + "\n")
         for isdas in isdasLinks:
             if "syllabus" in isdas:
-                writer.write(isda + "\n")
+                writer.write(isdas + "\n")
         for maras in marasLinks:
             if "syllabus" in maras:
                 writer.write(maras + "\n")
