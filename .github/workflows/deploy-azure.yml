@@ -22,6 +22,10 @@ jobs:
       - name: Run tests
         run: python -m pytest tests/ -q
 
+      # Azure must run Oryx (pip install) on the server: App Service setting
+      # SCM_DO_BUILD_DURING_DEPLOYMENT=true. If it is false, gunicorn fails with
+      # "No module named 'flask_cors'" because nothing installs requirements.txt.
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
