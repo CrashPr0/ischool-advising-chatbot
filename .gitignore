@@ -6,6 +6,8 @@
 secrets/
 credentials.json
 .env
+.codex-build/
+.codex-finalizer/
 .env.local
 .env.*.local
 
