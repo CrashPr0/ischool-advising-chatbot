@@ -9,7 +9,8 @@ except ImportError:  # pragma: no cover
 
 # tracer imports - may fail if tracing is not configured
 try:
-    from langsmith import Client
+    import langsmith  # noqa: F401
+
     LANGSMITH_AVAILABLE = True
 except ImportError:
     LANGSMITH_AVAILABLE = False
@@ -31,14 +32,21 @@ except ImportError:
     AzureChatOpenAI = None
 
 try:
-    from langchain_community.chat_models import ChatAnthropic
+    # Anthropic's maintained integration lives outside langchain-community.
+    from langchain_anthropic import ChatAnthropic
 except ImportError:
-    ChatAnthropic = None
+    try:  # compatibility with older deployments
+        from langchain_community.chat_models import ChatAnthropic
+    except ImportError:
+        ChatAnthropic = None
 
 try:
-    from langchain_community.llms import HuggingFaceHub
+    from langchain_huggingface import HuggingFaceEndpoint
 except ImportError:
-    HuggingFaceHub = None
+    try:  # compatibility with older deployments
+        from langchain_community.llms import HuggingFaceHub as HuggingFaceEndpoint
+    except ImportError:
+        HuggingFaceEndpoint = None
 
 
 class LLMFactory:
@@ -50,7 +58,8 @@ class LLMFactory:
         Create an LLM instance for the specified provider.
         
         Args:
-            provider: LLM provider name (openai, azure_openai, anthropic, huggingface)
+            provider: LLM provider name (openai, azure_openai, anthropic,
+                     huggingface, openai_compatible, deepseek, qwen, zhipu)
                      Defaults to config value
         
         Returns:
@@ -60,7 +69,7 @@ class LLMFactory:
             ValueError: If provider is not available or not configured
         """
         provider = provider or Config.DEFAULT_LLM_PROVIDER
-        provider = provider.lower()
+        provider = Config.normalize_provider(provider)
         
         if provider == "openai":
             return LLMFactory._create_openai()
@@ -70,13 +79,15 @@ class LLMFactory:
             return LLMFactory._create_anthropic()
         elif provider == "huggingface":
             return LLMFactory._create_huggingface()
+        elif provider in {"openai_compatible", "deepseek", "qwen", "zhipu"}:
+            return LLMFactory._create_openai_compatible(provider)
         else:
             raise ValueError(f"Unknown LLM provider: {provider}")
     
     @staticmethod
     def _create_openai() -> LLM:
         """Create OpenAI LLM."""
-        if not Config.OPENAI_API_KEY:
+        if not Config._configured_secret(Config.OPENAI_API_KEY):
             raise ValueError("OPENAI_API_KEY not configured")
         if ChatOpenAI is None:
             raise ImportError("langchain-openai not installed. Run: pip install langchain-openai")
@@ -90,7 +101,7 @@ class LLMFactory:
     @staticmethod
     def _create_azure_openai() -> LLM:
         """Create Azure OpenAI LLM."""
-        if not Config.AZURE_OPENAI_API_KEY:
+        if not Config._configured_secret(Config.AZURE_OPENAI_API_KEY):
             raise ValueError("AZURE_OPENAI_API_KEY not configured")
         if not Config.AZURE_OPENAI_ENDPOINT:
             raise ValueError("AZURE_OPENAI_ENDPOINT not configured")
@@ -110,7 +121,7 @@ class LLMFactory:
     @staticmethod
     def _create_anthropic() -> LLM:
         """Create Anthropic Claude LLM."""
-        if not Config.ANTHROPIC_API_KEY:
+        if not Config._configured_secret(Config.ANTHROPIC_API_KEY):
             raise ValueError("ANTHROPIC_API_KEY not configured")
         if ChatAnthropic is None:
             raise ImportError("anthropic not installed. Run: pip install anthropic")
@@ -124,15 +135,50 @@ class LLMFactory:
     @staticmethod
     def _create_huggingface() -> LLM:
         """Create HuggingFace LLM."""
-        if not Config.HUGGINGFACE_API_KEY:
+        if not Config._configured_secret(Config.HUGGINGFACE_API_KEY):
             raise ValueError("HUGGINGFACE_API_KEY not configured")
-        if HuggingFaceHub is None:
-            raise ImportError("langchain-community not installed. Run: pip install langchain-community")
+        if HuggingFaceEndpoint is None:
+            raise ImportError("langchain-huggingface not installed. Run: pip install langchain-huggingface")
         
-        return HuggingFaceHub(
+        return HuggingFaceEndpoint(
             repo_id=Config.HUGGINGFACE_MODEL,
             huggingfacehub_api_token=Config.HUGGINGFACE_API_KEY,
-            model_kwargs={"temperature": 0.7, "max_length": 512}
+            temperature=0.7,
+            max_new_tokens=512,
+        )
+
+    @staticmethod
+    def _create_openai_compatible(provider: str) -> LLM:
+        """Create a ChatOpenAI client for an OpenAI-compatible endpoint.
+
+        DeepSeek, Alibaba Cloud Model Studio/DashScope, Zhipu, and many
+        self-hosted gateways expose the same Chat Completions contract. Using
+        ``ChatOpenAI`` keeps the integration dependency-light and means the
+        endpoint can be selected entirely through environment variables.
+        """
+        settings = Config.get_openai_compatible_config(provider)
+        missing = [
+            env_name
+            for key, env_name in (
+                ("api_key", settings["api_key_env"]),
+                ("base_url", settings["base_url_env"]),
+                ("model", settings["model_env"]),
+            )
+            if not settings[key]
+            or (key == "api_key" and not Config._configured_secret(settings[key]))
+        ]
+        if missing:
+            raise ValueError(
+                f"{provider} is not configured; set {', '.join(missing)}"
+            )
+        if ChatOpenAI is None:
+            raise ImportError("langchain-openai not installed. Run: pip install langchain-openai")
+
+        return ChatOpenAI(
+            model=settings["model"],
+            temperature=0.7,
+            api_key=settings["api_key"],
+            base_url=settings["base_url"],
         )
     
     @staticmethod

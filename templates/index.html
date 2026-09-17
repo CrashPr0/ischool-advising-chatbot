@@ -132,7 +132,7 @@
           <h3>System Status</h3>
           <p id="status-text">Checking chatbot status...</p>
           <p id="provider-text" class="small-muted"></p>
-          <button id="load-docs-button" class="secondary-btn">Load Documents</button>
+          <p class="small-muted">Document indexing is managed by deployment administrators.</p>
         </div>
 
       </section>
@@ -180,6 +180,46 @@
               />
             </div>
           </div>
+
+          <section class="voice-tools" id="voice-tools" aria-labelledby="voice-tools-heading">
+            <div class="voice-tools-heading-row">
+              <h3 id="voice-tools-heading">Voice mode</h3>
+              <span id="voice-support-badge" class="voice-support-badge" role="status">Checking browser support…</span>
+            </div>
+            <div class="voice-controls">
+              <button
+                id="voice-listen-button"
+                class="voice-btn"
+                type="button"
+                aria-pressed="false"
+                aria-describedby="voice-status voice-privacy-note"
+              >
+                <span aria-hidden="true">🎙️</span>
+                <span id="voice-listen-label">Start voice input</span>
+              </button>
+              <label class="voice-select-label" for="voice-language-select">
+                Language
+                <select id="voice-language-select" autocomplete="language">
+                  <option value="en-US">English (US)</option>
+                  <option value="zh-CN">普通话（简体中文）</option>
+                </select>
+              </label>
+              <label class="voice-toggle-label" for="voice-reply-toggle">
+                <input id="voice-reply-toggle" type="checkbox" />
+                <span>Read replies aloud</span>
+              </label>
+              <button id="voice-stop-button" class="voice-btn voice-btn-secondary" type="button">
+                Stop audio
+              </button>
+            </div>
+            <p id="voice-status" class="voice-status" role="status" aria-live="polite">
+              Voice input is off until you press the microphone button.
+            </p>
+            <p id="voice-privacy-note" class="voice-privacy-note">
+              No audio is uploaded to this app's server. Your browser may use its own speech service;
+              check your browser privacy settings before granting microphone access.
+            </p>
+          </section>
 
           <div class="meta-row">
             <span id="source-badge" class="meta-pill hidden"></span>

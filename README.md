@@ -4,7 +4,8 @@ A LangChain-based advising chatbot for SJSU iSchool students. It supports:
 
 - **Knowledge base answers** (instant responses for common questions)
 - **RAG** (retrieves relevant documents and grounds the answer)
-- **Multiple LLM providers** (OpenAI / Azure OpenAI / Anthropic / Hugging Face / Gemini)
+- **Multiple LLM providers** (OpenAI / Azure OpenAI / Anthropic / Hugging Face)
+- **OpenAI-compatible endpoints** (DeepSeek, Qwen/DashScope, Zhipu/GLM, or a self-hosted gateway)
 - **CLI** (`python -m src.main`) and **Web UI** (`app.py` Flask + `templates/` + `static/`)
 
 The chatbot takes in student questions and makes an answer based on what it knows. This is to make sure that students get answers faster than emailing students, which should also decrease the workloads of advisors.
@@ -22,17 +23,21 @@ Currently on the main branch, there is an Azure site where it takes in inputs in
 
 ---
 ## Prerequisites/Running the PoC
-For testing it own your own, you would need to make sure that Python is installed to run main.py and input an API key for chatbot uses. If an API key is not provided, then it will only answer based off of sentence structures. For testing the Azure site (using the current main branch), you can run the link in the “External Documents” section (School Advising Chatbot Azure Website) to test the current main branch.
+Use Python 3.11 or newer and configure at least one supported provider in
+`.env`. The CLI and web app fail clearly when no provider is configured; the
+knowledge base remains useful for tests and direct library callers without
+making a network request. The deployed Azure URL in “External documents” can
+be used to test the current hosted PoC.
 
 ---
 # Installation
 ## Quick start (CLI)
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env
+python3 -m venv .venv
+source .venv/bin/activate       # Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+cp .env.example .env            # Windows: copy .env.example .env
 ```
 
 Set at least one API key in `.env`, then run:
@@ -50,6 +55,9 @@ python -m src.main
 - **Companion metadata (YAML)**: `data/advising_docs/meta/`
 
 The loader searches recursively under `data/advising_docs/`, but the `pdfs/` + `meta/` layout is the recommended convention.
+When a matching YAML file is present, its fields are carried into indexed
+document metadata and can be used for stable IDs, titles, topics, and source
+URLs.
 
 ### Offline website ingestion (scrape into txt + meta)
 
@@ -70,6 +78,9 @@ python -m src.scrape_ischool --docs-root ./data/advising_docs --seeds ./data/adv
 
 3. Rebuild the vector index (see below).
 
+The crawler is bounded by host, URL, response-size, timeout, and delay limits.
+It never runs during a chat request.
+
 ### Companion metadata format
 
 Create one YAML file per PDF with the same basename.
@@ -88,7 +99,7 @@ See `data/advising_docs/meta/example.yml` for a full template.
 ### Rebuild the vector index
 
 ```bash
-# Build (reuses existing chroma dir unless --clean)
+# Build (replaces the named advising collection deterministically)
 python -m src.build_index --docs ./data/advising_docs
 
 # Clean rebuild
@@ -96,11 +107,14 @@ python -m src.build_index --docs ./data/advising_docs --clean
 ```
 
 The index persists to `Config.VECTOR_STORE_PATH` (default: `./data/chroma`).
+The web rebuild endpoint is admin-only; use the CLI for scheduled or local
+indexing jobs.
 
 ### CLI commands
 
 - `help` - show commands
-- `docs` - create/load sample docs + build vector index
+- `docs` - load the configured advising documents and rebuild the vector index
+- `ALLOW_SAMPLE_DOCS=true` - opt in to the legacy local-only MLIS fixture
 - `questions` - list hardcoded questions
 - `clear` - clear conversation history
 - `exit` - quit
@@ -110,10 +124,10 @@ The index persists to `Config.VECTOR_STORE_PATH` (default: `./data/chroma`).
 ## Quick start (Web UI)
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env
+python3 -m venv .venv
+source .venv/bin/activate       # Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+cp .env.example .env            # Windows: copy .env.example .env
 python app.py
 ```
 
@@ -122,17 +136,57 @@ Open `http://localhost:5000`.
 ### Web API endpoints
 
 - `GET /api/status`
+- `GET /healthz` (liveness probe; does not require provider credentials)
 - `POST /api/chat` `{ "message": "..." }`
 - `GET /api/history`
 - `POST /api/clear-history`
-- `POST /api/load-docs`
+- `POST /api/load-docs` (admin `X-Admin-Token` or `Authorization: Bearer ...` required)
+- `GET /api/docs-stats` (same admin token; source-file and index counts)
 - `GET /api/questions`
+- `GET /api/voice-config`
+
+Chat history is isolated per browser session, bounded, and held in worker
+memory. It is cleared on restart; multi-worker deployments should use a shared
+session store (such as Redis) if durable history is required. Document index
+rebuilds are disabled unless `DOCS_LOAD_TOKEN` is configured.
+
+### Browser voice mode
+
+The web UI includes a credential-free voice path built on the browser Web
+Speech API. Press **Start voice input** to dictate a question, review the
+transcript, and press **Send**. Enable **Read replies aloud** to use the
+browser's speech synthesis. Chrome and Edge generally provide the broadest
+support; browsers may ask for microphone permission and may send recognition
+audio to their own speech service. This app does not upload audio to its
+server.
+
+Voice is provider-agnostic: the chatbot still receives ordinary text through
+`POST /api/chat`. Mandarin is available as the `zh-CN` locale, and the
+transcribed text can be answered by any configured Chinese-capable LLM without
+changing the voice UI. Recognition and synthesis remain optional browser
+features, so text chat continues to work when unsupported.
+
+The app exposes `GET /api/voice-config` using
+`get_voice_config().as_dict()` from `src/voice_config.py`. The frontend uses
+that response to apply the following environment settings and falls back to
+safe browser defaults when an older deployment does not have the endpoint:
+
+- `VOICE_ENABLED`, `VOICE_MODE=browser|disabled`
+- `VOICE_STT_ENABLED`, `VOICE_TTS_ENABLED`
+- `VOICE_LANGUAGES` (comma-separated BCP-47 locales, default `en-US,zh-CN`)
+- `VOICE_DEFAULT_LANGUAGE`, `VOICE_AUTO_SEND` (default `false`)
+- `VOICE_MAX_UTTERANCE_CHARS` (bounded to 100–10,000)
+
+Keep `VOICE_AUTO_SEND=false` unless the deployment has reviewed microphone
+consent and transcript-review requirements. A future server-side STT/TTS
+adapter can implement the same config contract without changing `/api/chat`.
 
 ---
 
 ## Configuration (`.env`)
 
-Minimum configuration is one provider key plus a default:
+Minimum configuration is one provider key plus a default. Existing OpenAI,
+Azure OpenAI, Anthropic, and Hugging Face settings remain supported:
 
 ```env
 OPENAI_API_KEY=...
@@ -145,6 +199,57 @@ Optional:
 ANTHROPIC_API_KEY=...
 HUGGINGFACE_API_KEY=...
 ```
+
+For deployment security, also set a stable `SESSION_SECRET_KEY`, a separate
+`DOCS_LOAD_TOKEN`, and `SESSION_COOKIE_SECURE=true` when serving over HTTPS.
+The app bounds request size, chat input, and request rates through
+`MAX_REQUEST_BYTES`, `CHAT_MESSAGE_MAX_LENGTH`, `CHAT_RATE_LIMIT`, and
+`CHAT_RATE_WINDOW_SECONDS`; generated responses are bounded by
+`RAG_RESPONSE_MAX_CHARS`; history retention is controlled by
+`MAX_HISTORY_MESSAGES` and `CHAT_SESSION_TTL_SECONDS`.
+
+### Chinese models and other OpenAI-compatible services
+
+The app uses the existing `langchain-openai` dependency and passes a provider's
+OpenAI-compatible `base_url`, API key, and model name to `ChatOpenAI`. No
+provider SDK or credential is hard-coded. Set one of these provider profiles as
+the default:
+
+```env
+# DeepSeek (official endpoint; do not append /v1)
+DEFAULT_LLM_PROVIDER=deepseek
+DEEPSEEK_API_KEY=...
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-flash
+
+# Alibaba Cloud Model Studio / DashScope (Qwen)
+DEFAULT_LLM_PROVIDER=qwen
+DASHSCOPE_API_KEY=...
+DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+QWEN_MODEL=qwen-plus
+
+# Zhipu / Z.ai (GLM)
+DEFAULT_LLM_PROVIDER=zhipu
+ZAI_API_KEY=...
+ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+ZHIPU_MODEL=glm-5.2
+```
+
+`dashscope` is accepted as an alias for `qwen`; `zai` and `zhipuai` are
+accepted as aliases for `zhipu`. For an unlisted OpenAI-compatible service, use
+the generic profile instead:
+
+```env
+DEFAULT_LLM_PROVIDER=openai_compatible
+OPENAI_COMPATIBLE_API_KEY=...
+OPENAI_COMPATIBLE_BASE_URL=https://provider.example.com/v1
+OPENAI_COMPATIBLE_MODEL=your-model-name
+```
+
+Provider endpoints and model availability vary by region and account. Check
+the official documentation before deploying: [DeepSeek API](https://api-docs.deepseek.com/),
+[Alibaba Cloud Model Studio OpenAI compatibility](https://help.aliyun.com/en/model-studio/compatibility-of-openai-with-dashscope),
+and [Zhipu OpenAI compatibility](https://docs.bigmodel.cn/cn/guide/develop/openai/introduction).
 
 Important: **Never commit `.env`** (use `.env.example` as the template).
 
@@ -206,7 +311,9 @@ Bottom of the site
 ---
 
 ## Technical Stack
-Currently we are mostly using Python as the bulk of the code, HTML for organizing the website, and CSS and Javascript as supplementaries. We will use GPT 5.2 as our API and are currently using Azure to host the site for the time being, but also manage our project.
+The application uses Python 3.11+, Flask, LangChain, Chroma, HTML/CSS, and
+JavaScript. LLM selection is configuration-driven (including OpenAI-compatible
+Chinese providers), and Azure App Service remains a supported deployment target.
 
 ---
 ## What's Next

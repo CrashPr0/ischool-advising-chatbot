@@ -5,7 +5,8 @@ indexed PDF/TXT documents. This module only intercepts greetings,
 out-of-scope requests, and meta questions so the LLM is not wasted
 on things that don't need document retrieval.
 """
-from typing import Optional, Dict, List
+import re
+from typing import Optional, Dict, List, Tuple
 
 ADVISING_LINK = "https://ischoolapps.sjsu.edu/advising/index.php"
 CATALOG_LINK = "https://catalog.sjsu.edu/"
@@ -97,21 +98,56 @@ class KnowledgeBase:
         self._build_keyword_index()
 
     def _build_keyword_index(self) -> None:
-        """Build a keyword index for faster lookups."""
+        """Build a normalized keyword index.
+
+        The old implementation used unrestricted substring matching.  That
+        made a short greeting such as ``hi`` match ordinary words such as
+        ``which``.  Keep the public dictionary for backwards compatibility,
+        but normalize every phrase and match it with word boundaries in
+        :meth:`find_answer`.
+        """
         self.keyword_index: Dict[str, str] = {}
 
         for question_key, qa_data in self.COMMON_QA.items():
-            self.keyword_index[question_key] = question_key
+            normalized_question = self._normalize(question_key)
+            if normalized_question:
+                self.keyword_index[normalized_question] = question_key
             for keyword in qa_data.get("keywords", []):
-                self.keyword_index[keyword] = question_key
+                normalized_keyword = self._normalize(keyword)
+                if normalized_keyword:
+                    self.keyword_index[normalized_keyword] = question_key
+
+    @staticmethod
+    def _normalize(value: str) -> str:
+        """Normalize text for case-insensitive, punctuation-safe matching."""
+        if not isinstance(value, str):
+            return ""
+        return re.sub(r"[^\w]+", " ", value.casefold(), flags=re.UNICODE).strip()
+
+    @classmethod
+    def _phrase_matches(cls, phrase: str, message: str) -> bool:
+        """Return whether *phrase* occurs as complete words in *message*."""
+        normalized_phrase = cls._normalize(phrase)
+        if not normalized_phrase:
+            return False
+
+        pattern = r"(?<!\w)" + r"\s+".join(
+            re.escape(token) for token in normalized_phrase.split()
+        ) + r"(?!\w)"
+        return re.search(pattern, message, flags=re.UNICODE) is not None
 
     def find_answer(self, user_message: str) -> Optional[Dict]:
         """Find a hardcoded answer for greetings/boundary questions only."""
-        user_lower = user_message.lower().strip()
 
-        for question_key in self.COMMON_QA:
-            if question_key == user_lower:
-                qa_data = self.COMMON_QA[question_key]
+        if not isinstance(user_message, str):
+            return None
+
+        normalized_message = self._normalize(user_message)
+        if not normalized_message:
+            return None
+
+        for question_key, qa_data in self.COMMON_QA.items():
+            if self._normalize(question_key) == normalized_message:
                 return {
                     "answer": qa_data["answer"],
                     "matched_question": question_key,
@@ -119,15 +155,22 @@ class KnowledgeBase:
                     "is_hardcoded": True,
                 }
 
+        candidates: List[Tuple[int, int, int, str]] = []
         for keyword, question_key in self.keyword_index.items():
-            if keyword in user_lower or user_lower in keyword:
-                qa_data = self.COMMON_QA[question_key]
-                return {
-                    "answer": qa_data["answer"],
-                    "matched_question": question_key,
-                    "confidence": 0.8,
-                    "is_hardcoded": True,
-                }
+            if self._phrase_matches(keyword, normalized_message):
+                priority = int(self.COMMON_QA[question_key].get("priority", 0))
+                token_count = len(keyword.split())
+                candidates.append((token_count, len(keyword), priority, question_key))
+
+        if candidates:
+            _, _, _, question_key = max(candidates, key=lambda item: item[:3])
+            qa_data = self.COMMON_QA[question_key]
+            return {
+                "answer": qa_data["answer"],
+                "matched_question": question_key,
+                "confidence": 0.8,
+                "is_hardcoded": True,
+            }
 
         return None
 

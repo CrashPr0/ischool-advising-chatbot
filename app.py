@@ -1,6 +1,12 @@
 """Flask web app for the iSchool Advising Chatbot."""
-import sys
+import hmac
+import logging
 import os
+import secrets
+import sys
+import threading
+import time
+from collections import OrderedDict
 
 # Add src to path so imports work consistently on Azure App Service.
 # Depending on run-from-package / Oryx, __file__ may resolve under /tmp, but
@@ -13,12 +19,11 @@ for _p in _src_candidates:
     if os.path.isdir(_p) and _p not in sys.path:
         sys.path.insert(0, _p)
 
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, session
 from flask_cors import CORS
+from werkzeug.exceptions import RequestEntityTooLarge
 from rag_chatbot import RAGAdvisingChatbot
-from document_processor import setup_sample_docs
-import logging
-from pathlib import Path
+from voice_config import get_voice_config
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -48,6 +53,165 @@ _STATIC_DIR = _first_existing_dir(
 app = Flask(__name__, template_folder=_TEMPLATES_DIR, static_folder=_STATIC_DIR)
 
 
+def _env_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    """Read an integer setting safely and clamp it to an operational range."""
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        logger.warning("Invalid %s value; using %s", name, default)
+        value = default
+    return max(minimum, min(value, maximum))
+
+
+def _looks_like_placeholder(value: str | None) -> bool:
+    """Identify the template values that must never be used as secrets."""
+    normalized = (value or "").strip().lower()
+    return not normalized or normalized.startswith(
+        ("replace_with_", "your_", "change_me", "changeme")
+    )
+
+
+_session_secret = os.getenv("SESSION_SECRET_KEY")
+if _looks_like_placeholder(_session_secret):
+    # An ephemeral development key prevents accidentally running with a known
+    # default, while the warning makes the restart/session trade-off visible.
+    _session_secret = secrets.token_hex(32)
+    logger.warning("SESSION_SECRET_KEY is not set; using an ephemeral session key")
+
+_session_samesite = os.getenv("SESSION_COOKIE_SAMESITE", "Lax").strip().capitalize()
+if _session_samesite not in {"Lax", "Strict", "None"}:
+    logger.warning("Invalid SESSION_COOKIE_SAMESITE; using Lax")
+    _session_samesite = "Lax"
+
+# Flask's signed session cookie carries only an opaque identifier. The actual
+# transcript stays server-side and is bounded by _SessionHistoryStore below.
+app.config.update(
+    SECRET_KEY=_session_secret,
+    MAX_CONTENT_LENGTH=_env_int("MAX_REQUEST_BYTES", 64 * 1024, 1024, 2 * 1024 * 1024),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE=_session_samesite,
+    SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true",
+)
+
+
+class _SessionHistoryStore:
+    """Small bounded in-memory store for per-browser conversation history.
+
+    This intentionally stores no transcript in the signed Flask cookie. It is
+    suitable for a single worker and gives safe behavior on a restart (the
+    session simply starts empty); deployments with multiple workers can swap
+    this implementation for Redis without changing the route contract.
+    """
+
+    def __init__(self, max_sessions: int, max_messages: int, ttl_seconds: int):
+        self.max_sessions = max_sessions
+        self.max_messages = max_messages
+        self.ttl_seconds = ttl_seconds
+        self._sessions: OrderedDict[str, tuple[float, list[dict]]] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def _purge(self, now: float) -> None:
+        expired = [
+            session_id
+            for session_id, (last_seen, _) in self._sessions.items()
+            if now - last_seen > self.ttl_seconds
+        ]
+        for session_id in expired:
+            self._sessions.pop(session_id, None)
+        while len(self._sessions) > self.max_sessions:
+            self._sessions.popitem(last=False)
+
+    def snapshot(self, session_id: str) -> list[dict]:
+        now = time.monotonic()
+        with self._lock:
+            self._purge(now)
+            record = self._sessions.get(session_id)
+            if record is None:
+                return []
+            self._sessions.move_to_end(session_id)
+            self._sessions[session_id] = (now, record[1])
+            return [dict(entry) for entry in record[1]]
+
+    def append(self, session_id: str, result: dict) -> None:
+        now = time.monotonic()
+        entry = {
+            "user": str(result.get("user_message", "")),
+            "assistant": str(result.get("response", "")),
+            "source": result.get("source"),
+        }
+        with self._lock:
+            self._purge(now)
+            history = self._sessions.setdefault(session_id, (now, []))[1]
+            history.append(entry)
+            del history[:-self.max_messages]
+            self._sessions.move_to_end(session_id)
+            self._sessions[session_id] = (now, history)
+
+    def clear(self, session_id: str) -> None:
+        with self._lock:
+            self._sessions.pop(session_id, None)
+
+
+class _FixedWindowRateLimiter:
+    """Dependency-free, bounded rate limiter for expensive API operations."""
+
+    def __init__(self, max_keys: int = 10_000):
+        self._buckets: OrderedDict[str, tuple[float, int]] = OrderedDict()
+        self._max_keys = max_keys
+        self._lock = threading.Lock()
+
+    def allow(self, key: str, limit: int, window_seconds: int) -> tuple[bool, int]:
+        now = time.monotonic()
+        with self._lock:
+            start, count = self._buckets.get(key, (now, 0))
+            if now - start >= window_seconds:
+                start, count = now, 0
+            if count >= limit:
+                retry_after = max(1, int(window_seconds - (now - start)))
+                return False, retry_after
+            self._buckets[key] = (start, count + 1)
+            self._buckets.move_to_end(key)
+            while len(self._buckets) > self._max_keys:
+                self._buckets.popitem(last=False)
+            return True, 0
+
+
+_history_store = _SessionHistoryStore(
+    max_sessions=_env_int("MAX_CHAT_SESSIONS", 10_000, 10, 100_000),
+    max_messages=_env_int("MAX_HISTORY_MESSAGES", 50, 1, 500),
+    ttl_seconds=_env_int("CHAT_SESSION_TTL_SECONDS", 3_600, 60, 86_400),
+)
+_rate_limiter = _FixedWindowRateLimiter()
+
+
+def _session_id() -> str:
+    """Get or create the opaque ID used to isolate a browser's history."""
+    value = session.get("chat_session_id")
+    if not isinstance(value, str) or len(value) < 20 or len(value) > 128:
+        value = secrets.token_urlsafe(32)
+        session["chat_session_id"] = value
+    return value
+
+
+def _client_key() -> str:
+    return request.remote_addr or "unknown"
+
+
+def _admin_error():
+    """Validate the admin token for document-index rebuilds."""
+    expected = os.getenv("DOCS_LOAD_TOKEN", "").strip()
+    if _looks_like_placeholder(expected):
+        return jsonify({"error": "Document loading is disabled until DOCS_LOAD_TOKEN is configured"}), 503
+
+    provided = request.headers.get("X-Admin-Token", "")
+    authorization = request.headers.get("Authorization", "")
+    if not provided and authorization.lower().startswith("bearer "):
+        provided = authorization[7:].strip()
+    if not provided or not hmac.compare_digest(provided, expected):
+        return jsonify({"error": "Admin authorization required"}), 401
+    return None
+
+
 def _get_allowed_origins():
     """Read allowed CORS origins from environment."""
     raw = os.getenv(
@@ -58,22 +222,25 @@ def _get_allowed_origins():
 
 
 allowed_origins = _get_allowed_origins()
-CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
+CORS(app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=True)
 logger.info("CORS allowed origins: %s", allowed_origins)
 
 # Initialize chatbot (singleton)
 chatbot = None
+_chatbot_lock = threading.Lock()
 
 def get_chatbot():
     """Get or create chatbot instance."""
     global chatbot
     if chatbot is None:
-        try:
-            chatbot = RAGAdvisingChatbot()
-            logger.info("Chatbot initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize chatbot: {e}")
-            raise
+        with _chatbot_lock:
+            if chatbot is None:
+                try:
+                    chatbot = RAGAdvisingChatbot()
+                    logger.info("Chatbot initialized successfully")
+                except Exception:
+                    logger.exception("Failed to initialize chatbot")
+                    raise
     return chatbot
 
 # Routes
@@ -107,16 +274,36 @@ def index():
 @app.route('/api/chat', methods=['POST'])
 def chat():
     """Handle chat requests."""
+    session_id = _session_id()
+    allowed, retry_after = _rate_limiter.allow(
+        f"chat:{_client_key()}",
+        _env_int("CHAT_RATE_LIMIT", 60, 1, 1_000),
+        _env_int("CHAT_RATE_WINDOW_SECONDS", 60, 1, 3_600),
+    )
+    if not allowed:
+        response = jsonify({'error': 'Too many chat requests; please try again later'})
+        response.headers['Retry-After'] = str(retry_after)
+        return response, 429
+
     try:
-        data = request.json
-        user_message = data.get('message', '').strip()
-        
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Request body must be a JSON object'}), 400
+
+        user_message = data.get('message')
+        if not isinstance(user_message, str):
+            return jsonify({'error': 'message must be a string'}), 400
+        user_message = user_message.strip()
+        max_length = _env_int('CHAT_MESSAGE_MAX_LENGTH', 4000, 1, 16_000)
         if not user_message:
             return jsonify({'error': 'Empty message'}), 400
-        
+        if len(user_message) > max_length:
+            return jsonify({'error': f'Message exceeds the {max_length}-character limit'}), 413
+
         # Get response from chatbot
         chatbot_instance = get_chatbot()
         result = chatbot_instance.chat(user_message)
+        _history_store.append(session_id, result)
         
         return jsonify({
             'response': result['response'],
@@ -125,9 +312,11 @@ def chat():
             'retrieved_docs': len(result['retrieved_docs'])
         })
     
-    except Exception as e:
-        logger.error(f"Error in chat endpoint: {e}")
-        return jsonify({'error': str(e)}), 500
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception:
+        logger.exception("Error in chat endpoint")
+        return jsonify({'error': 'Unable to process chat request'}), 500
 
 @app.route('/api/status', methods=['GET'])
 def status():
@@ -142,16 +331,26 @@ def status():
             'available_providers': providers,
             'hardcoded_questions': len(questions),
         })
-    except Exception as e:
+    except Exception:
+        logger.exception("Failed to initialize chatbot status")
         return jsonify({
             'status': 'error',
-            'error': str(e)
+            'error': 'Chatbot is unavailable'
         }), 500
+
+
+@app.route('/healthz', methods=['GET'])
+def healthz():
+    """Liveness probe that does not require an LLM key or vector index."""
+    return jsonify({'status': 'ok'})
 
 
 @app.route('/api/docs-stats', methods=['GET'])
 def docs_stats():
     """Debug endpoint to verify which docs are being indexed on the server."""
+    auth_error = _admin_error()
+    if auth_error:
+        return auth_error
     try:
         bot = get_chatbot()
         dp = bot.doc_processor
@@ -161,56 +360,54 @@ def docs_stats():
             "scan": scan,
             "vector_store_chunks": dp.vector_store_count(),
         })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        logger.exception("Unable to read document statistics")
+        return jsonify({"error": "Unable to read document statistics"}), 500
 
 @app.route('/api/history', methods=['GET'])
 def history():
     """Get conversation history."""
     try:
-        chatbot_instance = get_chatbot()
-        hist = chatbot_instance.get_history()
-        
-        # Return only user messages and responses (not full metadata)
-        simplified = [
-            {
-                'user': h['user_message'],
-                'assistant': h['response'],
-                'source': h['source']
-            }
-            for h in hist
-        ]
-        
-        return jsonify({'history': simplified})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'history': _history_store.snapshot(_session_id())})
+    except Exception:
+        logger.exception("Unable to read conversation history")
+        return jsonify({'error': 'Unable to read conversation history'}), 500
 
 @app.route('/api/clear-history', methods=['POST'])
 def clear_history():
     """Clear conversation history."""
     try:
-        chatbot_instance = get_chatbot()
-        chatbot_instance.clear_history()
+        _history_store.clear(_session_id())
         return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception("Unable to clear conversation history")
+        return jsonify({'error': 'Unable to clear conversation history'}), 500
 
 @app.route('/api/load-docs', methods=['POST'])
 def load_docs():
     """Load and process documents."""
+    auth_error = _admin_error()
+    if auth_error:
+        return auth_error
+
+    allowed, retry_after = _rate_limiter.allow(
+        f"load-docs:{_client_key()}",
+        _env_int("DOCS_LOAD_RATE_LIMIT", 2, 1, 20),
+        _env_int("DOCS_LOAD_RATE_WINDOW_SECONDS", 600, 10, 86_400),
+    )
+    if not allowed:
+        response = jsonify({'error': 'Document loading is temporarily rate limited'})
+        response.headers['Retry-After'] = str(retry_after)
+        return response, 429
+
     try:
         chatbot_instance = get_chatbot()
-        
-        # Setup sample documents if they don't exist
-        setup_sample_docs()
-        
-        # Process documents
         chatbot_instance.process_documents()
         
         return jsonify({'success': True, 'message': 'Documents loaded successfully'})
-    except Exception as e:
-        logger.error(f"Error loading documents: {e}")
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception("Error loading documents")
+        return jsonify({'error': 'Unable to load documents'}), 500
 
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
@@ -219,8 +416,15 @@ def get_questions():
         chatbot_instance = get_chatbot()
         questions = chatbot_instance.get_knowledge_base_questions()
         return jsonify({'questions': questions})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception("Unable to read hardcoded questions")
+        return jsonify({'error': 'Unable to read questions'}), 500
+
+
+@app.route('/api/voice-config', methods=['GET'])
+def voice_config():
+    """Expose non-secret browser voice settings to the web client."""
+    return jsonify(get_voice_config().as_dict())
 
 @app.errorhandler(404)
 def not_found(error):
@@ -231,6 +435,12 @@ def not_found(error):
 def server_error(error):
     """Handle 500 errors."""
     return jsonify({'error': 'Server error'}), 500
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def request_too_large(error):
+    """Return a JSON error when a client exceeds MAX_CONTENT_LENGTH."""
+    return jsonify({'error': 'Request body is too large'}), 413
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

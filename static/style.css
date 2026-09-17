@@ -520,6 +520,140 @@ html, body {
   box-shadow: 0 10px 26px rgba(0, 85, 162, 0.28);
 }
 
+/* ── VOICE CONTROLS ── */
+.voice-tools {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border: 1px solid #d0e4f7;
+  border-radius: 14px;
+  background: #f7fbff;
+}
+
+.voice-tools-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.voice-tools h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: var(--text-main);
+}
+
+.voice-support-badge {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.voice-support-badge.ready {
+  color: #176b42;
+}
+
+.voice-support-badge.warning {
+  color: #8a5700;
+}
+
+.voice-support-badge.disabled {
+  color: var(--text-muted);
+}
+
+.voice-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.voice-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(0, 85, 162, 0.28);
+  background: white;
+  color: var(--sjsu-blue-dark);
+  border-radius: 10px;
+  padding: 9px 13px;
+  min-height: 40px;
+  font-weight: 700;
+  font-size: 0.84rem;
+  font-family: "Source Sans 3", sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.voice-btn:hover:not(:disabled) {
+  background: #e8f1ff;
+  border-color: var(--sjsu-blue);
+  transform: translateY(-1px);
+}
+
+.voice-btn.listening {
+  color: #9a2f2f;
+  background: #fff2f2;
+  border-color: #e6a2a2;
+}
+
+.voice-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.voice-btn-secondary {
+  color: #334155;
+  border-color: var(--line);
+  background: #eef2f6;
+}
+
+.voice-select-label,
+.voice-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.voice-select-label select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--text-main);
+  padding: 8px 26px 8px 8px;
+  font: inherit;
+}
+
+.voice-toggle-label input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sjsu-blue);
+}
+
+.voice-status {
+  margin: 10px 0 0;
+  color: var(--sjsu-blue-dark);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.voice-status.error {
+  color: #9a2f2f;
+}
+
+.voice-privacy-note {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
 /* ── META ── */
 .meta-row {
   display: flex;
@@ -592,5 +726,29 @@ html, body {
   }
   .spartan-mascot {
     width: 56px;
+  }
+  .voice-tools-heading-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .voice-support-badge {
+    text-align: left;
+  }
+  .voice-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .voice-btn,
+  .voice-select-label,
+  .voice-toggle-label {
+    width: 100%;
+  }
+  .voice-select-label {
+    justify-content: space-between;
+  }
+  .voice-select-label select {
+    flex: 1;
+    margin-left: 8px;
   }
 }

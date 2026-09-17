@@ -72,7 +72,7 @@ az webapp create \
   --resource-group ischool-chatbot-rg \
   --plan ischool-chatbot-plan \
   --name ischool-chatbot-prod \
-  --runtime "PYTHON:3.10"
+  --runtime "PYTHON:3.11"
 
 # Configure environment variables
 az webapp config appsettings set \
@@ -189,6 +189,38 @@ http://ischool-chatbot.westus2.azurecontainers.io:5000
 ANTHROPIC_API_KEY = claude-key...
 HUGGINGFACE_API_KEY = hf_...
 ```
+
+### 3.3 Optional: Use Chinese or OpenAI-Compatible Models
+
+DeepSeek, Alibaba Cloud Model Studio/DashScope (Qwen), and Zhipu (GLM) use
+the app's OpenAI-compatible integration. Set the provider-specific variables
+in Azure App Service **Configuration → Application settings**; do not commit
+keys to the repository:
+
+```text
+# Choose one provider profile
+DEFAULT_LLM_PROVIDER = deepseek       # or qwen / zhipu
+
+DEEPSEEK_API_KEY = ...
+DEEPSEEK_BASE_URL = https://api.deepseek.com
+DEEPSEEK_MODEL = deepseek-v4-flash
+
+DASHSCOPE_API_KEY = ...
+DASHSCOPE_BASE_URL = https://dashscope.aliyuncs.com/compatible-mode/v1
+QWEN_MODEL = qwen-plus
+
+ZAI_API_KEY = ...
+ZHIPU_BASE_URL = https://open.bigmodel.cn/api/paas/v4
+ZHIPU_MODEL = glm-5.2
+```
+
+For a self-hosted gateway or another compatible vendor, use
+`DEFAULT_LLM_PROVIDER = openai_compatible` with
+`OPENAI_COMPATIBLE_API_KEY`, `OPENAI_COMPATIBLE_BASE_URL`, and
+`OPENAI_COMPATIBLE_MODEL`. Verify the provider's region-specific endpoint and
+model name before deployment. See the [DeepSeek API docs](https://api-docs.deepseek.com/),
+[Alibaba Cloud Model Studio compatibility guide](https://help.aliyun.com/en/model-studio/compatibility-of-openai-with-dashscope),
+and [Zhipu OpenAI compatibility guide](https://docs.bigmodel.cn/cn/guide/develop/openai/introduction).
 
 ---
 

@@ -1,4 +1,5 @@
 """RAG-enhanced chatbot with knowledge base and document retrieval."""
+import logging
 import os
 from typing import List, Optional, Dict
 from langchain_core.prompts import PromptTemplate
@@ -6,13 +7,24 @@ try:
     from .llm_providers import LLMFactory
     from .knowledge_base import get_knowledge_base
     from .document_processor import DocumentProcessor
-    from .config import Config
 except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
     from llm_providers import LLMFactory
     from knowledge_base import get_knowledge_base
     from document_processor import DocumentProcessor
-    from config import Config
+
+
+logger = logging.getLogger(__name__)
+
+
+def _bounded_env_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    """Read a bounded integer environment setting without crashing requests."""
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        logger.warning("Invalid %s value; using %s", name, default)
+        value = default
+    return max(minimum, min(value, maximum))
 
 
 class RAGAdvisingChatbot:
@@ -40,7 +52,9 @@ and recommend the student contact the iSchool advising team or visit \
 https://ischoolapps.sjsu.edu/advising/index.php.
 4. Never fabricate course numbers, unit counts, policies, or deadlines.
 5. Keep answers concise but complete. Use bullet points for lists.
-6. Do not access or reference personal student records."""
+6. Do not access or reference personal student records.
+7. Reply in the language used by the student when possible, including
+   Simplified Chinese for Chinese-language questions."""
     
     def __init__(self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None):
         """
@@ -54,6 +68,10 @@ https://ischoolapps.sjsu.edu/advising/index.php.
         self.llm = LLMFactory.create_llm(llm_provider)
         self.knowledge_base = get_knowledge_base()
         self.doc_processor = DocumentProcessor(docs_path)
+        # Chat is stateless by default. The Flask layer owns bounded,
+        # session-scoped history so a singleton chatbot cannot leak one
+        # visitor's messages to another. This list remains only for backwards
+        # compatibility with direct CLI callers that explicitly request it.
         self.conversation_history: List[dict] = []
         
         # Try to load or create vector store
@@ -91,7 +109,7 @@ Assistant Response:"""
         print(f"Processing documents from {self.doc_processor.docs_path}...")
         self.doc_processor.process_and_index()
     
-    def chat(self, user_message: str) -> Dict:
+    def chat(self, user_message: str, history: Optional[List[dict]] = None) -> Dict:
         """
         Send a message and get a response using RAG.
         
@@ -106,6 +124,15 @@ Assistant Response:"""
         Returns:
             Dict with response metadata
         """
+        if not isinstance(user_message, str):
+            raise ValueError("Message must be a string")
+        user_message = user_message.strip()
+        max_length = _bounded_env_int("CHAT_MESSAGE_MAX_LENGTH", 4000, 1, 16000)
+        if not user_message:
+            raise ValueError("Message cannot be empty")
+        if len(user_message) > max_length:
+            raise ValueError(f"Message exceeds the {max_length}-character limit")
+
         response_data = {
             "user_message": user_message,
             "response": None,
@@ -126,7 +153,7 @@ Assistant Response:"""
         
         else:
             # Step 2: Retrieve relevant documents
-            top_k = int(os.getenv("RAG_TOP_K", "5"))
+            top_k = _bounded_env_int("RAG_TOP_K", 5, 1, 20)
             retrieved_docs = self.doc_processor.retrieve_relevant_docs(user_message, k=top_k)
             response_data["retrieved_docs"] = [
                 {
@@ -142,15 +169,29 @@ Assistant Response:"""
             # Step 4: Generate response with LLM
             try:
                 llm_response = self.chain.invoke({"context": context, "question": user_message})
-                response_data["response"] = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
+                response_text = (
+                    llm_response.content
+                    if hasattr(llm_response, "content")
+                    else str(llm_response)
+                )
+                response_limit = _bounded_env_int(
+                    "RAG_RESPONSE_MAX_CHARS", 12_000, 500, 50_000
+                )
+                response_data["response"] = str(response_text)[:response_limit]
                 response_data["source"] = "rag" if retrieved_docs else "llm"
                 response_data["confidence"] = 0.7 if retrieved_docs else 0.5
-            except Exception as e:
-                response_data["response"] = f"Error generating response: {str(e)}"
+            except Exception:
+                logger.exception("Error generating chatbot response")
+                response_data["response"] = (
+                    "I’m sorry, but I couldn’t generate a response right now. "
+                    "Please try again or contact the iSchool advising team."
+                )
                 response_data["source"] = "error"
-        
-        # Add to conversation history
-        self.conversation_history.append(response_data)
+
+        # Only append when a caller explicitly supplies a history list. Never
+        # mutate process-global state by default (the web app passes none).
+        if history is not None:
+            history.append(response_data)
         
         return response_data
     
@@ -174,7 +215,7 @@ Assistant Response:"""
         return "\n".join(context_parts)
     
     def get_history(self) -> List[dict]:
-        """Get the conversation history."""
+        """Get explicitly recorded direct-caller history (normally empty)."""
         return self.conversation_history
     
     def clear_history(self) -> None:

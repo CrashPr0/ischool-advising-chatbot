@@ -1,8 +1,12 @@
 """CLI interface for the iSchool Advising Chatbot with RAG."""
 import sys
 import os
-from rag_chatbot import RAGAdvisingChatbot
-from document_processor import setup_sample_docs
+try:
+    from .rag_chatbot import RAGAdvisingChatbot
+    from .document_processor import setup_sample_docs
+except ImportError:  # pragma: no cover - supports direct ``python src/main.py``
+    from rag_chatbot import RAGAdvisingChatbot
+    from document_processor import setup_sample_docs
 
 
 def print_header():
@@ -85,7 +89,7 @@ def main():
                 setup_sample_docs()
                 print("Processing documents...")
                 chatbot.process_documents()
-                print("Documents loaded successfully!")
+                print("Document processing finished.")
                 continue
             
             elif user_lower == "questions":

@@ -14,17 +14,26 @@ gunicorn>=21.2.0
 # LLM Providers
 openai>=1.0.0
 anthropic>=0.7.0
-langchain-openai>=0.0.2
-langchain-google-genai
+langchain-anthropic>=0.1.0
+langchain-huggingface>=0.1.0
+# Also powers OpenAI-compatible endpoints (DeepSeek, Qwen/DashScope, Zhipu,
+# and self-hosted gateways) through ChatOpenAI(base_url=...).
+langchain-openai>=0.1.0
 
 # Vector stores and embeddings
 chromadb>=1.5.8
-pysqlite3-binary>=0.5.2
+langchain-chroma>=0.1.0
+# Chroma can use the stdlib sqlite3 on macOS; the replacement package has no
+# reliable macOS wheel, so keep it for Linux deployments that need it.
+pysqlite3-binary>=0.5.2; platform_system != "Darwin"
 
 # Document processing
 pypdf>=3.17.0
 PyYAML>=6.0.0
 trafilatura>=1.6.0
+beautifulsoup4>=4.12.0
+# Used when no hosted embedding key is configured (including Chinese-model-only setups).
+sentence-transformers>=2.6.0
 
 # Utilities
 requests>=2.31.0

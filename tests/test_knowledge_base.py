@@ -52,6 +52,23 @@ class TestKnowledgeBase:
         # Should either return None or low confidence match
         if result:
             assert result["confidence"] < 0.5
+
+    @pytest.mark.parametrize(
+        "message",
+        ["Is this course required?", "Which classes transfer?", "What is the deadline?"],
+    )
+    def test_short_keywords_do_not_match_inside_words(self, message):
+        """Greeting keywords must match whole words, not arbitrary substrings."""
+        kb = KnowledgeBase()
+        result = kb.find_answer(message)
+        assert not result or result["matched_question"] != "hello"
+
+    def test_keyword_matching_prefers_specific_boundary_phrase(self):
+        """Specific boundary responses win when several keywords are present."""
+        kb = KnowledgeBase()
+        result = kb.find_answer("Hi, can you look at my transcript and tell me what to take?")
+        assert result is not None
+        assert result["matched_question"] == "look at my transcript and tell me what to take"
     
     def test_get_all_questions(self):
         """Test getting all questions."""

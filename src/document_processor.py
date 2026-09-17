@@ -7,12 +7,19 @@ except ImportError:
     pass
 
 import os
+import hashlib
+import json
+import threading
 from typing import List, Optional
 from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import DirectoryLoader, TextLoader, PyPDFLoader
+from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain_core.documents import Document
-from langchain_community.vectorstores import Chroma
+try:
+    from langchain_chroma import Chroma
+except ImportError:  # pragma: no cover - compatibility with older installs
+    from langchain_community.vectorstores import Chroma
+import yaml
 try:
     from .config import Config
 except ImportError:  # pragma: no cover
@@ -21,7 +28,7 @@ except ImportError:  # pragma: no cover
 
 def _create_embeddings():
     """Create the embeddings instance based on available config."""
-    if (Config.AZURE_OPENAI_API_KEY
+    if (Config._configured_secret(Config.AZURE_OPENAI_API_KEY)
             and Config.AZURE_OPENAI_ENDPOINT
             and Config.AZURE_OPENAI_EMBEDDING_DEPLOYMENT):
         from langchain_openai import AzureOpenAIEmbeddings
@@ -31,7 +38,7 @@ def _create_embeddings():
             api_key=Config.AZURE_OPENAI_API_KEY,
             api_version=Config.AZURE_OPENAI_API_VERSION,
         )
-    if Config.OPENAI_API_KEY:
+    if Config._configured_secret(Config.OPENAI_API_KEY):
         from langchain_openai import OpenAIEmbeddings
         return OpenAIEmbeddings(api_key=Config.OPENAI_API_KEY)
     from langchain_community.embeddings import SentenceTransformerEmbeddings
@@ -55,29 +62,69 @@ DOCS_DIRECTORIES = [
     "/home/site/wwwroot/docs",
 ]
 
+DEFAULT_VECTOR_COLLECTION = "advising_documents"
+
 
 class DocumentProcessor:
     """Handles loading and processing advising documents."""
 
     def __init__(self, docs_path: Optional[str] = None):
         fallback = "./data/advising_docs"
-        self.docs_path = _first_existing_dir(
-            [
-                docs_path,
-                getattr(Config, "DOCS_PATH", None),
-                "/home/site/wwwroot/data/advising_docs",
-                os.path.join(os.getcwd(), "data", "advising_docs"),
+        configured_docs_path = docs_path or getattr(Config, "DOCS_PATH", None)
+        self._explicit_docs_path = bool(configured_docs_path)
+        if self._explicit_docs_path:
+            # An explicit path is authoritative, even when it does not exist
+            # yet. Silently falling back to a different corpus makes a typo
+            # dangerous during a production index rebuild.
+            self.docs_path = str(configured_docs_path)
+        else:
+            self.docs_path = _first_existing_dir(
+                [
+                    "/home/site/wwwroot/data/advising_docs",
+                    os.path.join(os.getcwd(), "data", "advising_docs"),
+                    fallback,
+                ],
                 fallback,
-            ],
-            fallback,
-        )
+            )
+        self.docs_path = self._canonical_path(self.docs_path)
         self.embeddings = _create_embeddings()
         self.vector_store = None
         self.loaded_documents: List[Document] = []
+        self.collection_name = os.getenv(
+            "VECTOR_COLLECTION_NAME",
+            getattr(Config, "VECTOR_COLLECTION_NAME", DEFAULT_VECTOR_COLLECTION),
+        )
+        self._index_lock = threading.RLock()
+
+    @staticmethod
+    def _canonical_path(path: str) -> str:
+        """Return a stable absolute path for file and directory comparisons."""
+        try:
+            return str(Path(path).expanduser().resolve())
+        except (OSError, RuntimeError, TypeError):
+            return os.path.abspath(os.path.expanduser(str(path)))
+
+    def _search_directories(self) -> List[str]:
+        """Return existing, canonical document roots in deterministic order."""
+        candidates = [self.docs_path]
+        if not self._explicit_docs_path:
+            candidates.extend(DOCS_DIRECTORIES)
+
+        roots: List[str] = []
+        seen = set()
+        for candidate in candidates:
+            if not candidate:
+                continue
+            canonical = self._canonical_path(candidate)
+            if canonical in seen or not os.path.isdir(canonical):
+                continue
+            seen.add(canonical)
+            roots.append(canonical)
+        return roots
 
     def scan_source_files(self) -> dict:
         """Count files on disk (pre-index), useful for debugging deployments."""
-        roots = list(dict.fromkeys([self.docs_path] + DOCS_DIRECTORIES))
+        roots = self._search_directories()
         txt = 0
         pdf = 0
         for root in roots:
@@ -92,54 +139,110 @@ class DocumentProcessor:
 
     def vector_store_count(self) -> Optional[int]:
         """Return number of indexed chunks in Chroma, if available."""
-        try:
-            if not self.vector_store:
-                self.load_vector_store()
-            if not self.vector_store:
+        with self._index_lock:
+            try:
+                if not self.vector_store:
+                    self.load_vector_store()
+                if not self.vector_store:
+                    return None
+                # Chroma's underlying collection supports count()
+                return int(self.vector_store._collection.count())  # type: ignore[attr-defined]
+            except Exception:
                 return None
-            # Chroma's underlying collection supports count()
-            return int(self.vector_store._collection.count())  # type: ignore[attr-defined]
-        except Exception:
-            return None
 
     def _load_from_directory(self, directory: str) -> List[Document]:
         """Load .txt and .pdf files from a single directory."""
-        if not os.path.exists(directory):
+        if not os.path.isdir(directory):
             return []
 
         documents: List[Document] = []
 
-        try:
-            txt_loader = DirectoryLoader(
-                directory, glob="**/*.txt",
-                loader_cls=TextLoader, recursive=True,
-            )
-            documents.extend(txt_loader.load())
-        except Exception as e:
-            print(f"Error loading text files from {directory}: {e}")
+        files = sorted(
+            (
+                path
+                for path in Path(directory).rglob("*")
+                if path.is_file() and path.suffix.casefold() in {".txt", ".pdf"}
+            ),
+            key=lambda path: path.relative_to(directory).as_posix().casefold(),
+        )
+        for path in files:
+            # This legacy fixture describes the MLIS program, not the ISDA
+            # program served by this application. Keep the fixture available
+            # for explicitly requested local demos, but never index it as
+            # advising evidence.
+            if path.name == "degree_requirements.txt":
+                try:
+                    preview = path.read_text(encoding="utf-8")
+                except (OSError, UnicodeError):
+                    preview = ""
+                if "Master's of Library and Information Science (MLIS)" in preview:
+                    print(f"Skipping legacy non-ISDA sample document: {path}")
+                    continue
 
-        try:
-            pdf_loader = DirectoryLoader(
-                directory, glob="**/*.pdf",
-                loader_cls=PyPDFLoader, recursive=True,
-            )
-            documents.extend(pdf_loader.load())
-        except Exception as e:
-            print(f"Error loading PDF files from {directory}: {e}")
+            source = self._canonical_path(str(path))
+            try:
+                if path.suffix.casefold() == ".txt":
+                    try:
+                        loader = TextLoader(
+                            source, encoding="utf-8", autodetect_encoding=True
+                        )
+                    except TypeError:  # compatibility with older langchain versions
+                        loader = TextLoader(source, encoding="utf-8")
+                else:
+                    loader = PyPDFLoader(source)
+
+                for document in loader.load():
+                    document.metadata = dict(document.metadata or {})
+                    companion = self._load_companion_metadata(path, directory)
+                    if companion:
+                        document.metadata.update(companion)
+                    document.metadata["source"] = source
+                    documents.append(document)
+            except Exception as e:
+                print(f"Error loading {source}: {e}")
 
         return documents
+
+    @staticmethod
+    def _load_companion_metadata(path: Path, root: str) -> dict:
+        """Load optional YAML metadata beside a document or under ``meta/``."""
+        candidates = [
+            path.with_suffix(".yml"),
+            path.with_suffix(".yaml"),
+            Path(root) / "meta" / f"{path.stem}.yml",
+            Path(root) / "meta" / f"{path.stem}.yaml",
+        ]
+        for metadata_path in candidates:
+            if not metadata_path.is_file():
+                continue
+            try:
+                loaded = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, yaml.YAMLError) as error:
+                print(f"Error loading metadata {metadata_path}: {error}")
+                return {}
+            return loaded if isinstance(loaded, dict) else {}
+        return {}
 
     def load_documents(self) -> List[Document]:
         """Load documents from all configured directories."""
         documents: List[Document] = []
+        seen_documents = set()
 
-        search_dirs = list(dict.fromkeys([self.docs_path] + DOCS_DIRECTORIES))
-
-        for directory in search_dirs:
+        for directory in self._search_directories():
             loaded = self._load_from_directory(directory)
             if loaded:
                 print(f"Loaded {len(loaded)} documents from {directory}")
-                documents.extend(loaded)
+                for document in loaded:
+                    metadata = document.metadata or {}
+                    identity = (
+                        self._canonical_path(str(metadata.get("source", ""))),
+                        str(metadata.get("page", "")),
+                        document.page_content,
+                    )
+                    if identity in seen_documents:
+                        continue
+                    seen_documents.add(identity)
+                    documents.append(document)
 
         if not documents:
             print("No documents found in any directory.")
@@ -161,28 +264,56 @@ class DocumentProcessor:
         print(f"Split into {len(split_docs)} chunks (size={chunk_size}, overlap={chunk_overlap})")
         return split_docs
     
+    def _document_id(self, document: Document) -> str:
+        """Generate a stable ID so a rebuild has deterministic chunk keys."""
+        metadata = {
+            str(key): str(value)
+            for key, value in sorted(
+                (document.metadata or {}).items(), key=lambda item: str(item[0])
+            )
+        }
+        payload = json.dumps(metadata, ensure_ascii=False, sort_keys=True)
+        payload = f"{payload}\0{document.page_content}"
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
     def create_vector_store(self, documents: List[Document]) -> Chroma:
-        """
-        Create a vector store from documents.
-        
-        Args:
-            documents: Documents to index
-            
-        Returns:
-            Chroma vector store instance
-        """
+        """Replace the advising collection with a deterministic document set."""
+        if not documents:
+            raise ValueError("Cannot create a vector store without documents")
+
         persist_directory = Config.VECTOR_STORE_PATH
-        
-        # Create vector store
-        self.vector_store = Chroma.from_documents(
-            documents=documents,
-            embedding=self.embeddings,
-            persist_directory=persist_directory
+        os.makedirs(persist_directory, exist_ok=True)
+
+        try:
+            previous = Chroma(
+                collection_name=self.collection_name,
+                persist_directory=persist_directory,
+                embedding_function=self.embeddings,
+            )
+            previous.delete_collection()
+        except Exception as e:
+            print(f"No existing vector collection to replace: {e}")
+
+        self.vector_store = Chroma(
+            collection_name=self.collection_name,
+            persist_directory=persist_directory,
+            embedding_function=self.embeddings,
         )
-        
-        self.vector_store.persist()
+        unique_documents = []
+        unique_ids = []
+        seen_ids = set()
+        for document in documents:
+            document_id = self._document_id(document)
+            if document_id in seen_ids:
+                continue
+            seen_ids.add(document_id)
+            unique_documents.append(document)
+            unique_ids.append(document_id)
+        self.vector_store.add_documents(unique_documents, ids=unique_ids)
+        persist = getattr(self.vector_store, "persist", None)
+        if callable(persist):
+            persist()
         print(f"Vector store created at {persist_directory}")
-        
         return self.vector_store
     
     def load_vector_store(self) -> Optional[Chroma]:
@@ -192,21 +323,23 @@ class DocumentProcessor:
         Returns:
             Chroma vector store if it exists, None otherwise
         """
-        persist_directory = Config.VECTOR_STORE_PATH
-        
-        if not os.path.exists(persist_directory):
-            return None
-        
-        try:
-            self.vector_store = Chroma(
-                persist_directory=persist_directory,
-                embedding_function=self.embeddings
-            )
-            print(f"Loaded vector store from {persist_directory}")
-            return self.vector_store
-        except Exception as e:
-            print(f"Error loading vector store: {e}")
-            return None
+        with self._index_lock:
+            persist_directory = Config.VECTOR_STORE_PATH
+
+            if not os.path.exists(persist_directory):
+                return None
+
+            try:
+                self.vector_store = Chroma(
+                    collection_name=self.collection_name,
+                    persist_directory=persist_directory,
+                    embedding_function=self.embeddings
+                )
+                print(f"Loaded vector store from {persist_directory}")
+                return self.vector_store
+            except Exception as e:
+                print(f"Error loading vector store: {e}")
+                return None
     
     def retrieve_relevant_docs(self, query: str, k: int = 3) -> List[Document]:
         """
@@ -219,49 +352,51 @@ class DocumentProcessor:
         Returns:
             List of relevant documents
         """
-        if not self.vector_store:
-            self.load_vector_store()
-        
-        if not self.vector_store:
+        if not isinstance(query, str) or not query.strip():
             return []
-        
-        try:
-            results = self.vector_store.similarity_search(query, k=k)
-            return results
-        except Exception as e:
-            print(f"Error retrieving documents: {e}")
-            return []
+        with self._index_lock:
+            if not self.vector_store:
+                self.load_vector_store()
+
+            if not self.vector_store:
+                return []
+
+            try:
+                k = max(1, min(int(k), 20))
+                results = self.vector_store.similarity_search(query, k=k)
+                return results
+            except Exception as e:
+                print(f"Error retrieving documents: {e}")
+                return []
     
-    def process_and_index(self) -> Chroma:
-        """
-        Complete workflow: load, split, and index documents.
-        
-        Returns:
-            Vector store instance
-        """
-        print(f"Processing documents from {self.docs_path}...")
-        
-        # Load documents
-        documents = self.load_documents()
-        
-        if not documents:
-            print("No documents found. Proceeding without document retrieval.")
-            return None
-        
-        # Split documents
-        split_docs = self.split_documents(documents)
-        
-        # Create vector store
-        vector_store = self.create_vector_store(split_docs)
-        
-        return vector_store
+    def process_and_index(self) -> Optional[Chroma]:
+        """Load, split, and atomically replace the advising index."""
+        with self._index_lock:
+            print(f"Processing documents from {self.docs_path}...")
+            documents = self.load_documents()
+            if not documents:
+                print("No documents found. Proceeding without document retrieval.")
+                return None
+            split_docs = self.split_documents(documents)
+            return self.create_vector_store(split_docs)
 
 
 def setup_sample_docs() -> None:
+    """Create the legacy demo fixture only when explicitly enabled.
+
+    The fixture is intentionally not part of the production advising corpus;
+    set ``ALLOW_SAMPLE_DOCS=true`` for a local demo only.
     """
-    Create sample advising documents for testing.
-    """
-    docs_dir = "./data/advising_docs"
+    if os.getenv("ALLOW_SAMPLE_DOCS", "false").strip().lower() not in {
+        "1", "true", "yes", "on"
+    }:
+        print("Sample documents disabled; use official advising documents instead.")
+        return
+
+    docs_dir = os.getenv(
+        "DOCS_PATH",
+        str(Path(__file__).resolve().parent.parent / "data" / "advising_docs"),
+    )
     os.makedirs(docs_dir, exist_ok=True)
     
     sample_content = """# iSchool Degree Requirements
@@ -324,6 +459,6 @@ Contact the iSchool Advising Office:
     sample_file = os.path.join(docs_dir, "degree_requirements.txt")
     
     if not os.path.exists(sample_file):
-        with open(sample_file, 'w') as f:
+        with open(sample_file, 'w', encoding='utf-8') as f:
             f.write(sample_content)
         print(f"Created sample document: {sample_file}")
