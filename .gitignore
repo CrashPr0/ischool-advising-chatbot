@@ -62,6 +62,8 @@ out/
 .nuxt/
 .output/
 data/chroma/
+evals/results/
+evals/vector_store/
 webapp-logs/
 deploy-package.zip
 # ===========================

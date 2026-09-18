@@ -1,10 +1,11 @@
 """Tests for the chatbot."""
+
 import pytest
 import sys
 import os
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from config import Config, LLMProvider
 import llm_providers
@@ -13,18 +14,20 @@ from llm_providers import LLMFactory
 
 class TestConfig:
     """Test configuration module."""
-    
+
     def test_config_loads(self):
         """Test that config loads without errors."""
         assert Config.DEFAULT_LLM_PROVIDER is not None
         assert Config.VECTOR_STORE_PATH is not None
         assert Config.VECTOR_COLLECTION_NAME is not None
 
-    @pytest.mark.parametrize("placeholder", ["your_api_key_here", "replace_with_a_secret", "changeme"])
+    @pytest.mark.parametrize(
+        "placeholder", ["your_api_key_here", "replace_with_a_secret", "changeme"]
+    )
     def test_template_credentials_are_not_treated_as_configured(self, placeholder):
         assert Config._configured_secret(placeholder) is False
         assert Config._configured_secret("real-test-key") is True
-    
+
     def test_llm_provider_enum(self):
         """Test LLM provider enum."""
         assert LLMProvider.OPENAI.value == "openai"
@@ -85,7 +88,7 @@ class TestConfig:
 
 class TestLLMFactory:
     """Test LLM factory."""
-    
+
     def test_get_available_providers(self):
         """Test getting available providers."""
         providers = LLMFactory.get_available_providers()
@@ -127,6 +130,25 @@ class TestLLMFactory:
 
         with pytest.raises(ValueError, match="OPENAI_COMPATIBLE_BASE_URL"):
             LLMFactory.create_llm("openai_compatible")
+
+    def test_openai_factory_allows_model_override_and_default_temperature(
+        self, monkeypatch
+    ):
+        """Benchmarks can select Luna without mutating global configuration."""
+
+        class FakeChatOpenAI:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        monkeypatch.setattr(llm_providers, "ChatOpenAI", FakeChatOpenAI)
+        monkeypatch.setattr(Config, "OPENAI_API_KEY", "test-key")
+
+        llm = LLMFactory.create_llm("openai", model="gpt-5.6-luna", temperature=None)
+
+        assert llm.kwargs == {
+            "model": "gpt-5.6-luna",
+            "api_key": "test-key",
+        }
 
 
 if __name__ == "__main__":

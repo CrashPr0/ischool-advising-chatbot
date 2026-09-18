@@ -1,6 +1,8 @@
 """LLM Provider abstraction for multi-provider support."""
+
 from typing import Optional
 from langchain_core.language_models import LLM
+
 try:
     from .config import Config, LLMProvider
 except ImportError:  # pragma: no cover
@@ -24,6 +26,7 @@ def _get_callbacks():
         # Set LANGCHAIN_TRACING_V2=true and LANGCHAIN_API_KEY to enable
         pass
     return callbacks
+
 
 try:
     from langchain_openai import ChatOpenAI, AzureChatOpenAI
@@ -51,55 +54,77 @@ except ImportError:
 
 class LLMFactory:
     """Factory for creating LLM instances from different providers."""
-    
+
     @staticmethod
-    def create_llm(provider: Optional[str] = None) -> LLM:
+    def create_llm(
+        provider: Optional[str] = None,
+        *,
+        model: Optional[str] = None,
+        temperature: Optional[float] = 0.7,
+    ) -> LLM:
         """
         Create an LLM instance for the specified provider.
-        
+
         Args:
             provider: LLM provider name (openai, azure_openai, anthropic,
                      huggingface, openai_compatible, deepseek, qwen, zhipu)
                      Defaults to config value
-        
+            model: Optional model or Azure deployment override. This is useful
+                   for repeatable model evaluations without mutating Config.
+            temperature: Sampling temperature. Pass None to let the provider
+                         use its model-specific default (needed by some
+                         reasoning models).
+
         Returns:
             LLM instance
-            
+
         Raises:
             ValueError: If provider is not available or not configured
         """
         provider = provider or Config.DEFAULT_LLM_PROVIDER
         provider = Config.normalize_provider(provider)
-        
+
         if provider == "openai":
-            return LLMFactory._create_openai()
+            return LLMFactory._create_openai(model=model, temperature=temperature)
         elif provider == "azure_openai":
-            return LLMFactory._create_azure_openai()
+            return LLMFactory._create_azure_openai(
+                deployment=model, temperature=temperature
+            )
         elif provider == "anthropic":
-            return LLMFactory._create_anthropic()
+            return LLMFactory._create_anthropic(model=model, temperature=temperature)
         elif provider == "huggingface":
-            return LLMFactory._create_huggingface()
+            return LLMFactory._create_huggingface(model=model, temperature=temperature)
         elif provider in {"openai_compatible", "deepseek", "qwen", "zhipu"}:
-            return LLMFactory._create_openai_compatible(provider)
+            return LLMFactory._create_openai_compatible(
+                provider, model=model, temperature=temperature
+            )
         else:
             raise ValueError(f"Unknown LLM provider: {provider}")
-    
+
     @staticmethod
-    def _create_openai() -> LLM:
+    def _create_openai(
+        model: Optional[str] = None, temperature: Optional[float] = 0.7
+    ) -> LLM:
         """Create OpenAI LLM."""
         if not Config._configured_secret(Config.OPENAI_API_KEY):
             raise ValueError("OPENAI_API_KEY not configured")
         if ChatOpenAI is None:
-            raise ImportError("langchain-openai not installed. Run: pip install langchain-openai")
-        
-        return ChatOpenAI(
-            model=Config.OPENAI_MODEL,
-            temperature=0.7,
-            api_key=Config.OPENAI_API_KEY
-        )
+            raise ImportError(
+                "langchain-openai not installed. Run: pip install langchain-openai"
+            )
+
+        kwargs = {
+            "model": model or Config.OPENAI_MODEL,
+            "api_key": Config.OPENAI_API_KEY,
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        return ChatOpenAI(**kwargs)
 
     @staticmethod
-    def _create_azure_openai() -> LLM:
+    def _create_azure_openai(
+        deployment: Optional[str] = None, temperature: Optional[float] = 0.7
+    ) -> LLM:
         """Create Azure OpenAI LLM."""
         if not Config._configured_secret(Config.AZURE_OPENAI_API_KEY):
             raise ValueError("AZURE_OPENAI_API_KEY not configured")
@@ -108,47 +133,66 @@ class LLMFactory:
         if not Config.AZURE_OPENAI_DEPLOYMENT:
             raise ValueError("AZURE_OPENAI_DEPLOYMENT not configured")
         if AzureChatOpenAI is None:
-            raise ImportError("langchain-openai not installed. Run: pip install langchain-openai")
+            raise ImportError(
+                "langchain-openai not installed. Run: pip install langchain-openai"
+            )
 
-        return AzureChatOpenAI(
-            azure_deployment=Config.AZURE_OPENAI_DEPLOYMENT,
+        kwargs = dict(
+            azure_deployment=deployment or Config.AZURE_OPENAI_DEPLOYMENT,
             azure_endpoint=Config.AZURE_OPENAI_ENDPOINT,
             api_key=Config.AZURE_OPENAI_API_KEY,
             api_version=Config.AZURE_OPENAI_API_VERSION,
-            temperature=0.7
         )
-    
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        return AzureChatOpenAI(**kwargs)
+
     @staticmethod
-    def _create_anthropic() -> LLM:
+    def _create_anthropic(
+        model: Optional[str] = None, temperature: Optional[float] = 0.7
+    ) -> LLM:
         """Create Anthropic Claude LLM."""
         if not Config._configured_secret(Config.ANTHROPIC_API_KEY):
             raise ValueError("ANTHROPIC_API_KEY not configured")
         if ChatAnthropic is None:
             raise ImportError("anthropic not installed. Run: pip install anthropic")
-        
-        return ChatAnthropic(
-            model=Config.ANTHROPIC_MODEL,
-            temperature=0.7,
-            api_key=Config.ANTHROPIC_API_KEY
-        )
-    
+
+        kwargs = {
+            "model": model or Config.ANTHROPIC_MODEL,
+            "api_key": Config.ANTHROPIC_API_KEY,
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        return ChatAnthropic(**kwargs)
+
     @staticmethod
-    def _create_huggingface() -> LLM:
+    def _create_huggingface(
+        model: Optional[str] = None, temperature: Optional[float] = 0.7
+    ) -> LLM:
         """Create HuggingFace LLM."""
         if not Config._configured_secret(Config.HUGGINGFACE_API_KEY):
             raise ValueError("HUGGINGFACE_API_KEY not configured")
         if HuggingFaceEndpoint is None:
-            raise ImportError("langchain-huggingface not installed. Run: pip install langchain-huggingface")
-        
-        return HuggingFaceEndpoint(
-            repo_id=Config.HUGGINGFACE_MODEL,
+            raise ImportError(
+                "langchain-huggingface not installed. Run: "
+                "pip install langchain-huggingface"
+            )
+
+        kwargs = dict(
+            repo_id=model or Config.HUGGINGFACE_MODEL,
             huggingfacehub_api_token=Config.HUGGINGFACE_API_KEY,
-            temperature=0.7,
             max_new_tokens=512,
         )
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        return HuggingFaceEndpoint(**kwargs)
 
     @staticmethod
-    def _create_openai_compatible(provider: str) -> LLM:
+    def _create_openai_compatible(
+        provider: str,
+        model: Optional[str] = None,
+        temperature: Optional[float] = 0.7,
+    ) -> LLM:
         """Create a ChatOpenAI client for an OpenAI-compatible endpoint.
 
         DeepSeek, Alibaba Cloud Model Studio/DashScope, Zhipu, and many
@@ -168,26 +212,28 @@ class LLMFactory:
             or (key == "api_key" and not Config._configured_secret(settings[key]))
         ]
         if missing:
-            raise ValueError(
-                f"{provider} is not configured; set {', '.join(missing)}"
-            )
+            raise ValueError(f"{provider} is not configured; set {', '.join(missing)}")
         if ChatOpenAI is None:
-            raise ImportError("langchain-openai not installed. Run: pip install langchain-openai")
+            raise ImportError(
+                "langchain-openai not installed. Run: pip install langchain-openai"
+            )
 
-        return ChatOpenAI(
-            model=settings["model"],
-            temperature=0.7,
+        kwargs = dict(
+            model=model or settings["model"],
             api_key=settings["api_key"],
             base_url=settings["base_url"],
         )
-    
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        return ChatOpenAI(**kwargs)
+
     @staticmethod
     def get_available_providers() -> list:
         """Get list of available and configured providers."""
         available = []
-        
+
         for provider in LLMProvider:
             if Config.validate_provider(provider.value):
                 available.append(provider.value)
-        
+
         return available

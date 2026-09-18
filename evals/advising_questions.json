@@ -1,0 +1,42 @@
+[
+  {
+    "id": "isda-advising",
+    "question": "I am an ISDA student. Where should I go for academic advising, and what kinds of advising help are available?",
+    "review_focus": "Should identify the ISDA advising resource and avoid presenting MLIS-only pathways as ISDA requirements."
+  },
+  {
+    "id": "isda-registration",
+    "question": "Walk me through the registration process for an ISDA student before I enroll in MySJSU.",
+    "review_focus": "Should distinguish the special-session/ISDA instructions, including schedule review, five-digit class number, fees, and MySJSU."
+  },
+  {
+    "id": "full-class",
+    "question": "My ISDA class is full and MySJSU says I need a permission number. What should I do?",
+    "review_focus": "Should explain that the message means the class is full, not invent a permission-number process, and mention checking later or joining the waitlist."
+  },
+  {
+    "id": "add-class",
+    "question": "How do I add a class in MySJSU, and what should I check before I finish enrolling?",
+    "review_focus": "Should cover term/search selection, prerequisites, waitlist or permission-number fields when applicable, the shopping cart, errors, and final schedule confirmation."
+  },
+  {
+    "id": "graduate-policy-boundary",
+    "question": "I am an undergraduate ISDA student. Do I need to submit a Candidacy Approval form before graduation?",
+    "review_focus": "The retrieved graduation material is for master's students. A safe answer must not apply that graduate requirement to an undergraduate ISDA student without supporting evidence."
+  },
+  {
+    "id": "seven-year-boundary",
+    "question": "Does the seven-year course-expiration rule apply to my undergraduate ISDA courses?",
+    "review_focus": "The corpus states the rule for graduate students only. The answer should acknowledge that the provided evidence does not establish an undergraduate ISDA rule."
+  },
+  {
+    "id": "workload-boundary",
+    "question": "As an ISDA student with a full-time job, how many courses should I take next semester?",
+    "review_focus": "Should not copy the corpus's one-to-three-course guidance for MLIS/MARA students onto ISDA; should give cautious general planning advice and refer the student to ISDA advising."
+  },
+  {
+    "id": "chinese-advising",
+    "question": "我是 ISDA 学生。选课前应该查看哪些信息？如果课程已满，我该怎么办？",
+    "review_focus": "Should answer in Simplified Chinese, preserve the same grounded registration and waitlist guidance, and avoid unsupported claims."
+  }
+]

@@ -1,7 +1,9 @@
 """Document processing for RAG (Retrieval Augmented Generation)."""
+
 try:
     __import__("pysqlite3")
     import sys
+
     sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 except ImportError:
     pass
@@ -15,11 +17,13 @@ from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain_core.documents import Document
+
 try:
     from langchain_chroma import Chroma
 except ImportError:  # pragma: no cover - compatibility with older installs
     from langchain_community.vectorstores import Chroma
 import yaml
+
 try:
     from .config import Config
 except ImportError:  # pragma: no cover
@@ -28,21 +32,50 @@ except ImportError:  # pragma: no cover
 
 def _create_embeddings():
     """Create the embeddings instance based on available config."""
-    if (Config._configured_secret(Config.AZURE_OPENAI_API_KEY)
-            and Config.AZURE_OPENAI_ENDPOINT
-            and Config.AZURE_OPENAI_EMBEDDING_DEPLOYMENT):
+    provider = getattr(Config, "EMBEDDING_PROVIDER", "auto").strip().lower()
+    supported = {"auto", "local", "azure_openai", "openai"}
+    if provider not in supported:
+        raise ValueError(
+            f"Unsupported EMBEDDING_PROVIDER '{provider}'. "
+            f"Choose one of: {', '.join(sorted(supported))}"
+        )
+
+    if provider == "local":
+        from langchain_huggingface import HuggingFaceEmbeddings
+
+        return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+    azure_configured = bool(
+        Config._configured_secret(Config.AZURE_OPENAI_API_KEY)
+        and Config.AZURE_OPENAI_ENDPOINT
+        and Config.AZURE_OPENAI_EMBEDDING_DEPLOYMENT
+    )
+    if provider in {"auto", "azure_openai"} and azure_configured:
         from langchain_openai import AzureOpenAIEmbeddings
+
         return AzureOpenAIEmbeddings(
             azure_deployment=Config.AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
             azure_endpoint=Config.AZURE_OPENAI_ENDPOINT,
             api_key=Config.AZURE_OPENAI_API_KEY,
             api_version=Config.AZURE_OPENAI_API_VERSION,
         )
-    if Config._configured_secret(Config.OPENAI_API_KEY):
+    if provider == "azure_openai":
+        raise ValueError(
+            "EMBEDDING_PROVIDER=azure_openai requires AZURE_OPENAI_API_KEY, "
+            "AZURE_OPENAI_ENDPOINT, and AZURE_OPENAI_EMBEDDING_DEPLOYMENT"
+        )
+
+    openai_configured = Config._configured_secret(Config.OPENAI_API_KEY)
+    if provider in {"auto", "openai"} and openai_configured:
         from langchain_openai import OpenAIEmbeddings
+
         return OpenAIEmbeddings(api_key=Config.OPENAI_API_KEY)
-    from langchain_community.embeddings import SentenceTransformerEmbeddings
-    return SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+    if provider == "openai":
+        raise ValueError("EMBEDDING_PROVIDER=openai requires OPENAI_API_KEY")
+
+    from langchain_huggingface import HuggingFaceEmbeddings
+
+    return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
 def _first_existing_dir(candidates: list[str], fallback: str) -> str:
@@ -135,7 +168,12 @@ class DocumentProcessor:
                 pdf += len(list(Path(root).rglob("*.pdf")))
             except Exception:
                 continue
-        return {"roots": roots, "txt_files": txt, "pdf_files": pdf, "total_files": txt + pdf}
+        return {
+            "roots": roots,
+            "txt_files": txt,
+            "pdf_files": pdf,
+            "total_files": txt + pdf,
+        }
 
     def vector_store_count(self) -> Optional[int]:
         """Return number of indexed chunks in Chroma, if available."""
@@ -146,7 +184,8 @@ class DocumentProcessor:
                 if not self.vector_store:
                     return None
                 # Chroma's underlying collection supports count()
-                return int(self.vector_store._collection.count())  # type: ignore[attr-defined]
+                collection = self.vector_store._collection  # type: ignore[attr-defined]
+                return int(collection.count())
             except Exception:
                 return None
 
@@ -249,10 +288,10 @@ class DocumentProcessor:
 
         self.loaded_documents = documents
         return documents
-    
-    def split_documents(self, documents: List[Document],
-                       chunk_size: int = 600,
-                       chunk_overlap: int = 150) -> List[Document]:
+
+    def split_documents(
+        self, documents: List[Document], chunk_size: int = 600, chunk_overlap: int = 150
+    ) -> List[Document]:
         """Split documents into chunks optimised for advising-style Q&A retrieval."""
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
@@ -261,9 +300,12 @@ class DocumentProcessor:
         )
 
         split_docs = splitter.split_documents(documents)
-        print(f"Split into {len(split_docs)} chunks (size={chunk_size}, overlap={chunk_overlap})")
+        print(
+            f"Split into {len(split_docs)} chunks "
+            f"(size={chunk_size}, overlap={chunk_overlap})"
+        )
         return split_docs
-    
+
     def _document_id(self, document: Document) -> str:
         """Generate a stable ID so a rebuild has deterministic chunk keys."""
         metadata = {
@@ -315,11 +357,11 @@ class DocumentProcessor:
             persist()
         print(f"Vector store created at {persist_directory}")
         return self.vector_store
-    
+
     def load_vector_store(self) -> Optional[Chroma]:
         """
         Load an existing vector store.
-        
+
         Returns:
             Chroma vector store if it exists, None otherwise
         """
@@ -333,22 +375,22 @@ class DocumentProcessor:
                 self.vector_store = Chroma(
                     collection_name=self.collection_name,
                     persist_directory=persist_directory,
-                    embedding_function=self.embeddings
+                    embedding_function=self.embeddings,
                 )
                 print(f"Loaded vector store from {persist_directory}")
                 return self.vector_store
             except Exception as e:
                 print(f"Error loading vector store: {e}")
                 return None
-    
+
     def retrieve_relevant_docs(self, query: str, k: int = 3) -> List[Document]:
         """
         Retrieve relevant documents for a query.
-        
+
         Args:
             query: Search query
             k: Number of documents to retrieve
-            
+
         Returns:
             List of relevant documents
         """
@@ -368,7 +410,7 @@ class DocumentProcessor:
             except Exception as e:
                 print(f"Error retrieving documents: {e}")
                 return []
-    
+
     def process_and_index(self) -> Optional[Chroma]:
         """Load, split, and atomically replace the advising index."""
         with self._index_lock:
@@ -388,7 +430,10 @@ def setup_sample_docs() -> None:
     set ``ALLOW_SAMPLE_DOCS=true`` for a local demo only.
     """
     if os.getenv("ALLOW_SAMPLE_DOCS", "false").strip().lower() not in {
-        "1", "true", "yes", "on"
+        "1",
+        "true",
+        "yes",
+        "on",
     }:
         print("Sample documents disabled; use official advising documents instead.")
         return
@@ -398,7 +443,7 @@ def setup_sample_docs() -> None:
         str(Path(__file__).resolve().parent.parent / "data" / "advising_docs"),
     )
     os.makedirs(docs_dir, exist_ok=True)
-    
+
     sample_content = """# iSchool Degree Requirements
 
 ## Master's of Library and Information Science (MLIS)
@@ -455,10 +500,10 @@ Contact the iSchool Advising Office:
 - Office: Washington Square Hall, Room 108
 - Hours: Monday-Friday, 9am-4pm
 """
-    
+
     sample_file = os.path.join(docs_dir, "degree_requirements.txt")
-    
+
     if not os.path.exists(sample_file):
-        with open(sample_file, 'w', encoding='utf-8') as f:
+        with open(sample_file, "w", encoding="utf-8") as f:
             f.write(sample_content)
         print(f"Created sample document: {sample_file}")

@@ -1,4 +1,5 @@
 """Configuration management for the iSchool Advising Chatbot."""
+
 import os
 from dotenv import load_dotenv
 from enum import Enum
@@ -8,6 +9,7 @@ load_dotenv()
 
 class LLMProvider(str, Enum):
     """Supported LLM providers."""
+
     OPENAI = "openai"
     AZURE_OPENAI = "azure_openai"
     ANTHROPIC = "anthropic"
@@ -23,25 +25,33 @@ class LLMProvider(str, Enum):
 
 class Config:
     """Application configuration."""
-    
+
     # LLM Configuration
     DEFAULT_LLM_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai").lower()
-    
+
     # OpenAI
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-luna")
 
     # Azure OpenAI
     AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
     AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
     AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-    AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
-    AZURE_OPENAI_EMBEDDING_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "")
-    
+    AZURE_OPENAI_API_VERSION = os.getenv(
+        "AZURE_OPENAI_API_VERSION", "2024-02-15-preview"
+    )
+    AZURE_OPENAI_EMBEDDING_DEPLOYMENT = os.getenv(
+        "AZURE_OPENAI_EMBEDDING_DEPLOYMENT", ""
+    )
+
+    # Embeddings: auto prefers Azure/OpenAI when configured, while local keeps
+    # evaluation and development retrieval independent from hosted quotas.
+    EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "auto").strip().lower()
+
     # Anthropic
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
     ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-2")
-    
+
     # HuggingFace
     HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
     HUGGINGFACE_MODEL = os.getenv("HUGGINGFACE_MODEL", "meta-llama/Llama-2-7b-hf")
@@ -71,9 +81,7 @@ class Config:
         or "https://dashscope.aliyuncs.com/compatible-mode/v1"
     )
     QWEN_BASE_URL = DASHSCOPE_BASE_URL
-    QWEN_MODEL = os.getenv("QWEN_MODEL") or os.getenv(
-        "DASHSCOPE_MODEL", "qwen-plus"
-    )
+    QWEN_MODEL = os.getenv("QWEN_MODEL") or os.getenv("DASHSCOPE_MODEL", "qwen-plus")
     DASHSCOPE_MODEL = QWEN_MODEL
 
     # Zhipu (Z.ai / GLM).  ZAI_API_KEY is the name used in the provider docs;
@@ -87,13 +95,13 @@ class Config:
     ZAI_BASE_URL = ZHIPU_BASE_URL
     ZHIPU_MODEL = os.getenv("ZHIPU_MODEL") or os.getenv("ZAI_MODEL", "glm-5.2")
     ZAI_MODEL = ZHIPU_MODEL
-    
+
     # Application
     VECTOR_STORE_PATH = os.getenv("VECTOR_STORE_PATH", "./data/chroma")
     VECTOR_COLLECTION_NAME = os.getenv("VECTOR_COLLECTION_NAME", "advising_documents")
     DOCS_PATH = os.getenv("DOCS_PATH", "").strip() or None
     DEBUG = os.getenv("DEBUG", "false").lower() == "true"
-    
+
     # LangSmith (Langchain tracing)
     LANGSMITH_TRACING = os.getenv("LANGSMITH_TRACING", "false").lower() == "true"
     LANGSMITH_ENDPOINT = os.getenv("LANGSMITH_ENDPOINT")
@@ -175,15 +183,13 @@ class Config:
         try:
             return configurations[provider]
         except KeyError as exc:
-            raise ValueError(
-                f"Provider is not OpenAI-compatible: {provider}"
-            ) from exc
-    
+            raise ValueError(f"Provider is not OpenAI-compatible: {provider}") from exc
+
     @classmethod
     def validate_provider(cls, provider: str) -> bool:
         """Check if provider is available and configured."""
         provider = cls.normalize_provider(provider)
-        
+
         if provider == "openai":
             return cls._configured_secret(cls.OPENAI_API_KEY)
         elif provider == "azure_openai":
@@ -203,5 +209,5 @@ class Config:
                 and settings["base_url"]
                 and settings["model"]
             )
-        
+
         return False

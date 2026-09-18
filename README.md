@@ -263,6 +263,49 @@ black .
 flake8 .
 ```
 
+## Azure GPT-4o mini vs. GPT-5.6 Luna benchmark
+
+The repository includes a repeatable RAG A/B test. Each advising question is
+retrieved once with a local embedding model, then Azure GPT-4o mini and OpenAI
+GPT-5.6 Luna receive the exact same system prompt and document excerpts. This
+keeps Azure embedding rate limits and retrieval variance out of the model
+comparison. Invocation order alternates to reduce connection-warming bias. The
+generated Markdown report includes both answers, retrieved sources, latency,
+reported token usage, and a 1–5 human-review rubric.
+
+The Azure key already used by the app cannot authenticate the direct OpenAI API.
+Add a separate OpenAI API key to `.env`:
+
+```env
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5.6-luna
+```
+
+Then run the eight-question benchmark. The first run downloads the local
+`all-MiniLM-L6-v2` embedding model and builds an isolated evaluation index:
+
+```bash
+python -m src.model_benchmark --build-index
+```
+
+For a cheap smoke test before the full run:
+
+```bash
+python -m src.model_benchmark --build-index --limit 1
+```
+
+Outputs are local and ignored by Git:
+
+- `evals/results/latest.json` — machine-readable results
+- `evals/results/latest.md` — side-by-side human review sheet
+- `evals/vector_store/` — local evaluation-only retrieval index
+
+Edit `evals/advising_questions.json` to add questions or reviewer expectations.
+The supplied set includes ordinary registration questions, evidence-boundary
+checks that catch graduate/undergraduate policy leakage, and a Simplified
+Chinese question. GPT-5.6 Luna's current API model ID and capabilities are
+documented on the [official OpenAI model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna).
+
 ---
 
 ## Deploy to Azure (App Service)
