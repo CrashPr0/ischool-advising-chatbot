@@ -62,7 +62,8 @@ out/
 .nuxt/
 .output/
 data/chroma/
-evals/results/
+evals/results/*
+!evals/results/latest.json
 evals/vector_store/
 evals/reviews.sqlite3*
 webapp-logs/

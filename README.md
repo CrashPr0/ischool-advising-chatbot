@@ -292,9 +292,11 @@ For a cheap smoke test before the full run:
 python -m src.model_benchmark --build-index --limit 1
 ```
 
-Outputs are local and ignored by Git:
+The latest JSON snapshot is tracked so the hosted evaluation workspace always
+has a review set after deployment. The human-readable report and vector index
+remain local build artifacts:
 
-- `evals/results/latest.json` — machine-readable results
+- `evals/results/latest.json` — deployed machine-readable review set
 - `evals/results/latest.md` — side-by-side human review sheet
 - `evals/vector_store/` — local evaluation-only retrieval index
 

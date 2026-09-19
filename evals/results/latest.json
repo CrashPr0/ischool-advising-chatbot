@@ -1,0 +1,274 @@
+{
+  "created_at": "2026-09-19T23:05:24.498420+00:00",
+  "method": "Shared retrieval context and identical prompt; invocation order alternates by question.",
+  "system_prompt_sha256": "6e3ef0d50dde592be60fdbf9cc0dbe932897b7c34b6e899aff9947c275d5d2f8",
+  "embedding_provider": "local",
+  "top_k": 3,
+  "left_model": {
+    "provider": "azure_openai",
+    "model": "gpt-4o-mini",
+    "label": "Azure OpenAI — gpt-4o-mini"
+  },
+  "right_model": {
+    "provider": "azure_openai",
+    "model": "gpt-5.6-luna",
+    "label": "Azure OpenAI — gpt-5.6-luna"
+  },
+  "results": [
+    {
+      "id": "isda-advising",
+      "question": "I am an ISDA student. Where should I go for academic advising, and what kinds of advising help are available?",
+      "review_focus": "Should identify the ISDA advising resource and avoid presenting MLIS-only pathways as ISDA requirements.",
+      "sources": [
+        "data/advising_docs/txt/academic_advising.txt"
+      ],
+      "context_sha256": "a3656951db4e7c3edfff0841092c273b8416507377cce0a34b087daac1307920",
+      "left": {
+        "answer": "As an ISDA student, you should visit the iSchool advising page for academic advising: [iSchool Advising](https://ischool.sjsu.edu/bsisda-advising). \n\nHere are some types of advising help available:\n\n- **General Academic Advising**: Get answers to your questions from experts in Library and Information Science.\n- **Teacher Librarian Advising**: Conducted by the Teacher Librarian Credential Program Coordinator.\n- **Career Development Resources**: Extensive resources are available online, and the Career Center Liaison can consult with iSchool students and alumni.\n\nUtilize the iSchool Advising Toolkit while taking your core courses to develop a customized plan tailored to your career path goals.",
+        "latency_seconds": 1.787,
+        "usage": {
+          "input_tokens": 642,
+          "output_tokens": 144,
+          "total_tokens": 786
+        },
+        "attempts": 1,
+        "error": null
+      },
+      "right": {
+        "answer": "As an ISDA student, visit the **ISDA Advising page**: https://ischool.sjsu.edu/bsisda-advising\n\nAvailable advising resources include:\n\n- The **iSchool Advising Toolkit** to help you create a customized academic and career plan.\n- Advising related to different **career pathways**. You are not required to follow one specific pathway and may choose classes from several areas.\n- **Career Development resources** available online.\n- Consultation with the **Career Center Liaison**, who assists iSchool students and alumni.\n- For additional help, visit the iSchool advising site: https://ischoolapps.sjsu.edu/advising/index.php",
+        "latency_seconds": 2.269,
+        "usage": {
+          "input_tokens": 641,
+          "output_tokens": 141,
+          "total_tokens": 782
+        },
+        "attempts": 1,
+        "error": null
+      }
+    },
+    {
+      "id": "isda-registration",
+      "question": "Walk me through the registration process for an ISDA student before I enroll in MySJSU.",
+      "review_focus": "Should distinguish the special-session/ISDA instructions, including schedule review, five-digit class number, fees, and MySJSU.",
+      "sources": [
+        "data/advising_docs/txt/registration_and_enrollment.txt",
+        "data/advising_docs/txt/welcome_new_students.txt"
+      ],
+      "context_sha256": "adbb053a65e920c1fc823054b63af7a331904b8e563d9757679aad046be37aff",
+      "left": {
+        "answer": "Here's a step-by-step guide for the registration process for a BS in Information Science and Data Analytics (ISDA) student at San José State University before enrolling in MySJSU:\n\n1. **Check Schedules**:\n   - Review the iSchool schedules for the appropriate term to select your classes.\n   - Write down the 5-digit class number for each class you choose. This will be needed for registration.\n\n2. **Class Selection**:\n   - All regular session classes have section numbers ranging from -01 to -09.\n\n3. **Utilize Resources**:\n   - Familiarize yourself with the resources available, including textbooks and MySJSU tutorials.\n\n4. **Understand Registration Steps**:\n   - Make sure you understand the general registration overview on the registration resources page before starting the registration process.\n\n5. **Do Not Contact Faculty Advisors**:\n   - For registration issues, do not contact a faculty advisor, as they will refer your question to student services, which may slow down response times. Instead, follow the outlined steps and FAQs.\n\n6. **Contact Student Services**:\n   - If you need further help with registration matters, reach out to the Student Services Team.\n\nIf you have more specific questions or require additional assistance, please contact the iSchool advising team or visit [the iSchool advising page](https://ischoolapps.sjsu.edu/advising/index.php).",
+        "latency_seconds": 2.693,
+        "usage": {
+          "input_tokens": 696,
+          "output_tokens": 282,
+          "total_tokens": 978
+        },
+        "attempts": 1,
+        "error": null
+      },
+      "right": {
+        "answer": "For an ISDA student, the documents provide this initial process:\n\n1. **Review the general registration overview** and registration resources before using MySJSU.\n2. Review the registration guide titled **“MLIS Special Session, MARA, Informatics, MSIDT and BS in Information Science and Data Analytics Registration Steps.”**\n3. Also review the available:\n   - Textbooks\n   - MySJSU Tutorials\n   - Registration Resources\n   - Changing Your Program Plan at SJSU\n4. The documents do not include the detailed ISDA-specific enrollment steps, class-selection instructions, or deadlines.\n\nFor further registration help, contact the **Student Services Team**. You can also visit the iSchool advising page: https://ischoolapps.sjsu.edu/advising/index.php",
+        "latency_seconds": 2.94,
+        "usage": {
+          "input_tokens": 695,
+          "output_tokens": 289,
+          "total_tokens": 984
+        },
+        "attempts": 1,
+        "error": null
+      }
+    },
+    {
+      "id": "full-class",
+      "question": "My ISDA class is full and MySJSU says I need a permission number. What should I do?",
+      "review_focus": "Should explain that the message means the class is full, not invent a permission-number process, and mention checking later or joining the waitlist.",
+      "sources": [
+        "data/advising_docs/txt/registration_and_enrollment.txt",
+        "data/advising_docs/txt/index_php.txt"
+      ],
+      "context_sha256": "4d2dcbbbe5fef5971d486a34084adc98cc802e80196974a74d08d29fc449f624",
+      "left": {
+        "answer": "- If MySJSU indicates that you need a permission number, please disregard this message as we do not issue permission numbers.\n- This message means the class is full. You should check back later to see if a spot has opened.\n- Alternatively, you can use the wait list feature to try and secure a spot in the class. \n\nIf you have further questions, please contact the iSchool advising team or visit [iSchool Advising](https://ischoolapps.sjsu.edu/advising/index.php).",
+        "latency_seconds": 1.774,
+        "usage": {
+          "input_tokens": 697,
+          "output_tokens": 105,
+          "total_tokens": 802
+        },
+        "attempts": 1,
+        "error": null
+      },
+      "right": {
+        "answer": "If the class is full and MySJSU says you need a permission number:\n\n- Disregard the message—ISDA has no permission numbers.\n- Do not email the advising office or instructor.\n- Check MySJSU later to see whether a seat has opened, or use the waitlist feature.",
+        "latency_seconds": 1.775,
+        "usage": {
+          "input_tokens": 696,
+          "output_tokens": 66,
+          "total_tokens": 762
+        },
+        "attempts": 1,
+        "error": null
+      }
+    },
+    {
+      "id": "add-class",
+      "question": "How do I add a class in MySJSU, and what should I check before I finish enrolling?",
+      "review_focus": "Should cover term/search selection, prerequisites, waitlist or permission-number fields when applicable, the shopping cart, errors, and final schedule confirmation.",
+      "sources": [
+        "data/advising_docs/txt/registration_and_enrollment.txt",
+        "data/advising_docs/txt/add_a_class_php.txt"
+      ],
+      "context_sha256": "52ca1b99e949bbea66528a679c08ae8f3b430de0af0ddffc347b996c0571ee92",
+      "left": {
+        "answer": "To add a class in MySJSU, follow these steps:\n\n1. **Login**:\n   - Go to one.SJSU.edu.\n   - Select the MySJSU tile and sign in with your SJSU ID and password.\n\n2. **Add a Class**:\n   - Under the Student Center, go to the Academics: Enrollment section.\n   - You have a few options to start:\n     - A. Click the drop-down menu and select \"Add Classes.\"\n     - B. Click \"Search\" on the right column.\n     - C. Click \"Enroll\" on the right column.\n   - Select the term you wish to enroll in.\n   - Click on the \"Class Search\" radio button, then click the Search bar.\n\n3. **Check for Appointment Time**:\n   - Verify your enrollment appointment time by viewing it in the \"View My Enrollment Appointments\" section. Note that there are no individual enrollment appointments for special sessions, so all students can enroll at any time after the enrollment opens.\n\n4. **Register for Classes**:\n   - Once you have the 5-digit Class Number(s), go back to MySJSU and enter them to register for your classes.\n\nIf you encounter a message indicating you need a permission number for a full class, it simply means the class is full. You should check back later for availability or use the waitlist feature. \n\nFor more help, refer to the [SJSU Advising Team](https://ischoolapps.sjsu.edu/advising/index.php).",
+        "latency_seconds": 27.33,
+        "usage": {
+          "input_tokens": 737,
+          "output_tokens": 316,
+          "total_tokens": 1053
+        },
+        "attempts": 1,
+        "error": null
+      },
+      "right": {
+        "answer": "To add a class in MySJSU:\n\n1. Go to [one.SJSU.edu](https://one.SJSU.edu), select the **MySJSU** tile, and sign in with your SJSU ID and password.\n2. Under **Student Center**, choose one of these options:\n   - **Academics: Enrollment** drop-down → **Add Classes**\n   - **Search** in the right column\n   - **Enroll** in the right column\n3. Select the term in which you want to enroll.\n4. Select the **Class Search** radio button, then click **Search**.\n5. Register using the **5-digit Class Nbr.** for the class.\n\nBefore finishing enrollment, check that:\n\n- The correct semester or term is selected.\n- You have checked your enrollment appointment time. For special session, there are no individual enrollment appointments; all students can enroll after enrollment opens, but you must check your appointment to view the time.\n- You are using the correct 5-digit Class Nbr.\n- If the class is full, MySJSU may display a message requesting a permission number. The program does not provide permission numbers; check back later or use the wait list feature.",
+        "latency_seconds": 2.859,
+        "usage": {
+          "input_tokens": 736,
+          "output_tokens": 302,
+          "total_tokens": 1038
+        },
+        "attempts": 1,
+        "error": null
+      }
+    },
+    {
+      "id": "graduate-policy-boundary",
+      "question": "I am an undergraduate ISDA student. Do I need to submit a Candidacy Approval form before graduation?",
+      "review_focus": "The retrieved graduation material is for master's students. A safe answer must not apply that graduate requirement to an undergraduate ISDA student without supporting evidence.",
+      "sources": [
+        "data/advising_docs/txt/graduation.txt"
+      ],
+      "context_sha256": "b640f0a054348a8974d23c9a0a19663fdbcc1cc045b6fcfb8866bb67e1988655",
+      "left": {
+        "answer": "As an undergraduate student in the BS in Information Science and Data Analytics program, you do not need to submit a Candidacy Approval form. This form is specifically for master’s degree students. If you have further questions about your graduation process, please contact the iSchool advising team or visit [SJSU iSchool Advising](https://ischoolapps.sjsu.edu/advising/index.php).",
+        "latency_seconds": 32.126,
+        "usage": {
+          "input_tokens": 695,
+          "output_tokens": 81,
+          "total_tokens": 776
+        },
+        "attempts": 1,
+        "error": null
+      },
+      "right": {
+        "answer": "The provided documents only discuss the Candidacy Approval form for **master’s degree students** and the **MS in Informatics**. They do not state whether undergraduate ISDA students must submit one before graduation.\n\nPlease contact the iSchool advising team or visit https://ischoolapps.sjsu.edu/advising/index.php for confirmation.",
+        "latency_seconds": 2.126,
+        "usage": {
+          "input_tokens": 694,
+          "output_tokens": 112,
+          "total_tokens": 806
+        },
+        "attempts": 1,
+        "error": null
+      }
+    },
+    {
+      "id": "seven-year-boundary",
+      "question": "Does the seven-year course-expiration rule apply to my undergraduate ISDA courses?",
+      "review_focus": "The corpus states the rule for graduate students only. The answer should acknowledge that the provided evidence does not establish an undergraduate ISDA rule.",
+      "sources": [
+        "data/advising_docs/txt/seven_year_limit.txt",
+        "data/advising_docs/txt/coursera_career_academy.txt"
+      ],
+      "context_sha256": "5a385ef3e51d087848c4f14da8089053c43e3d49014d18259407cbe37c415e51",
+      "left": {
+        "answer": "The seven-year course-expiration rule applies to all graduate students, including those in the Graduate programs offered by the iSchool. However, the documents do not specify if this rule applies to undergraduate courses in the Bachelor of Science in Information Science and Data Analytics program. For clarification on this matter, I recommend that you contact the iSchool advising team or visit [SJSU iSchool Advising](https://ischoolapps.sjsu.edu/advising/index.php).",
+        "latency_seconds": 28.043,
+        "usage": {
+          "input_tokens": 636,
+          "output_tokens": 94,
+          "total_tokens": 730
+        },
+        "attempts": 1,
+        "error": null
+      },
+      "right": {
+        "answer": "The provided documents state that the seven-year expiration rule applies to **graduate students**. They do not specify whether it applies to undergraduate ISDA courses.\n\nPlease contact the iSchool advising team or visit https://ischoolapps.sjsu.edu/advising/index.php for clarification.",
+        "latency_seconds": 2.005,
+        "usage": {
+          "input_tokens": 635,
+          "output_tokens": 100,
+          "total_tokens": 735
+        },
+        "attempts": 1,
+        "error": null
+      }
+    },
+    {
+      "id": "workload-boundary",
+      "question": "As an ISDA student with a full-time job, how many courses should I take next semester?",
+      "review_focus": "Should not copy the corpus's one-to-three-course guidance for MLIS/MARA students onto ISDA; should give cautious general planning advice and refer the student to ISDA advising.",
+      "sources": [
+        "data/advising_docs/txt/registration_and_enrollment.txt",
+        "data/advising_docs/txt/coursera_career_academy.txt"
+      ],
+      "context_sha256": "3ae43f0810dcc7660747eec45b4885b53dd849725275f3c3eaae47a0998be941",
+      "left": {
+        "answer": "- The courses in the Information Science and Data Analytics (ISDA) program are difficult and require substantial work and time.\n- Most students carry between 1 – 3 courses per semester.\n- Consider your obligations, such as work and family, carefully when deciding how many courses to take.\n- It is recommended to be conservative in the number of classes you take each semester. \n\nIf you have more specific questions or need further assistance, please contact the iSchool advising team or visit [SJSU iSchool Advising](https://ischoolapps.sjsu.edu/advising/index.php).",
+        "latency_seconds": 28.328,
+        "usage": {
+          "input_tokens": 673,
+          "output_tokens": 120,
+          "total_tokens": 793
+        },
+        "attempts": 1,
+        "error": null
+      },
+      "right": {
+        "answer": "As a full-time employee, you should carefully consider your work obligations before choosing your course load. The program recommends being conservative because courses require substantial work and time.\n\n- Most students take **1–3 courses per semester**.\n- Consider starting with a lighter load if you are unsure.\n- Dropping classes after early-semester deadlines can be problematic and expensive.\n\nFor personalized guidance, contact the iSchool advising team or visit https://ischoolapps.sjsu.edu/advising/index.php.",
+        "latency_seconds": 1.981,
+        "usage": {
+          "input_tokens": 672,
+          "output_tokens": 102,
+          "total_tokens": 774
+        },
+        "attempts": 1,
+        "error": null
+      }
+    },
+    {
+      "id": "chinese-advising",
+      "question": "我是 ISDA 学生。选课前应该查看哪些信息？如果课程已满，我该怎么办？",
+      "review_focus": "Should answer in Simplified Chinese, preserve the same grounded registration and waitlist guidance, and avoid unsupported claims.",
+      "sources": [
+        "data/advising_docs/txt/add_a_class_php.txt",
+        "data/advising_docs/txt/registration_and_enrollment.txt",
+        "data/advising_docs/scrape/seed_urls.txt"
+      ],
+      "context_sha256": "014a6d6daaf49b9a0f5de67d6a8b39ed48004d606580f46c4821a9048fa24ada",
+      "left": {
+        "answer": "作为 ISDA 学生，选课前您应查看以下信息：\n\n- **检查 iSchool 课程时间表**：确保您选择的课程在您的时间表上可用。\n- **确认课程要求和先决条件**：确保您满足课程的 prerequisite 要求。\n\n如果课程已满，您可以：\n\n- 考虑使用 MyScheduler 工具创建并比较多个课程时间表。\n- 尝试联系 iSchool 学生服务团队以获取更多帮助。\n\n如需更多详细信息，建议访问 [iSchool 学生服务](https://ischool.sjsu.edu/student-services) 或联系 iSchool Advising Team。",
+        "latency_seconds": 25.076,
+        "usage": {
+          "input_tokens": 685,
+          "output_tokens": 134,
+          "total_tokens": 819
+        },
+        "attempts": 1,
+        "error": null
+      },
+      "right": {
+        "answer": "选课前，你应查看：\n\n- **iSchool Schedules**，并选择要修读的课程。\n- 课程的搜索信息。选课时至少输入 **2 个搜索条件**，也可以使用 **Additional Search Criteria**，例如按授课方式（Mode of Instruction）筛选。\n- 你要注册的学期（term）。\n- 可选使用 **MyScheduler**，根据课程偏好和其他安排创建、比较多个课表。\n\n如果课程已满，提供的资料中没有说明候补名单或其他处理办法。请联系 **iSchool advising team**，或访问：https://ischoolapps.sjsu.edu/advising/index.php 。",
+        "latency_seconds": 3.085,
+        "usage": {
+          "input_tokens": 684,
+          "output_tokens": 220,
+          "total_tokens": 904
+        },
+        "attempts": 1,
+        "error": null
+      }
+    }
+  ]
+}
