@@ -266,20 +266,18 @@ flake8 .
 ## Azure GPT-4o mini vs. GPT-5.6 Luna benchmark
 
 The repository includes a repeatable RAG A/B test. Each advising question is
-retrieved once with a local embedding model, then Azure GPT-4o mini and OpenAI
-GPT-5.6 Luna receive the exact same system prompt and document excerpts. This
-keeps Azure embedding rate limits and retrieval variance out of the model
-comparison. Invocation order alternates to reduce connection-warming bias. The
-generated Markdown report includes both answers, retrieved sources, latency,
-reported token usage, and a 1–5 human-review rubric.
+retrieved once with a local embedding model, then the Azure deployments named
+`gpt-4o-mini` and `gpt-5.6-luna` receive the exact same system prompt and
+document excerpts. This keeps Azure embedding rate limits and retrieval
+variance out of the model comparison. Invocation order alternates to reduce
+connection-warming bias. The generated Markdown report includes both answers,
+retrieved sources, latency, reported token usage, and a 1–7 human-review rubric.
 
-The Azure key already used by the app cannot authenticate the direct OpenAI API.
-Add a separate OpenAI API key to `.env`:
-
-```env
-OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-5.6-luna
-```
+Both models use the existing Azure endpoint and key. The defaults assume the
+two deployment names above; override them with `--left-model` and
+`--right-model` if the names differ in your Azure project. Transient Azure
+429/time-out responses use bounded exponential backoff, and the benchmark
+paces question pairs with `--request-delay` (3 seconds by default).
 
 Then run the eight-question benchmark. The first run downloads the local
 `all-MiniLM-L6-v2` embedding model and builds an isolated evaluation index:
@@ -305,6 +303,32 @@ The supplied set includes ordinary registration questions, evidence-boundary
 checks that catch graduate/undergraduate policy leakage, and a Simplified
 Chinese question. GPT-5.6 Luna's current API model ID and capabilities are
 documented on the [official OpenAI model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna).
+
+### Human evaluation workspace
+
+After generating `evals/results/latest.json`, start the Flask app and open
+`http://localhost:5000/evaluation`. The workspace gives reviewers a blind,
+per-reviewer randomized Candidate A/B comparison with:
+
+- a required 1–7 score and 1–3 sentence rationale for every response;
+- per-reviewer progress, editable saved reviews, and a next-incomplete shortcut;
+- model identity reveal only after both responses to a question are scored;
+- aggregate model results and CSV audit export only after the run is complete.
+
+Reviews are stored in the ignored SQLite file `evals/reviews.sqlite3`. Localhost
+can use the workspace without a shared secret. For a deployed handoff, configure:
+
+```env
+EVAL_ACCESS_TOKEN=<long-random-shared-secret>
+EVAL_RESULTS_PATH=/home/data/evaluation/latest.json
+EVAL_DB_PATH=/home/data/evaluation/reviews.sqlite3
+```
+
+The access token is exchanged for a signed, HTTP-only session and is never
+stored in browser storage. The workspace also recognizes Azure App Service Easy
+Auth/Entra user headers, so the shared token can be retired when organizational
+sign-in is enabled. SQLite is appropriate for one App Service instance; use a
+managed database before scaling the app horizontally.
 
 ---
 

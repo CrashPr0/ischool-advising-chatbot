@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
+  <title>Model Review Workspace · SJSU iSchool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css') }}" />
+</head>
+<body>
+  <header class="review-header">
+    <div class="review-header__inner">
+      <a class="review-brand" href="/" aria-label="Return to the advising chatbot">
+        <img src="{{ url_for('static', filename='images/ischool-logo.png') }}" alt="SJSU School of Information" />
+        <span>
+          <strong>Advising AI</strong>
+          <small>Human evaluation workspace</small>
+        </span>
+      </a>
+      <div class="review-header__actions">
+        <span class="environment-badge">Blind A/B review</span>
+        <span id="reviewer-chip" class="reviewer-chip">Not signed in</span>
+        <button id="export-button" class="button button--secondary" type="button" disabled>
+          Export CSV
+        </button>
+        <button id="logout-button" class="button button--ghost" type="button">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="review-shell">
+    <section class="review-intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">Quality assurance</p>
+        <h1 id="page-title">Advising response review</h1>
+        <p>
+          Score each response independently. Model identities stay hidden until both
+          candidates for a question are reviewed.
+        </p>
+      </div>
+      <div class="scale-key" aria-label="Rating scale">
+        <span><b>1</b> Unusable</span>
+        <span><b>4</b> Mixed</span>
+        <span><b>7</b> Excellent</span>
+      </div>
+    </section>
+
+    <section class="metric-grid" aria-label="Review progress">
+      <article class="metric-card">
+        <span>Questions complete</span>
+        <strong id="questions-progress">0 / 0</strong>
+      </article>
+      <article class="metric-card">
+        <span>Responses scored</span>
+        <strong id="responses-progress">0 / 0</strong>
+      </article>
+      <article class="metric-card metric-card--wide">
+        <span>Run</span>
+        <strong id="run-created">Waiting for results</strong>
+      </article>
+    </section>
+
+    <div id="loading-state" class="state-card" role="status">
+      <div class="spinner" aria-hidden="true"></div>
+      <div>
+        <h2>Loading review workspace</h2>
+        <p>Reading the latest benchmark and saved reviewer progress.</p>
+      </div>
+    </div>
+
+    <section id="empty-state" class="state-card state-card--warning hidden" role="status">
+      <div class="state-icon" aria-hidden="true">!</div>
+      <div>
+        <h2>No benchmark run is ready</h2>
+        <p id="empty-message">Generate model responses before opening the review workspace.</p>
+        <code>python -m src.model_benchmark --build-index</code>
+      </div>
+    </section>
+
+    <div id="review-app" class="review-layout hidden">
+      <aside class="question-panel" aria-label="Benchmark questions">
+        <div class="question-panel__header">
+          <div>
+            <span>Review queue</span>
+            <strong id="queue-count">0 questions</strong>
+          </div>
+          <button id="next-incomplete-button" class="text-button" type="button">Next incomplete</button>
+        </div>
+        <nav id="question-list" class="question-list" aria-label="Select a question"></nav>
+        <div class="privacy-note">
+          <strong>Independent review</strong>
+          <p>Do not infer model identity from writing style. Judge only the response and supplied evidence.</p>
+        </div>
+      </aside>
+
+      <section class="response-workspace" aria-live="polite">
+        <article class="question-card">
+          <div class="question-card__meta">
+            <span id="question-number">Question 1</span>
+            <span id="question-status" class="status-pill">Not reviewed</span>
+          </div>
+          <h2 id="question-text"></h2>
+          <details class="review-guidance">
+            <summary>Reviewer guidance and retrieved sources</summary>
+            <p id="review-focus"></p>
+            <div id="source-list" class="source-list"></div>
+          </details>
+        </article>
+
+        <div class="candidate-grid">
+          <article class="candidate-card" data-candidate="A">
+            <header class="candidate-card__header">
+              <div>
+                <span class="candidate-letter">A</span>
+                <h3>Candidate A</h3>
+              </div>
+              <span class="saved-indicator" id="saved-A">Not saved</span>
+            </header>
+            <div id="answer-A" class="candidate-answer"></div>
+            <button class="expand-answer text-button" data-candidate="A" type="button">Expand answer</button>
+            <form class="review-form" data-candidate="A" novalidate>
+              <fieldset>
+                <legend>Overall quality <span>Required</span></legend>
+                <div class="rating-scale" id="rating-A" role="radiogroup" aria-label="Candidate A rating"></div>
+              </fieldset>
+              <label for="comment-A">
+                Review note <span>1–3 sentences</span>
+              </label>
+              <textarea id="comment-A" maxlength="1000" rows="4" placeholder="Describe what was correct, missing, misleading, or especially useful."></textarea>
+              <div class="form-footer">
+                <span id="sentence-count-A" class="sentence-count">0 sentences</span>
+                <button class="button button--primary save-review" type="submit">Save Candidate A</button>
+              </div>
+              <p id="error-A" class="form-error" role="alert"></p>
+            </form>
+          </article>
+
+          <article class="candidate-card" data-candidate="B">
+            <header class="candidate-card__header">
+              <div>
+                <span class="candidate-letter">B</span>
+                <h3>Candidate B</h3>
+              </div>
+              <span class="saved-indicator" id="saved-B">Not saved</span>
+            </header>
+            <div id="answer-B" class="candidate-answer"></div>
+            <button class="expand-answer text-button" data-candidate="B" type="button">Expand answer</button>
+            <form class="review-form" data-candidate="B" novalidate>
+              <fieldset>
+                <legend>Overall quality <span>Required</span></legend>
+                <div class="rating-scale" id="rating-B" role="radiogroup" aria-label="Candidate B rating"></div>
+              </fieldset>
+              <label for="comment-B">
+                Review note <span>1–3 sentences</span>
+              </label>
+              <textarea id="comment-B" maxlength="1000" rows="4" placeholder="Describe what was correct, missing, misleading, or especially useful."></textarea>
+              <div class="form-footer">
+                <span id="sentence-count-B" class="sentence-count">0 sentences</span>
+                <button class="button button--primary save-review" type="submit">Save Candidate B</button>
+              </div>
+              <p id="error-B" class="form-error" role="alert"></p>
+            </form>
+          </article>
+        </div>
+
+        <section id="reveal-panel" class="reveal-panel hidden" aria-labelledby="reveal-title">
+          <div>
+            <p class="eyebrow">Review complete</p>
+            <h3 id="reveal-title">Model identities revealed</h3>
+          </div>
+          <div class="reveal-models">
+            <span><b>A</b> <span id="reveal-A"></span></span>
+            <span><b>B</b> <span id="reveal-B"></span></span>
+          </div>
+        </section>
+
+        <div class="workspace-nav">
+          <button id="previous-button" class="button button--secondary" type="button">Previous</button>
+          <span id="workspace-position">1 of 1</span>
+          <button id="next-button" class="button button--primary" type="button">Next question</button>
+        </div>
+
+        <section id="summary-panel" class="summary-panel hidden" aria-labelledby="summary-title">
+          <div class="summary-panel__heading">
+            <div>
+              <p class="eyebrow">Completed benchmark</p>
+              <h2 id="summary-title">Aggregate results</h2>
+            </div>
+            <span id="reviewer-count" class="status-pill"></span>
+          </div>
+          <div id="model-summary" class="model-summary"></div>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="auth-dialog" class="auth-dialog">
+    <form id="auth-form" method="dialog" novalidate>
+      <img src="{{ url_for('static', filename='images/ischool-logo.png') }}" alt="SJSU School of Information" />
+      <p class="eyebrow">Reviewer access</p>
+      <h2>Open the evaluation workspace</h2>
+      <p>Your name is attached to every score for a clear handoff and audit trail.</p>
+      <label for="reviewer-name">Reviewer name or work email</label>
+      <input id="reviewer-name" name="reviewer" autocomplete="name" maxlength="100" required />
+      <div id="access-token-group">
+        <label for="access-token">Workspace access token</label>
+        <input id="access-token" name="access_token" type="password" autocomplete="current-password" />
+      </div>
+      <p id="auth-error" class="form-error" role="alert"></p>
+      <button class="button button--primary button--full" type="submit">Continue to review</button>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='evaluation.js') }}"></script>
+</body>
+</html>

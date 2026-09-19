@@ -10,7 +10,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import statistics
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,7 +33,7 @@ except ImportError:  # pragma: no cover - supports direct script execution
 
 
 DEFAULT_QUESTIONS = Path("evals/advising_questions.json")
-DEFAULT_JSON_OUTPUT = Path("evals/results/latest.json")
+DEFAULT_JSON_OUTPUT = Path(os.getenv("EVAL_RESULTS_PATH", "evals/results/latest.json"))
 DEFAULT_MARKDOWN_OUTPUT = Path("evals/results/latest.md")
 DEFAULT_VECTOR_STORE = Path("evals/vector_store")
 
@@ -132,24 +134,56 @@ def _usage(response: Any) -> dict[str, int]:
     return normalized
 
 
-def invoke_model(model: Any, prompt: str) -> dict[str, Any]:
-    """Invoke one model and return serializable timing/usage information."""
+def _retryable_model_error(exc: Exception) -> bool:
+    status_code = getattr(exc, "status_code", None)
+    if status_code in {429, 500, 502, 503, 504}:
+        return True
+    name = type(exc).__name__.lower()
+    message = str(exc).lower()
+    return any(
+        marker in name or marker in message
+        for marker in ("ratelimit", "rate_limit", "timeout", "temporarily unavailable")
+    )
+
+
+def invoke_model(
+    model: Any,
+    prompt: str,
+    *,
+    max_attempts: int = 3,
+    retry_delay_seconds: float = 30.0,
+) -> dict[str, Any]:
+    """Invoke one model with bounded retries for transient provider failures."""
     started = time.perf_counter()
-    try:
-        response = model.invoke(prompt)
-        return {
-            "answer": _response_text(response),
-            "latency_seconds": round(time.perf_counter() - started, 3),
-            "usage": _usage(response),
-            "error": None,
-        }
-    except Exception as exc:  # benchmark should preserve the other model's run
-        return {
-            "answer": "",
-            "latency_seconds": round(time.perf_counter() - started, 3),
-            "usage": {},
-            "error": f"{type(exc).__name__}: {exc}",
-        }
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = model.invoke(prompt)
+            return {
+                "answer": _response_text(response),
+                "latency_seconds": round(time.perf_counter() - started, 3),
+                "usage": _usage(response),
+                "attempts": attempt,
+                "error": None,
+            }
+        except Exception as exc:  # benchmark should preserve the other model's run
+            if attempt < max_attempts and _retryable_model_error(exc):
+                delay = retry_delay_seconds * (2 ** (attempt - 1))
+                print(
+                    f"Transient {type(exc).__name__}; retrying in {delay:g}s "
+                    f"({attempt}/{max_attempts})",
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+                continue
+            return {
+                "answer": "",
+                "latency_seconds": round(time.perf_counter() - started, 3),
+                "usage": {},
+                "attempts": attempt,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+
+    raise AssertionError("Model invocation loop exited unexpectedly")
 
 
 def _display_source(source: str, project_root: Path) -> str:
@@ -169,6 +203,7 @@ def run_benchmark(
     document_processor: Any,
     top_k: int = 5,
     project_root: Optional[Path] = None,
+    request_delay_seconds: float = 0.0,
 ) -> dict[str, Any]:
     """Run a fair A/B test using one retrieval operation per question."""
     root = project_root or Path.cwd()
@@ -214,6 +249,8 @@ def run_benchmark(
                 "right": right,
             }
         )
+        if request_delay_seconds and index < len(questions) - 1:
+            time.sleep(request_delay_seconds)
 
     return {
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -284,7 +321,7 @@ def render_markdown(result: dict[str, Any]) -> str:
             f"| {right_summary['total_tokens'] or 'n/a'} |"
         ),
         "",
-        "Use the rubric after each question. Score each answer 1–5 for groundedness, "
+        "Use the rubric after each question. Score each answer 1–7 for groundedness, "
         "completeness, clarity, and appropriate uncertainty; then select a "
         "preferred answer.",
         "",
@@ -327,10 +364,10 @@ def render_markdown(result: dict[str, Any]) -> str:
                 "",
                 "| Review | Left | Right |",
                 "| --- | ---: | ---: |",
-                "| Grounded in retrieved evidence (1–5) |  |  |",
-                "| Complete (1–5) |  |  |",
-                "| Clear and actionable (1–5) |  |  |",
-                "| Appropriate uncertainty (1–5) |  |  |",
+                "| Grounded in retrieved evidence (1–7) |  |  |",
+                "| Complete (1–7) |  |  |",
+                "| Clear and actionable (1–7) |  |  |",
+                "| Appropriate uncertainty (1–7) |  |  |",
                 "| Preferred answer |  |  |",
                 "",
                 "Notes:",
@@ -351,6 +388,20 @@ def _model_label(provider: str, model: Optional[str]) -> str:
     return f"{provider} — {model or 'configured model'}"
 
 
+def _configured_model(provider: str, override: Optional[str]) -> Optional[str]:
+    """Resolve the effective model name shown in benchmark artifacts."""
+    if override:
+        return override
+    if provider == "azure_openai":
+        return Config.AZURE_OPENAI_DEPLOYMENT
+    if provider == "openai":
+        return Config.OPENAI_MODEL
+    try:
+        return Config.get_openai_compatible_config(provider).get("model")
+    except ValueError:
+        return None
+
+
 def _provider_error(provider: str) -> str:
     if provider == "openai":
         return "Add OPENAI_API_KEY to .env (this is separate from the Azure key)."
@@ -368,12 +419,18 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument("--questions", type=Path, default=DEFAULT_QUESTIONS)
     parser.add_argument("--left-provider", default="azure_openai")
-    parser.add_argument("--left-model", default=None)
+    parser.add_argument("--left-model", default="gpt-4o-mini")
     parser.add_argument("--left-label", default=None)
-    parser.add_argument("--right-provider", default="openai")
+    parser.add_argument("--right-provider", default="azure_openai")
     parser.add_argument("--right-model", default="gpt-5.6-luna")
     parser.add_argument("--right-label", default=None)
     parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument(
+        "--request-delay",
+        type=float,
+        default=3.0,
+        help="Seconds to pause between question pairs to reduce provider throttling",
+    )
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--build-index", action="store_true")
     parser.add_argument(
@@ -399,6 +456,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     args.right_provider = Config.normalize_provider(args.right_provider)
     if not 1 <= args.top_k <= 20:
         raise SystemExit("--top-k must be between 1 and 20")
+    if not 0 <= args.request_delay <= 60:
+        raise SystemExit("--request-delay must be between 0 and 60 seconds")
 
     for provider in (args.left_provider, args.right_provider):
         if not Config.validate_provider(provider):
@@ -437,17 +496,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     left_spec = {
         "provider": args.left_provider,
-        "model": args.left_model
-        or (
-            Config.AZURE_OPENAI_DEPLOYMENT
-            if args.left_provider == "azure_openai"
-            else Config.OPENAI_MODEL
-        ),
+        "model": _configured_model(args.left_provider, args.left_model),
         "label": args.left_label or _model_label(args.left_provider, args.left_model),
     }
     right_spec = {
         "provider": args.right_provider,
-        "model": args.right_model or Config.OPENAI_MODEL,
+        "model": _configured_model(args.right_provider, args.right_model),
         "label": args.right_label
         or _model_label(args.right_provider, args.right_model),
     }
@@ -460,6 +514,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         right_spec=right_spec,
         document_processor=processor,
         top_k=args.top_k,
+        request_delay_seconds=args.request_delay,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.report.parent.mkdir(parents=True, exist_ok=True)

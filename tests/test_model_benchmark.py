@@ -4,7 +4,9 @@ import pytest
 from langchain_core.documents import Document
 
 from src.model_benchmark import (
+    invoke_model,
     load_questions,
+    parse_args,
     render_markdown,
     run_benchmark,
 )
@@ -42,6 +44,21 @@ class FakeProcessor:
                 metadata={"source": "/project/data/advising_docs/registration.txt"},
             )
         ]
+
+
+class FakeRateLimitError(Exception):
+    status_code = 429
+
+
+class FakeFlakyModel:
+    def __init__(self):
+        self.calls = 0
+
+    def invoke(self, _prompt):
+        self.calls += 1
+        if self.calls == 1:
+            raise FakeRateLimitError("rate limit exceeded")
+        return FakeResponse("recovered answer")
 
 
 def test_benchmark_uses_one_shared_prompt_per_question(tmp_path):
@@ -97,3 +114,25 @@ def test_load_questions_rejects_duplicate_ids(tmp_path):
 
     with pytest.raises(ValueError, match="Duplicate question id"):
         load_questions(path)
+
+
+def test_benchmark_defaults_compare_both_azure_deployments():
+    args = parse_args([])
+
+    assert args.left_provider == "azure_openai"
+    assert args.left_model == "gpt-4o-mini"
+    assert args.right_provider == "azure_openai"
+    assert args.right_model == "gpt-5.6-luna"
+
+
+def test_model_invocation_retries_transient_rate_limits(monkeypatch):
+    model = FakeFlakyModel()
+    delays = []
+    monkeypatch.setattr("src.model_benchmark.time.sleep", delays.append)
+
+    result = invoke_model(model, "prompt", retry_delay_seconds=2)
+
+    assert result["answer"] == "recovered answer"
+    assert result["attempts"] == 2
+    assert result["error"] is None
+    assert delays == [2]
