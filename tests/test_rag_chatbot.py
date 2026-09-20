@@ -20,3 +20,19 @@ def test_chinese_question_requires_simplified_chinese_response():
         "ISDA 学生可以申请奖学金吗？"
     )
     assert instruction == "Respond in Simplified Chinese."
+
+
+def test_missing_context_fallback_matches_english_question():
+    response = RAGAdvisingChatbot._missing_context_response(
+        "Are there scholarships for ISDA students?"
+    )
+    assert response.startswith("I couldn't find enough information")
+    assert "https://ischoolapps.sjsu.edu/advising/index.php" in response
+
+
+def test_missing_context_fallback_matches_chinese_question():
+    response = RAGAdvisingChatbot._missing_context_response(
+        "ISDA 学生可以申请奖学金吗？"
+    )
+    assert response.startswith("我在现有的咨询资料中")
+    assert "https://ischoolapps.sjsu.edu/advising/index.php" in response

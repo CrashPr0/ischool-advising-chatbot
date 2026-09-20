@@ -168,6 +168,14 @@ Assistant Response:"""
             
             # Step 3: Build context from retrieved documents
             context = self._build_context(user_message, retrieved_docs)
+
+            if not retrieved_docs:
+                response_data["response"] = self._missing_context_response(user_message)
+                response_data["source"] = "fallback"
+                response_data["confidence"] = 0.2
+                if history is not None:
+                    history.append(response_data)
+                return response_data
             
             # Step 4: Generate response with LLM
             try:
@@ -212,6 +220,21 @@ Assistant Response:"""
         if re.search(r"[\u3400-\u4dbf\u4e00-\u9fff]", user_message):
             return "Respond in Simplified Chinese."
         return "Respond in English."
+
+    @classmethod
+    def _missing_context_response(cls, user_message: str) -> str:
+        """Return a safe, deterministic response when retrieval finds nothing."""
+        advising_url = "https://ischoolapps.sjsu.edu/advising/index.php"
+        if "Simplified Chinese" in cls._response_language_instruction(user_message):
+            return (
+                "我在现有的咨询资料中没有找到足够的信息来回答这个问题。"
+                f"请联系 iSchool 咨询团队或访问 {advising_url} 获取帮助。"
+            )
+        return (
+            "I couldn't find enough information in the available advising "
+            "documents to answer that question. Please contact the iSchool "
+            f"advising team or visit {advising_url} for help."
+        )
     
     def _build_context(self, query: str, documents: List) -> str:
         """Build context string from retrieved document chunks."""
