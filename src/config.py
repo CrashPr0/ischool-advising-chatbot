@@ -7,6 +7,17 @@ from enum import Enum
 load_dotenv()
 
 
+def resolve_vector_store_path(configured_path: str | None = None) -> str:
+    """Use an explicit path, then Azure's persistent index, then local data."""
+    explicit = (configured_path or "").strip()
+    if explicit:
+        return explicit
+    azure_path = "/home/site/wwwroot/data/chroma"
+    if os.path.isdir(azure_path):
+        return azure_path
+    return "./data/chroma"
+
+
 class LLMProvider(str, Enum):
     """Supported LLM providers."""
 
@@ -97,7 +108,7 @@ class Config:
     ZAI_MODEL = ZHIPU_MODEL
 
     # Application
-    VECTOR_STORE_PATH = os.getenv("VECTOR_STORE_PATH", "./data/chroma")
+    VECTOR_STORE_PATH = resolve_vector_store_path(os.getenv("VECTOR_STORE_PATH"))
     VECTOR_COLLECTION_NAME = os.getenv("VECTOR_COLLECTION_NAME", "advising_documents")
     DOCS_PATH = os.getenv("DOCS_PATH", "").strip() or None
     DEBUG = os.getenv("DEBUG", "false").lower() == "true"

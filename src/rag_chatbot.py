@@ -1,6 +1,7 @@
 """RAG-enhanced chatbot with knowledge base and document retrieval."""
 import logging
 import os
+import re
 from typing import List, Optional, Dict
 from langchain_core.prompts import PromptTemplate
 try:
@@ -53,8 +54,8 @@ https://ischoolapps.sjsu.edu/advising/index.php.
 4. Never fabricate course numbers, unit counts, policies, or deadlines.
 5. Keep answers concise but complete. Use bullet points for lists.
 6. Do not access or reference personal student records.
-7. Reply in the language used by the student when possible, including
-   Simplified Chinese for Chinese-language questions."""
+7. Follow the response-language instruction exactly. Never infer the response
+   language from retrieved documents, URLs, model defaults, or prior requests."""
     
     def __init__(self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None):
         """
@@ -83,10 +84,12 @@ https://ischoolapps.sjsu.edu/advising/index.php.
         
         # Create the prompt template
         self.prompt_template = PromptTemplate(
-            input_variables=["context", "question"],
+            input_variables=["context", "language_instruction", "question"],
             template=f"""{self.SYSTEM_PROMPT}
 
 {{context}}
+
+Response Language: {{language_instruction}}
 
 Student Question: {{question}}
 
@@ -168,7 +171,15 @@ Assistant Response:"""
             
             # Step 4: Generate response with LLM
             try:
-                llm_response = self.chain.invoke({"context": context, "question": user_message})
+                llm_response = self.chain.invoke(
+                    {
+                        "context": context,
+                        "language_instruction": self._response_language_instruction(
+                            user_message
+                        ),
+                        "question": user_message,
+                    }
+                )
                 response_text = (
                     llm_response.content
                     if hasattr(llm_response, "content")
@@ -194,6 +205,13 @@ Assistant Response:"""
             history.append(response_data)
         
         return response_data
+
+    @staticmethod
+    def _response_language_instruction(user_message: str) -> str:
+        """Select Chinese only when the student's question contains Han text."""
+        if re.search(r"[\u3400-\u4dbf\u4e00-\u9fff]", user_message):
+            return "Respond in Simplified Chinese."
+        return "Respond in English."
     
     def _build_context(self, query: str, documents: List) -> str:
         """Build context string from retrieved document chunks."""
