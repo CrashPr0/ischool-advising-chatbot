@@ -1,8 +1,25 @@
 """Small API contract tests that do not call an external model."""
 
 import json
+import sys
 
 import app as app_module
+
+
+def test_release_local_src_wins_over_persistent_azure_fallback(monkeypatch, tmp_path):
+    release_src = tmp_path / "release" / "src"
+    persistent_src = tmp_path / "home" / "site" / "wwwroot" / "src"
+    release_src.mkdir(parents=True)
+    persistent_src.mkdir(parents=True)
+    monkeypatch.setattr(sys, "path", [str(persistent_src), "existing-entry"])
+
+    selected = app_module._prepend_first_existing_path(
+        [str(release_src), str(persistent_src)]
+    )
+
+    assert selected == str(release_src)
+    assert sys.path[0] == str(release_src)
+    assert sys.path[1] == str(persistent_src)
 
 
 class FakeChatbot:

@@ -11,15 +11,29 @@ import time
 from collections import OrderedDict
 
 # Add src to path so imports work consistently on Azure App Service.
-# Depending on run-from-package / Oryx, __file__ may resolve under /tmp, but
-# the built app lives under /home/site/wwwroot.
+# Oryx runs a release from an extracted directory under /tmp. Prefer the src
+# directory beside this app.py so Python code, templates, and static assets all
+# come from the same release. Only fall back to /home/site/wwwroot when the
+# release-local directory is unavailable.
 _src_candidates = [
     os.path.join(os.path.dirname(__file__), "src"),
     "/home/site/wwwroot/src",
 ]
-for _p in _src_candidates:
-    if os.path.isdir(_p) and _p not in sys.path:
-        sys.path.insert(0, _p)
+
+
+def _prepend_first_existing_path(candidates: list[str]) -> str | None:
+    """Put the first existing candidate at the front of ``sys.path``."""
+    for candidate in candidates:
+        if not os.path.isdir(candidate):
+            continue
+        while candidate in sys.path:
+            sys.path.remove(candidate)
+        sys.path.insert(0, candidate)
+        return candidate
+    return None
+
+
+_prepend_first_existing_path(_src_candidates)
 
 from flask import Flask, Response, jsonify, render_template, request, send_file, session
 from flask_cors import CORS

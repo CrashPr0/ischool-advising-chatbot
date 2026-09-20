@@ -55,7 +55,12 @@ class TestKnowledgeBase:
 
     @pytest.mark.parametrize(
         "message",
-        ["Is this course required?", "Which classes transfer?", "What is the deadline?"],
+        [
+            "Is this course required?",
+            "Which classes transfer?",
+            "What is the deadline?",
+            "Are there scholarships for ISDA students?",
+        ],
     )
     def test_short_keywords_do_not_match_inside_words(self, message):
         """Greeting keywords must match whole words, not arbitrary substrings."""
