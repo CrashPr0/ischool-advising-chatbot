@@ -199,9 +199,9 @@
       <img src="{{ url_for('static', filename='images/ischool-logo.png') }}" alt="SJSU School of Information" />
       <p class="eyebrow">Reviewer access</p>
       <h2>Open the evaluation workspace</h2>
-      <p>Your name is attached to every score for a clear handoff and audit trail.</p>
-      <label for="reviewer-name">Reviewer name or work email</label>
-      <input id="reviewer-name" name="reviewer" autocomplete="name" maxlength="100" required />
+      <p>Your approved SJSU email is attached to every score for a clear handoff and audit trail.</p>
+      <label for="reviewer-name">SJSU email</label>
+      <input id="reviewer-name" name="reviewer" type="email" autocomplete="email" maxlength="100" placeholder="name@sjsu.edu" required />
       <div id="access-token-group">
         <label for="access-token">Workspace access token</label>
         <input id="access-token" name="access_token" type="password" autocomplete="current-password" />

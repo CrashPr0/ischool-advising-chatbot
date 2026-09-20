@@ -65,6 +65,31 @@ def test_document_admin_routes_fail_closed_without_token(monkeypatch):
     assert "DOCS_LOAD_TOKEN" in response.get_json()["error"]
 
 
+def test_evaluation_email_allowlist_is_case_insensitive(monkeypatch):
+    monkeypatch.setenv(
+        "EVAL_ALLOWED_REVIEWERS",
+        "christopher.velez@sjsu.edu,joshua.rieta@sjsu.edu",
+    )
+    monkeypatch.setenv("EVAL_ACCESS_TOKEN", "test-review-token")
+    client = app_module.app.test_client()
+
+    rejected = client.post(
+        "/api/evaluation/session",
+        json={"reviewer": "someone@example.com", "access_token": "test-review-token"},
+    )
+    assert rejected.status_code == 403
+
+    approved = client.post(
+        "/api/evaluation/session",
+        json={
+            "reviewer": "Christopher.Velez@SJSU.EDU",
+            "access_token": "test-review-token",
+        },
+    )
+    assert approved.status_code == 200
+    assert approved.get_json()["reviewer"] == "christopher.velez@sjsu.edu"
+
+
 def test_evaluation_api_blinds_models_and_requires_complete_review_for_export(
     monkeypatch, tmp_path
 ):

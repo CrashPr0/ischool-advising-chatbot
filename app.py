@@ -303,6 +303,15 @@ def _evaluation_token() -> str:
     return "" if _looks_like_placeholder(token) else token
 
 
+def _evaluation_allowed_reviewers() -> set[str]:
+    """Return the configured case-insensitive reviewer email allowlist."""
+    return {
+        value.strip().lower()
+        for value in os.getenv("EVAL_ALLOWED_REVIEWERS", "").split(",")
+        if value.strip()
+    }
+
+
 def _is_local_request() -> bool:
     return (request.remote_addr or "") in {"127.0.0.1", "::1"}
 
@@ -386,6 +395,7 @@ def evaluation_session():
                 "reviewer": reviewer,
                 "csrf": session.get("evaluation_csrf") if reviewer else None,
                 "token_required": bool(_evaluation_token()),
+                "email_allowlist_enabled": bool(_evaluation_allowed_reviewers()),
                 "entra_identity_available": bool(
                     request.headers.get("X-MS-CLIENT-PRINCIPAL-NAME")
                 ),
@@ -410,20 +420,26 @@ def evaluation_session():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
+    allowed_reviewers = _evaluation_allowed_reviewers()
+    if allowed_reviewers:
+        reviewer = reviewer.lower()
+        if reviewer not in allowed_reviewers:
+            return jsonify({"error": "This email is not approved for this workspace"}), 403
+
     expected = _evaluation_token()
     if not entra_reviewer:
         if expected:
             provided = str(data.get("access_token", ""))
             if not provided or not hmac.compare_digest(provided, expected):
                 return jsonify({"error": "Invalid evaluation access token"}), 401
-        elif not _is_local_request():
+        elif not allowed_reviewers and not _is_local_request():
             return (
                 jsonify(
                     {
                         "error": (
                             "Evaluation access is disabled until "
-                            "EVAL_ACCESS_TOKEN or Azure App Service authentication "
-                            "is configured"
+                            "EVAL_ACCESS_TOKEN, EVAL_ALLOWED_REVIEWERS, or Azure "
+                            "App Service authentication is configured"
                         )
                     }
                 ),
