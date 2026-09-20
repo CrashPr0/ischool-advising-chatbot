@@ -24,7 +24,6 @@ for _p in _src_candidates:
 from flask import Flask, Response, jsonify, render_template, request, send_file, session
 from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
-from rag_chatbot import RAGAdvisingChatbot
 from evaluation_store import (
     EvaluationDataError,
     EvaluationStore,
@@ -250,6 +249,7 @@ logger.info("CORS allowed origins: %s", allowed_origins)
 # Initialize chatbot (singleton)
 chatbot = None
 _chatbot_lock = threading.Lock()
+_rag_chatbot_class = None
 
 _evaluation_store = None
 _evaluation_store_key = None
@@ -258,12 +258,21 @@ _evaluation_store_lock = threading.Lock()
 
 def get_chatbot():
     """Get or create chatbot instance."""
-    global chatbot
+    global chatbot, _rag_chatbot_class
     if chatbot is None:
         with _chatbot_lock:
             if chatbot is None:
                 try:
-                    chatbot = RAGAdvisingChatbot()
+                    # Import the RAG stack lazily. Chroma, LangChain, and local
+                    # embedding dependencies are intentionally substantial;
+                    # importing them while Gunicorn boots can exceed Azure App
+                    # Service's startup-probe deadline and make lightweight
+                    # routes such as /healthz and /evaluation unavailable.
+                    if _rag_chatbot_class is None:
+                        from rag_chatbot import RAGAdvisingChatbot
+
+                        _rag_chatbot_class = RAGAdvisingChatbot
+                    chatbot = _rag_chatbot_class()
                     logger.info("Chatbot initialized successfully")
                 except Exception:
                     logger.exception("Failed to initialize chatbot")
@@ -579,7 +588,10 @@ def status():
     """Get chatbot status."""
     try:
         chatbot_instance = get_chatbot()
-        providers = RAGAdvisingChatbot.get_available_providers()
+        if _rag_chatbot_class is None:
+            # get_chatbot() initializes this alongside the singleton.
+            raise RuntimeError("RAG chatbot class was not initialized")
+        providers = _rag_chatbot_class.get_available_providers()
         questions = chatbot_instance.get_knowledge_base_questions()
 
         return jsonify(
