@@ -40,6 +40,11 @@ python -m pip install -r requirements.txt
 cp .env.example .env            # Windows: copy .env.example .env
 ```
 
+`requirements.txt` is the production/Azure dependency set and expects hosted
+Azure OpenAI or OpenAI embeddings. For fully local Hugging Face embeddings,
+install `requirements-local.txt` instead; it includes the production set plus
+Sentence Transformers and PyTorch.
+
 Set at least one API key in `.env`, then run:
 
 ```bash
@@ -359,7 +364,8 @@ High-level steps:
 ├── templates/             # Web UI HTML (Flask template)
 ├── static/                # Web UI assets (CSS/JS/images)
 ├── tests/                 # Unit tests
-├── requirements.txt
+├── requirements.txt       # Lean production/Azure dependencies
+├── requirements-local.txt # Optional local Hugging Face embedding stack
 ├── .env.example
 └── README.md
 ```

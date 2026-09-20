@@ -1,0 +1,6 @@
+# Optional local embedding stack. Install after requirements.txt when running
+# without Azure/OpenAI embeddings or when evaluating a fully local setup.
+-r requirements.txt
+
+langchain-huggingface>=0.1.0
+sentence-transformers>=2.6.0
