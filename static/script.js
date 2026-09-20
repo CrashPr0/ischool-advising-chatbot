@@ -400,6 +400,62 @@ function showSampleChips(topic, samples) {
 }
 
 // ── MESSAGES ──
+function appendExternalLink(container, label, href) {
+  let parsed;
+  try {
+    parsed = new URL(href);
+  } catch (_error) {
+    container.appendChild(document.createTextNode(label));
+    return;
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    container.appendChild(document.createTextNode(label));
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.classList.add('message-link');
+  link.href = parsed.href;
+  link.textContent = label;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  container.appendChild(link);
+}
+
+function renderMessageText(container, value, linkify = false) {
+  const text = String(value ?? '');
+  if (!linkify) {
+    container.textContent = text;
+    return;
+  }
+
+  // Support the two formats returned by the knowledge base and LLMs:
+  // Markdown links ([label](https://...)) and ordinary bare URLs. Building
+  // DOM nodes instead of assigning innerHTML keeps model output untrusted.
+  const linkPattern = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/gi;
+  let cursor = 0;
+  let match;
+
+  while ((match = linkPattern.exec(text)) !== null) {
+    container.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+
+    if (match[1] && match[2]) {
+      appendExternalLink(container, match[1], match[2]);
+      cursor = linkPattern.lastIndex;
+      continue;
+    }
+
+    const rawUrl = match[3];
+    const cleanUrl = rawUrl.replace(/[.,;:!?)}\]]+$/g, '');
+    appendExternalLink(container, cleanUrl, cleanUrl);
+    container.appendChild(document.createTextNode(rawUrl.slice(cleanUrl.length)));
+    cursor = linkPattern.lastIndex;
+  }
+
+  container.appendChild(document.createTextNode(text.slice(cursor)));
+}
+
 function addMessage(text, className, label) {
   const wrapper = document.createElement("div");
   wrapper.classList.add("message", className);
@@ -409,7 +465,8 @@ function addMessage(text, className, label) {
   labelDiv.textContent = label;
 
   const textDiv = document.createElement("div");
-  textDiv.textContent = text;
+  textDiv.classList.add("message-body");
+  renderMessageText(textDiv, text, className === "bot-message");
 
   wrapper.appendChild(labelDiv);
   wrapper.appendChild(textDiv);

@@ -394,6 +394,24 @@ html, body {
   opacity: 0.6;
 }
 
+.message-body {
+  white-space: pre-wrap;
+}
+
+.message-link {
+  color: var(--sjsu-blue-dark);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.message-link:hover,
+.message-link:focus-visible {
+  color: var(--sjsu-blue);
+  text-decoration-thickness: 2px;
+}
+
 .bot-message {
   background: var(--bot-bg);
   border: 1px solid #d6e5f2;
