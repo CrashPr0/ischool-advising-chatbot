@@ -22,6 +22,13 @@ jobs:
       - name: Run tests
         run: python -m pytest tests/ -q
 
+      # Deploy the exact commit that passed CI. Building an explicit archive
+      # prevents OneDeploy from retaining backend modules from an older release.
+      - name: Create deployment package
+        run: |
+          git archive --format=zip --output=deploy-package.zip HEAD
+          unzip -p deploy-package.zip src/knowledge_base.py | grep -q "_phrase_matches"
+
       # Azure must run Oryx (pip install) on the server: App Service setting
       # SCM_DO_BUILD_DURING_DEPLOYMENT=true. If it is false, gunicorn fails with
       # "No module named 'flask_cors'" because nothing installs requirements.txt.
@@ -31,3 +38,4 @@ jobs:
         with:
           app-name: ischooladvisingchatbot-dx4ynl
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: deploy-package.zip
