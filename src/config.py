@@ -55,9 +55,9 @@ class Config:
         "AZURE_OPENAI_EMBEDDING_DEPLOYMENT", ""
     )
 
-    # Embeddings: auto prefers Azure/OpenAI when configured, while local keeps
-    # evaluation and development retrieval independent from hosted quotas.
-    EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "auto").strip().lower()
+    # Indexing is offline and quota-free by default. Operators can explicitly
+    # choose Azure/OpenAI embeddings when semantic recall justifies the cost.
+    EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "hashing").strip().lower()
 
     # Anthropic
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")

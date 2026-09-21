@@ -67,7 +67,7 @@ class HashingEmbeddings(Embeddings):
 
 def _create_embeddings():
     """Create the embeddings instance based on available config."""
-    provider = getattr(Config, "EMBEDDING_PROVIDER", "auto").strip().lower()
+    provider = getattr(Config, "EMBEDDING_PROVIDER", "hashing").strip().lower()
     supported = {"auto", "hashing", "local", "azure_openai", "openai"}
     if provider not in supported:
         raise ValueError(
