@@ -126,13 +126,6 @@ def _first_existing_dir(candidates: list[str], fallback: str) -> str:
     return fallback
 
 
-DOCS_DIRECTORIES = [
-    "./data/advising_docs",
-    "./docs",
-    "/home/site/wwwroot/data/advising_docs",
-    "/home/site/wwwroot/docs",
-]
-
 DEFAULT_VECTOR_COLLECTION = "advising_documents"
 NON_DOCUMENT_DIRECTORIES = {"meta", "scrape", "__pycache__"}
 
@@ -150,10 +143,14 @@ class DocumentProcessor:
             # dangerous during a production index rebuild.
             self.docs_path = str(configured_docs_path)
         else:
+            release_docs = str(
+                Path(__file__).resolve().parent.parent / "data" / "advising_docs"
+            )
             self.docs_path = _first_existing_dir(
                 [
-                    "/home/site/wwwroot/data/advising_docs",
+                    release_docs,
                     os.path.join(os.getcwd(), "data", "advising_docs"),
+                    "/home/site/wwwroot/data/advising_docs",
                     fallback,
                 ],
                 fallback,
@@ -179,8 +176,6 @@ class DocumentProcessor:
     def _search_directories(self) -> List[str]:
         """Return existing, canonical document roots in deterministic order."""
         candidates = [self.docs_path]
-        if not self._explicit_docs_path:
-            candidates.extend(DOCS_DIRECTORIES)
 
         roots: List[str] = []
         seen = set()
