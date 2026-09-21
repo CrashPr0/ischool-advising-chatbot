@@ -645,7 +645,13 @@ def status():
 @app.route("/healthz", methods=["GET"])
 def healthz():
     """Liveness probe that does not require an LLM key or vector index."""
-    return jsonify({"status": "ok"})
+    version = "development"
+    try:
+        with open(os.path.join(_BASE_DIR, "deployment_version.txt"), encoding="utf-8") as handle:
+            version = handle.read().strip() or version
+    except OSError:
+        pass
+    return jsonify({"status": "ok", "version": version})
 
 
 @app.route("/api/docs-stats", methods=["GET"])

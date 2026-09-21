@@ -47,7 +47,7 @@ def test_health_probe_does_not_initialize_chatbot(monkeypatch):
     response = app_module.app.test_client().get("/healthz")
 
     assert response.status_code == 200
-    assert response.get_json() == {"status": "ok"}
+    assert response.get_json() == {"status": "ok", "version": "development"}
     assert app_module.chatbot is None
 
 

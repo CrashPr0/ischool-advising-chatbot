@@ -30,6 +30,8 @@ jobs:
       - name: Create deployment package
         run: |
           git archive --format=zip --output=deploy-package.zip HEAD
+          printf '%s\n' "$GITHUB_SHA" > deployment_version.txt
+          zip --quiet deploy-package.zip deployment_version.txt
           unzip -p deploy-package.zip src/knowledge_base.py | grep -q "_phrase_matches"
 
       # Azure must run Oryx (pip install) on the server: App Service setting
@@ -45,13 +47,18 @@ jobs:
 
       - name: Wait for the deployed app
         run: |
-          for attempt in {1..30}; do
-            if curl --fail --silent --show-error --max-time 15 "$APP_URL/healthz"; then
-              exit 0
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error --max-time 15 \
+              "$APP_URL/healthz" --output health.json; then
+              deployed_version="$(jq --raw-output '.version // ""' health.json)"
+              if [ "$deployed_version" = "$GITHUB_SHA" ]; then
+                exit 0
+              fi
+              echo "Azure is still serving release $deployed_version ($attempt/60)"
             fi
             sleep 10
           done
-          echo "Azure app did not become healthy in time" >&2
+          echo "Azure did not begin serving release $GITHUB_SHA in time" >&2
           exit 1
 
       # Source snapshots are committed, but the derived Chroma database is
