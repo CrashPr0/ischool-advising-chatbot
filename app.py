@@ -772,12 +772,14 @@ def load_docs():
             _docs_job_state.update(
                 {"job_id": job_id, "status": "queued", "created_at": time.time()}
             )
-        threading.Thread(
-            target=_run_docs_index_job,
-            args=(job_id,),
-            name=f"docs-index-{job_id}",
-            daemon=True,
-        ).start()
+        # Give Gunicorn time to flush the 202 before the CPU-intensive rebuild
+        # starts. On the smallest App Service tier an immediately-started
+        # thread can win the GIL and make an accepted job look like a request
+        # timeout to the deploy workflow.
+        timer = threading.Timer(1.0, _run_docs_index_job, args=(job_id,))
+        timer.name = f"docs-index-{job_id}"
+        timer.daemon = True
+        timer.start()
         return jsonify(_docs_job_snapshot()), 202
 
     try:
