@@ -1,0 +1,2 @@
+BSISDA Program Delivery
+The major classes in the BS In Information Science and Data Analytics program are delivered exclusively online via the Canvas learning management system in an asynchronous format. [Virtual labs](https://www.infosecinstitute.com/) may also be used in some courses.

@@ -1,0 +1,10 @@
+BSISDA Summary of Degree Units
+| Summary of Degree Units |  | 
+|---|---|
+| University Graduation Requirements | 12* | 
+| Major Requirements | 36 | 
+| Electives | 12** | 
+| Total | 60 | 
+*The School of Information will work with departments offering Area R, S, V, Z courses to arrange Special Session online sections so students can meet these requirements.
+** Electives can be selected from upper division courses in other departments or from approved graduate courses in the School of Information in areas, such as Health Data Analytics, Enterprise Content Management and Digital Preservation, Digital Curation, Digital Assets Management, Digital Forensics, Crisis/Disaster Informatics, Problem Solving with Data.
+If electives from graduate courses in the School of Information are used to meet the elective requirements, the courses can only be used for the bachelor’s degree and cannot be later applied to any graduate degree.

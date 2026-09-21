@@ -66,25 +66,48 @@ URLs.
 
 ### Offline website ingestion (scrape into txt + meta)
 
-The scraper is **not** meant to run at query-time. It writes files your existing `DocumentProcessor` already ingests.
+The scraper is **not** meant to run at query-time. It writes files your existing `DocumentProcessor` already ingests. The checked-in seed list is deliberately limited to reviewed ISDA and SJSU-wide sources; do not add program-specific MLIS, MARA, Informatics, or MSIDT pages.
 
 1. Put seed URLs in `data/advising_docs/scrape/seed_urls.txt` (one URL per line)
 2. Run:
 
 ```bash
-python -m src.scrape_ischool --docs-root ./data/advising_docs --seeds ./data/advising_docs/scrape/seed_urls.txt --allow-host ischool.sjsu.edu --allow-host ischoolapps.sjsu.edu --allow-host www.sjsu.edu --max-urls 200 --delay-s 1.0
+python -m src.scrape_ischool \
+  --docs-root ./data/advising_docs \
+  --seeds ./data/advising_docs/scrape/seed_urls.txt \
+  --allow-host ischool.sjsu.edu \
+  --allow-host www.sjsu.edu \
+  --max-urls 100 \
+  --max-depth 0 \
+  --delay-s 1.0 \
+  --program ISDA \
+  --topic advising
 ```
 
 Optional: also pass a sitemap (bounded) to add more pages:
 
 ```bash
-python -m src.scrape_ischool --docs-root ./data/advising_docs --seeds ./data/advising_docs/scrape/seed_urls.txt --sitemap https://ischool.sjsu.edu/sitemap.xml --allow-host ischool.sjsu.edu --allow-host ischoolapps.sjsu.edu --allow-host www.sjsu.edu --max-urls 200 --delay-s 1.0
+python -m src.scrape_ischool \
+  --docs-root ./data/advising_docs \
+  --seeds ./data/advising_docs/scrape/seed_urls.txt \
+  --sitemap https://ischool.sjsu.edu/sitemap.xml \
+  --allow-host ischool.sjsu.edu \
+  --include-path '^/(bsisda|bachelor-science-information-science)' \
+  --exclude-path '(mlis|mara|informatics|msidt|teacher-librarian)' \
+  --max-urls 100 \
+  --max-depth 1 \
+  --delay-s 1.0 \
+  --program ISDA \
+  --topic advising
 ```
 
 3. Rebuild the vector index (see below).
 
-The crawler is bounded by host, URL, response-size, timeout, and delay limits.
-It never runs during a chat request.
+The crawler honors `robots.txt` and is bounded by host, path rules, crawl depth,
+URL count, response size, timeout, and request delay. It removes common tracking
+parameters, records content hashes and writes a deterministic source inventory
+to `data/advising_docs/scrape/manifest.json`. Unchanged snapshots are not
+rewritten. It never runs during a chat request.
 
 ### Companion metadata format
 
@@ -114,6 +137,11 @@ python -m src.build_index --docs ./data/advising_docs --clean
 The index persists to `Config.VECTOR_STORE_PATH` (default: `./data/chroma`).
 The web rebuild endpoint is admin-only; use the CLI for scheduled or local
 indexing jobs.
+
+The Azure deployment workflow rebuilds the production index from the committed
+source snapshots and fails if the deployed collection is empty. Configure the
+same strong `DOCS_LOAD_TOKEN` in Azure App Service and as a GitHub Actions
+repository secret. Never place that token in this repository or a command log.
 
 ### CLI commands
 

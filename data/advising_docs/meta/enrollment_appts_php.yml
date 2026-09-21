@@ -1,8 +1,0 @@
-doc_id: enrollment_appts_php
-title: View My Enrollment Appointments
-owner: iSchool (scraped content; verify before production use)
-source_url: https://www.sjsu.edu/it/services/applications/peoplesoft/students/enrollment-appts.php
-source_type: webpage
-fetched_at: '2026-04-23T22:49:40+00:00'
-topics:
-- ischool_web

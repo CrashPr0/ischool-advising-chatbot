@@ -1,0 +1,305 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {
+      "doc_id": "web-2fc4c82a38a1e267",
+      "source_url": "https://ischool.sjsu.edu/bachelor-science-information-science-and-data-analytics",
+      "title": "BS in Information Science & Data Analytics - San José State University",
+      "content_sha256": "61445d69761c042737cccd64a9393cd64b581286d6d8ff92c4f3dba8aa0d4cb1",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-89ec3e6f3a71dd4a",
+      "source_url": "https://ischool.sjsu.edu/bsisda-academics",
+      "title": "BSISDA Academics - SJSU - School of Information",
+      "content_sha256": "be9f188942fc5ccd5d23b7a1f695d4e2d5eb1e5135b1d7b59de3c91e35887241",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-1b468e192a0947b9",
+      "source_url": "https://ischool.sjsu.edu/bsisda-advising",
+      "title": "BSISDA Advising - SJSU - School of Information",
+      "content_sha256": "37c0e1128426464cfaae3f5958cacba6c67954eebfd9aeaf098eccf3b89e7c67",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-d00062418e57497c",
+      "source_url": "https://ischool.sjsu.edu/bsisda-catalog-degree-completion",
+      "title": "BSISDA Catalog for Degree Completion - SJSU - School of Information",
+      "content_sha256": "008fe6f3b83b5eff51344043d5d61cfa210ad70f8e29d24952eb5e2e2ea0fd0c",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-9b0cdf930b5f0408",
+      "source_url": "https://ischool.sjsu.edu/bsisda-electives",
+      "title": "BSISDA Electives - SJSU - School of Information",
+      "content_sha256": "053cf7407119cc416d7d243773369fbe34a5104d685e44d31f852996fd02491c",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-292849ddac953061",
+      "source_url": "https://ischool.sjsu.edu/bsisda-faqs",
+      "title": "BSISDA FAQs - SJSU - School of Information",
+      "content_sha256": "54566e982e161484e8bb3154fcfcb55060ff3f6d6ad658e89ace88741a7748f2",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-44b28a5553a3d8e3",
+      "source_url": "https://ischool.sjsu.edu/bsisda-fees-and-scholarships",
+      "title": "BSISDA Fees and Scholarships - SJSU - School of Information",
+      "content_sha256": "0d7d6108fa2bce1c6f0725a066231b8d61504a2bee6644a5eb36cc76ef85baeb",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-29833fb8ad8ff493",
+      "source_url": "https://ischool.sjsu.edu/bsisda-freshman-required-courses",
+      "title": "BSISDA Freshman Required Courses - SJSU - School of Information",
+      "content_sha256": "d255d000a7ee1b6f45268f0e81173785fbc6d860a187eabda76bb4e244509928",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-d027e0fd8a5961c2",
+      "source_url": "https://ischool.sjsu.edu/bsisda-freshmen-advising",
+      "title": "BSISDA Freshmen Advising - SJSU - School of Information",
+      "content_sha256": "2648e5f4a5e9760d2080acde4aa1aacbf20c1b9f85efbcd22b84f1261687f078",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-bf503125e6a8184e",
+      "source_url": "https://ischool.sjsu.edu/bsisda-freshmen-summary-degree-units",
+      "title": "BSISDA Freshmen Summary of Degree Units - SJSU - School of Information",
+      "content_sha256": "fb2952820caaf7098852a7b66f2e600d11d9d71116a49d67b809f22ef1f00f2c",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-3aefcd01fb79fab4",
+      "source_url": "https://ischool.sjsu.edu/bsisda-program-delivery",
+      "title": "BSISDA Program Delivery - SJSU - School of Information",
+      "content_sha256": "59b7fdfd5e72fff5c8aa92eeef78ee2753d6e99e9e672746178e803acbbaa8a1",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-e1d0b41b95ae681a",
+      "source_url": "https://ischool.sjsu.edu/bsisda-required-courses",
+      "title": "BSISDA Required Courses - SJSU - School of Information",
+      "content_sha256": "7eee1c13671a48e251553083bc2380e89d3b563344b064fbcebe52b26e043206",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-91f6db98f93eb55d",
+      "source_url": "https://ischool.sjsu.edu/bsisda-summary-degree-units",
+      "title": "BSISDA Summary of Degree Units - SJSU - School of Information",
+      "content_sha256": "0b31840de6de8d6a69cecb375167a7a06c6fa9572bef17e5f93717840eaae76b",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-2b94b16d97f1a9dc",
+      "source_url": "https://ischool.sjsu.edu/bsisda-transfer-students",
+      "title": "BSISDA Transfer Students - SJSU - School of Information",
+      "content_sha256": "50210fb9d1554677f396e3fc302c01df54ce3c3d445308c21a43744e5c83143f",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-60c4174573a5d596",
+      "source_url": "https://www.sjsu.edu/faso/",
+      "title": "Financial Aid and Scholarships | SJSU | Financial Aid and Scholarship Office",
+      "content_sha256": "72e9035036e1e219a51cca77430c008185a43b9bc873a7ed3ab1a94d92d6b321",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-527b1277297fa43b",
+      "source_url": "https://www.sjsu.edu/faso/types-of-aid/scholarships/index.php",
+      "title": "Scholarships | Financial Aid and Scholarship Office",
+      "content_sha256": "a0d14f3a17f467123d1ce651b0f66b51fa4138566018b59676a73b11d6a61ec5",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-edbfa6b9a49cba68",
+      "source_url": "https://www.sjsu.edu/online/programs/information-science-and-data-analytics-bachelors-degree.php",
+      "title": "Bachelor's Degree in Information Science and Data Analytics | SJSU",
+      "content_sha256": "1725b10d05042c0ffe53de403833c71dc4b27fc6b0d58819deca06981946d874",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-fc67e8f567153856",
+      "source_url": "https://www.sjsu.edu/registrar/registration/registration-basics/add-a-class.php",
+      "title": "Add a Class | Office of the Registrar",
+      "content_sha256": "a881d47d786e70d9393d2d172479b36de579c58cae568cb120aeff354390e483",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-1ab5ff86cecd49d2",
+      "source_url": "https://www.sjsu.edu/registrar/registration/registration-basics/drop-a-class.php",
+      "title": "Drop a Class | Office of the Registrar",
+      "content_sha256": "7c04d2f4d59cff42298df8c25cb3489840591434cb9e7370b949c3501cce06ac",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-0cb05671c0483227",
+      "source_url": "https://www.sjsu.edu/registrar/registration/registration-basics/index.php",
+      "title": "Registration Basics | Office of the Registrar",
+      "content_sha256": "62b45ea84ec8fb3990ca813833c844a47278f1097e8610342c3f156a0848812b",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    }
+  ]
+}

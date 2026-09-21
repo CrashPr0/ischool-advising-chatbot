@@ -7,6 +7,9 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      APP_URL: https://ischooladvisingchatbot-dx4ynl.azurewebsites.net
+      DOCS_LOAD_TOKEN: ${{ secrets.DOCS_LOAD_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -39,3 +42,48 @@ jobs:
           app-name: ischooladvisingchatbot-dx4ynl
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: deploy-package.zip
+
+      - name: Wait for the deployed app
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error --max-time 15 "$APP_URL/healthz"; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Azure app did not become healthy in time" >&2
+          exit 1
+
+      # Source snapshots are committed, but the derived Chroma database is
+      # intentionally not. Rebuild it on Azure with the same embedding provider
+      # used at query time, then prove the deployed collection is non-empty.
+      - name: Rebuild production advising index
+        run: |
+          test -n "$DOCS_LOAD_TOKEN" || {
+            echo "Repository secret DOCS_LOAD_TOKEN is required" >&2
+            exit 1
+          }
+          curl --fail --silent --show-error \
+            --max-time 600 \
+            --request POST \
+            --header "X-Admin-Token: $DOCS_LOAD_TOKEN" \
+            "$APP_URL/api/load-docs"
+
+      - name: Verify production advising index
+        run: |
+          curl --fail --silent --show-error \
+            --max-time 60 \
+            --header "X-Admin-Token: $DOCS_LOAD_TOKEN" \
+            "$APP_URL/api/docs-stats" \
+            --output docs-stats.json
+          python - <<'PY'
+          import json
+
+          with open("docs-stats.json", encoding="utf-8") as handle:
+              stats = json.load(handle)
+          chunk_count = stats.get("vector_store_chunks") or 0
+          source_count = stats.get("scan", {}).get("total_files") or 0
+          print(f"Azure advising corpus: {source_count} source files, {chunk_count} chunks")
+          if source_count < 1 or chunk_count < 1:
+              raise SystemExit("Azure advising index is empty")
+          PY

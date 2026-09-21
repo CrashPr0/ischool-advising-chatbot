@@ -96,6 +96,7 @@ DOCS_DIRECTORIES = [
 ]
 
 DEFAULT_VECTOR_COLLECTION = "advising_documents"
+NON_DOCUMENT_DIRECTORIES = {"meta", "scrape", "__pycache__"}
 
 
 class DocumentProcessor:
@@ -164,8 +165,16 @@ class DocumentProcessor:
             try:
                 if not os.path.isdir(root):
                     continue
-                txt += len(list(Path(root).rglob("*.txt")))
-                pdf += len(list(Path(root).rglob("*.pdf")))
+                txt += sum(
+                    1
+                    for path in Path(root).rglob("*.txt")
+                    if self._is_document_path(path, root)
+                )
+                pdf += sum(
+                    1
+                    for path in Path(root).rglob("*.pdf")
+                    if self._is_document_path(path, root)
+                )
             except Exception:
                 continue
         return {
@@ -174,6 +183,17 @@ class DocumentProcessor:
             "pdf_files": pdf,
             "total_files": txt + pdf,
         }
+
+    @staticmethod
+    def _is_document_path(path: Path, root: str) -> bool:
+        """Exclude crawler controls, metadata, caches, and other non-evidence."""
+        try:
+            relative = path.relative_to(root)
+        except ValueError:
+            return False
+        return not any(
+            part.casefold() in NON_DOCUMENT_DIRECTORIES for part in relative.parts[:-1]
+        )
 
     def vector_store_count(self) -> Optional[int]:
         """Return number of indexed chunks in Chroma, if available."""
@@ -200,7 +220,9 @@ class DocumentProcessor:
             (
                 path
                 for path in Path(directory).rglob("*")
-                if path.is_file() and path.suffix.casefold() in {".txt", ".pdf"}
+                if path.is_file()
+                and path.suffix.casefold() in {".txt", ".pdf"}
+                and self._is_document_path(path, directory)
             ),
             key=lambda path: path.relative_to(directory).as_posix().casefold(),
         )

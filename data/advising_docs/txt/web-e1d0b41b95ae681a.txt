@@ -1,0 +1,115 @@
+BSISDA Required Courses
+ISDA 101 Online Learning Tools and Strategies for Success
+All new BSISDA students must complete ISDA 101 within the first four weeks of their first semester. Requests to add the class after the semester has started are not granted without extenuating circumstances and must be within the first 7 days. No exceptions.
+This 1-unit CR/NC introductory course covers key technologies and strategies for online learning, including learning management tools, library databases, web conferencing, and more. Delivered 100% asynchronously online.
+Any student who does not successfully complete the course in their first semester is placed on academic notice. A registration hold will prevent enrollment in other courses. After a discussion with one of the [Program Coordinators](/bachelor-science-information-science-and-data-analytics), a second attempt may be granted if the student presents compelling reasons for not having completed the course.
+Failure to pass ISDA 101 on the second attempt leads to disqualification from the university.
+Math Requirement: Elementary Statistics
+STAT 95 – Elementary Statistics (3 units)
+Hypothesis testing and predictive techniques to facilitate decision-making; organization and classification of data, descriptive and inferential statistics, central tendency, variability, probability and sampling distributions, graphic representation, correlation and regression, chi-square, t-tests, and analysis of variance. Computer use in analysis and interpretation.
+Satisfies B4: Mathematics/Quantitative Reasoning.
+OR
+UNVS 15 – Statway: Statistics-Concepts & Methods (3 units)
+Concepts and methods of statistics with an emphasis on data analysis. Topics include methods for collecting data, graphical and numerical descriptive statistics, correlation, simple linear regression, basic concepts of probability, confidence intervals and hypothesis tests for means and proportions, and chi-square tests.
+Lecture 1 hour / Activity 4 hours
+Satisfies Completion with a grade of C- or better satisfies the GE Area B4: Mathematics/Quantitative Reasoning requirement.
+ISDA 20A Query Languages (1 unit)
+Introduces students to the features and functionalities of structured query language (SQL) focusing on to manipulating data in a database, creating tables and indexes, modifying stored records, creating database objects.
+SJSU students who have completed one of the following courses may use that in place of ISDA 20A:
+- CS 157A – Introduction to Database Management Systems
+- CMPE 138 – Database Systems
+- BUS4 112 – Database Management Systems
+- SE 157B – Database Management Systems II
+- MATH 167PS – Introduction to Python Programming and SQL
+ISDA 20B Python Programming (2 units)
+Hands-on introduction to Python focusing on solving a problem by developing flowcharts and algorithms, building a Python application using Python I/O (input/output), variables and data types, conditionals, and loops, and Python packages.
+Students who have completed one of the following courses may use that in place of ISDA 20B:
+- CS 22A – Python for everyone
+- CS 122 – Advanced Programming with Python
+- TECH 30 – Introduction to Python Programming
+- CS 22B – Python Programming for Data Analysis
+- MATH 167PS – Introduction to Python Programming and SQL
+ISDA 20C Web Development (1 unit)
+Focuses on the structure and functionality of the world wide web and modular web design techniques. Covers HTML5, CSS, and JavaScript. The students will also learn about cultural issues in website designing, and accessible and responsive web design.
+Students who have completed the following courses may use that in place of ISDA 20C:
+- ART 109 – Web Development in HTML, CSS and JavaScript
+ISDA 20D Computer Operating Systems (1 unit)
+Overview of the design and implementation of computer operating systems (OS) with emphasis on the three major subsystems: process management (processes, threads, CPU scheduling, synchronization, and deadlock), memory management (segmentation, paging, swapping), and file systems; and distributed systems.
+Students who have completed one of the following courses may use that in place of ISDA 20D:
+- CS 149 – Operating Systems
+- CMPE 142 – Operating Systems Design
+- CMPE 180C – Operating Systems Design
+KIN 169 – Diversity, Stress and Health
+Impact of structured inequalities on stress and health of diverse populations. Analysis of physiological/psychosocial health factors related to diversity, as well as behavioral interventions and social actions that mediate stress and optimize health and social justice.
+	
+	Satisfies SJSU Studies S: Self, Society & Equality in U.S.
+	
+	Prerequisite(s): Completion of Core General Education and upper division standing are prerequisites to all SJSU studies courses. Completion of, or co-registration in, 100W is strongly recommended.
+	Grading: Letter Graded
+	
+	Note(s): Cross-listed with PH 169. Kinesiology is responsible for scheduling.
+	3 unit(s)
+LLD 100WB – Writing Workshop
+Advanced composition. Instruction and practice in reading, discussing and writing about issues germane to the student’s major field of study.
+	
+	Satisfies SJSU Studies Z: Written Communication II.
+	
+	Prerequisite(s): A3 or equivalent second semester composition course (with a grade of C- or better); Completion of core GE or completion of ENGL 100A / LLD 100A with C or better; and upper division standing. No Business Administration majors. Or Graduate or Postbaccalaureate level.
+	Grading: Letter Graded
+	
+	Note(s): Must be passed with C or better to satisfy the CSU Graduation Writing Assessment Requirement (GWAR).
+	3 unit(s)
+NuFS 139 Hunger & Environmental Nutrition*
+Physiology of hunger and malnutrition on human development and health; political, social, cultural, and gender factors that contribute to world hunger; scientific/ technological foundation to population research and food production and their effect on the environment. Meets GE Area R.
+Prerequisite(s): Completion of Core General Education and upper division standing are prerequisites to all SJSU studies courses. Completion of, or co-registration in, 100W is strongly recommended.
+	Grading: Letter Graded
+*As an alternative to NuFS 139, students may take any course that meets Area R requirements.
+Phil 134 Computers, Ethics and Society*
+The nature of privacy in a technologically interconnected world; the role of computer technologies in the exercise of the human intellect and imagination with respect to freedom of expression and the social good; rights and responsibilities of intellectual property ownership.
+	
+	Satisfies SJSU Studies V: Culture, Civil & Global Understanding.
+	(3 units)
+Prerequisite(s): Completion of Core General Education and upper division standing are prerequisites to all SJSU studies courses. Completion of, or co-registration in, 100W is strongly recommended.
+	Grading: Letter Graded
+*As an alternative to PHIL 134, students may take any course that meets Area V requirements.
+ISDA 100 Technical Writing for Information Science Professionals
+Introduces students to the principles of effective communication for technical, scientific, and business environments. Students will create written work in a variety of standard formats and use appropriate style to address the needs of targeted audiences. Delivered 100% asynchronously online. (3 units)
+	
+	Prerequisite: LLD 100WB
+ISDA 110 Technology, Culture and Society
+Navigating the social, political, legal and ethical issues in data processing and use. Topics include: social and political factors that interact with data mining, visualization and analytics, explainable AI and [FATE](https://www.microsoft.com/en-us/research/theme/fate/) Delivered 100% asynchronously online. (3 units)
+ISDA 111 Information and Data Science
+Conceptual foundations and theoretical underpinnings pertaining to the social, political, and economic factors associated with the information society. Definition of information and information science; constructing information individually and collectively; and emerging information and communications technologies. Concepts, techniques, and tools needed to accomplish various facets of data science practice, including data collection and integration, management, analysis, modeling, and visualization. Data science skills such as product creation, communication, evaluation, presentation, and storytelling.  Delivered 100% asynchronously online. (3 units).
+	
+	Prerequisites: ISDA 20A and ISDA 20B (or equivalents)
+ISDA 120 Information Security
+Topics include compliance and operational security, psychological approaches to social engineering attacks, Web application attacks, penetration testing, data loss prevention, cloud computing security, application programming development security, firewalls and intrusion detection systems. Delivered 100% asynchronously online. (3 units)
+	
+	Prerequisites: ISDA 20C, ISDA 20D, and ISDA 111
+ISDA 121 Human Centered Cybersecurity
+Overview of human interactions with cybersecurity technology. Topics: how people react to cybersecurity policies and tools, reasons for behavior, development, and evaluation of tools for assisting people in cybersecurity, human factors involved with social engineering attacks and phishing; ethical hacking. Delivered 100% asynchronously online. (3 units)
+Prerequisites: ISDA 20C and ISDA 20D (or equivalent)
+ISDA 122 Privacy, Security and Ethics
+Data ethics and security will be assessed in terms of privacy, data manipulation, data sharing and ownership, and conflict of interest. Through case studies, students will explore real-world situations involving interplay between data security, privacy, and ethics. Delivered 100% asynchronously online. (2 units).
+	
+	Prerequisite: Either ISDA 120 or ISDA 121
+ISDA 123 Information Assurance
+Focuses on information assurance frameworks from both technical and social perspectives. Topics covered: confidentiality, integrity, and availability, security policies, authentication, data protection and access control, risk management, threat and vulnerability assessment, common attack/defense methods, ethical issues. Delivered 100% asynchronously online. (2 units).
+	
+	Prerequisite: ISDA 122
+ISDA 130 User Centered Interface Architecture and Prototyping
+Focuses on ways to involve the user at different stages of interface design for web- and mobile- environments. Students will learn, apply, and evaluate various user interface architectures, modes of interaction, and prototyping, testing, and evaluation techniques. Delivered 100% asynchronously online. (3 units)
+Prerequisites: ISDA 20C, ISDA 20D, and ISDA 111
+ISDA 131 Information Architecture
+Project-based course developing user-centered knowledge structures for Web environments. Core topics are problems addressed by effective IA; designing for findability; user research; best practices; methods for organizing, labeling, and structuring navigation systems; creating client documents and deliverables. Delivered 100% asynchronously online. (3 units)
+Prerequisites: ISDA 20C, ISDA 20D, and ISDA 111
+ISDA 140 Big Data Analytics and Management
+Big data technologies and trends including large-scale databases, map-reduce paradigm, big data mining, and big data platforms. Focus is on hands-on learning with tools such as Splunk and Scala/Hadoop using as applied to real-world data sets. Delivered 100% asynchronously online. (3 units)
+Requires proficiency in Python programming. Prerequisite: ISDA 111
+ISDA 141 Information Visualization
+Background of information visualization; perceptual and design principles of information visualization; data analysis methods and hands-on applications of visualization techniques as applied to structured and unstructured data; interaction and interface design issues; social visualization and visual analytics. Delivered 100% asynchronously online. (3 units)
+Prerequisites: ISDA 111 and ISDA 20C
+ISDA 170 The Emerging Future: Technology Issues and Trends Capstone
+Students will gain skills to plan strategically for the changing technological landscape. The course design enables students to participate in futuring activities through readings, video presentations, guest lectures, introductions to today’s futurists, and individual research. After a historical overview of forecasting students will become immersed in the literature and practices of current technological futurists and emerging technologies, gain skills to plan strategically for the changing technological landscape, develop a grant proposal outline to implement a new technology, and create a multi-media presentation or infographic that focuses on a new technological area that can impact the future. Possible topics: Blockchain, AR/VR, Voice-based Assistants. Delivered 100% asynchronously online. (4 units)
+	
+	Prerequisite: Must be taken in last semester of ISDA program

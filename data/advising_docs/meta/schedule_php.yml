@@ -1,8 +1,0 @@
-doc_id: schedule_php
-title: Current & Upcoming Class Schedules
-owner: iSchool (scraped content; verify before production use)
-source_url: https://ischoolapps.sjsu.edu/gss/ajax/schedule.php?search=1
-source_type: webpage
-fetched_at: '2026-04-23T22:49:44+00:00'
-topics:
-- ischool_web

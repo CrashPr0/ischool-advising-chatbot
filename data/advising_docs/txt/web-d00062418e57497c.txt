@@ -1,0 +1,83 @@
+BSISDA Catalog for Degree Completion
+BS in Information Science and Data Analytics
+The Bachelor of Science in Information Science and Data Analytics program prepares students to work with data, technology and people.
+Students majoring in Information Science and Data Analytics attain skills that are applicable to a variety of careers involving analytics, visualization, big data, digital curation, digital assets management, knowledge management, information architecture, documents and records management, health care, education, and emerging technologies—all geared toward the information needs of users. For example, they learn how to organize data and interpret the significance of data with a focus on what a person can do with an app rather than what an app does.
+Working with data, technology and people, graduates with a BS in Information Science and Data Analytics will perform the following job duties and responsibilities:
+Data
+- Handle structured data (data that is clearly defined and easily searchable) and unstructured data (data that is not easily searchable such as email, audio, video, and social media postings);
+- Analyze and visualize data;
+- Work with software tools used in a real-world setting;
+- Understand the general concepts behind how networks and computers process, store, and secure information.
+Technology
+- Understand distributed computing and the data pipeline ecosystem;
+- Track emerging technologies (such as artificial intelligence, blockchain, AR/VR, voice-based assistants) and the ethics of their use and development.
+People
+- Understand how people from diverse audiences interact with, use, and relate to information and data to make data-driven decisions and solve problems;
+- Present information and data in an engaging and useful way to help users from diverse backgrounds and cultures tell stories and solve problems;
+- Ensure that the system holding the data complies with policies and ethical and legal considerations of society and the user.
+Program Learning Outcomes
+Upon completion of the BS in Information Science and Data Analytics program, students will be able to:
+A. Apply information and data science concepts and methods by thinking critically and creatively to conceptualize and solve real world problems;
+B. Demonstrate an understanding of the data lifecycle, including data curation and stewardship. distributed computing, and the data pipeline ecosystem;
+C. Demonstrate an understanding of professional and ethical responsibility in data ownership, security, sensitivity of data, and consequences and privacy concerns of data analysis;
+D. Demonstrate an ability to identify user-centric information and data needs of diverse populations and to interpret data findings effectively to diverse audiences, orally, visually, and in written formats;
+E. Demonstrate an understanding of how people from diverse backgrounds and cultures interact with technology and with each other in technological contexts; and how to plan strategically for emerging technologies and the changing technological landscape.
+Admissions Requirements
+Transfer students who meet the following requirements will be considered for admission in the degree completion BS In Information Science and Data Analytics program:
+- Completion of at least 60 transferable semester or 90 quarter units
+- Grade point average of 2.0 or higher
+- Completion of all Four Basic Skills with a C- or higher in each course.
+		
+  - (A1) Oral Communication/Speech
+  - (A2) Written English Composition
+  - (A3) Critical Thinking/Logic
+  - (B4) Math/Quantitative Reasoning (above the level of intermediate algebra)
+- The following prerequisite skills must be in place prior to starting the major. This skill set can be obtained at a community college or by taking the courses here at SJSU.
+- Query Languages
+		
+  - ISDA 20A – Query Languages or an equivalent course in SQL
+- Mathematics
+		
+  - Elementary Statistics (STAT 95) or Calculus (MATH 30)
+- Programming 
+		
+  - ISDA 20B – Python Programming or an equivalent course
+- Web Development 
+		
+  - ISDA 20C – Web Development or an equivalent course that covers HTML5, CSS, and JavaScript
+- Computer Operating Systems (including Linux)
+		
+  - ISDA 20D – Computer Operating Systems or an equivalent course
+How to Apply
+Students who meet the requirements may apply through [undergraduate admissions](https://www.sjsu.edu/admissions/). See also information for [transfer students](https://www.sjsu.edu/admissions/transfer/index.php).
+Program Delivery
+The program is delivered exclusively online via the Canvas learning management system in an asynchronous format. [Virtual labs](https://www.infosecinstitute.com/) may also be used in some courses. 
+Summary of Degree Units
+| Summary of Degree Units |  | 
+|---|---|
+| University Graduation Requirements | 12* | 
+| Major Requirements | 36 | 
+| Electives | 12 | 
+| Total | 60 | 
+*Often referred to as the SJSU Studies requirements, these are general education courses in areas R, S, V, Z. These courses must be completed at SJSU.
+University Requirements for Graduation
+Students must complete all residency, curriculum, unit, and GPA requirements as outlined in the [Undergraduate Graduation Requirements](https://catalog.sjsu.edu/content.php?catoid=2&navoid=115) section of the [Policies and Procedures](https://catalog.sjsu.edu/content.php?catoid=2&navoid=98).
+Program Road Maps
+The [2-year](https://catalog.sjsu.edu/preview_program.php?catoid=10&poid=9276&returnto=5291) and [3-year](https://catalog.sjsu.edu/preview_program.php?catoid=10&poid=9278&returnto=5291) road maps are available online. Road maps should be used in consultation with the catalog and your advisor to identify additional requirements for completing the major (for example, course grade minimums). [Associate Degrees (ADT) Pathways](https://catalog.sjsu.edu/content.php?catoid=10&navoid=756) are also available online.
+Major Requirements (36 units)
+- ISDA101 Online Learning: Tools and Strategies for Success (1 unit)
+- ISDA 100 Technical Writing for Information Professionals (3 units)
+- ISDA 110 Technology, Culture, and Society (3 units)
+- ISDA 111 Information and Data Science (3 units)
+- ISDA 140 Big Data Analytics and Management (3 units)
+- ISDA 141 Information Visualization (3 units)
+- ISDA 130 User Centered Interface Architecture and Prototyping (3 units)
+- ISDA 131 Information Architecture (3 units)
+- ISDA 120 Information Security (3 units)
+- ISDA 121 Human Centered Cybersecurity (3 units)
+- ISDA 122 Privacy, Security, Ethics (2 units)
+- ISDA 123 Information Assurance (2 units)
+- ISDA 170 The Emerging Future: Technology Issues and Trends (4 units)
+All courses are infused with hands-on, real-world, collaborative projects to support students developing portfolios that demonstrate their knowledge and skills. Where necessary, students will have access to virtual labs, Amazon Web Services and Google Cloud Computing.
+Major Electives (12 units)
+Electives can be selected from lower or upper-division courses in ISDA, other departments or from approved graduate courses in the School of Information in various areas relevant to the degree. If electives from graduates courses in the School of Information are used to meet the elective requirements, the courses can only be used for the bachelor’s degree and cannot be later applied to any graduate degree.
