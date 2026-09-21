@@ -1,11 +1,22 @@
 """Document-ingestion boundary tests."""
 
-from src.document_processor import DocumentProcessor
+from src.document_processor import DocumentProcessor, HashingEmbeddings
 
 
 def bare_processor():
     """Construct a loader without initializing an embedding model."""
     return DocumentProcessor.__new__(DocumentProcessor)
+
+
+def test_hashing_embeddings_are_deterministic_and_normalized():
+    embeddings = HashingEmbeddings(dimensions=64)
+
+    first = embeddings.embed_query("ISDA scholarships and financial aid")
+    second = embeddings.embed_query("ISDA scholarships and financial aid")
+
+    assert first == second
+    assert len(first) == 64
+    assert abs(sum(value * value for value in first) - 1.0) < 1e-9
 
 
 def test_loader_excludes_scraper_control_files(tmp_path):

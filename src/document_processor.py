@@ -11,6 +11,8 @@ except ImportError:
 import os
 import hashlib
 import json
+import math
+import re
 import threading
 from typing import List, Optional
 from pathlib import Path
@@ -23,6 +25,7 @@ try:
 except ImportError:  # pragma: no cover - compatibility with older installs
     from langchain_community.vectorstores import Chroma
 import yaml
+from langchain_core.embeddings import Embeddings
 
 try:
     from .config import Config
@@ -30,15 +33,50 @@ except ImportError:  # pragma: no cover
     from config import Config
 
 
+class HashingEmbeddings(Embeddings):
+    """Small deterministic offline embedder for quota-free indexing.
+
+    Feature hashing is lexical rather than generative, but it is a strong fit
+    for a focused advising corpus: identical academic terms, acronyms, course
+    codes, and URL text map consistently without downloading a model or making
+    an external API call.
+    """
+
+    def __init__(self, dimensions: int = 384):
+        self.dimensions = dimensions
+
+    def _embed(self, text: str) -> list[float]:
+        vector = [0.0] * self.dimensions
+        tokens = re.findall(r"[a-z0-9]+", text.casefold())
+        for token in tokens:
+            digest = hashlib.blake2b(token.encode("utf-8"), digest_size=8).digest()
+            value = int.from_bytes(digest, "big")
+            index = value % self.dimensions
+            vector[index] += -1.0 if value & 1 else 1.0
+        magnitude = math.sqrt(sum(component * component for component in vector))
+        if magnitude:
+            vector = [component / magnitude for component in vector]
+        return vector
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return [self._embed(text) for text in texts]
+
+    def embed_query(self, text: str) -> List[float]:
+        return self._embed(text)
+
+
 def _create_embeddings():
     """Create the embeddings instance based on available config."""
     provider = getattr(Config, "EMBEDDING_PROVIDER", "auto").strip().lower()
-    supported = {"auto", "local", "azure_openai", "openai"}
+    supported = {"auto", "hashing", "local", "azure_openai", "openai"}
     if provider not in supported:
         raise ValueError(
             f"Unsupported EMBEDDING_PROVIDER '{provider}'. "
             f"Choose one of: {', '.join(sorted(supported))}"
         )
+
+    if provider == "hashing":
+        return HashingEmbeddings()
 
     if provider == "local":
         from langchain_huggingface import HuggingFaceEmbeddings
