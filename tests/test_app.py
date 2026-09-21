@@ -2,6 +2,7 @@
 
 import json
 import sys
+import time
 
 import app as app_module
 
@@ -80,6 +81,48 @@ def test_document_admin_routes_fail_closed_without_token(monkeypatch):
 
     assert response.status_code == 503
     assert "DOCS_LOAD_TOKEN" in response.get_json()["error"]
+
+    status_response = client.get("/api/load-docs/status")
+    assert status_response.status_code == 503
+
+
+def test_document_rebuild_can_run_outside_request_lifecycle(monkeypatch):
+    class FakeProcessor:
+        @staticmethod
+        def scan_source_files():
+            return {"total_files": 20}
+
+        @staticmethod
+        def vector_store_count():
+            return 189
+
+    class FakeIndexingChatbot:
+        doc_processor = FakeProcessor()
+
+        @staticmethod
+        def process_documents():
+            return None
+
+    monkeypatch.setenv("DOCS_LOAD_TOKEN", "test-docs-token")
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: FakeIndexingChatbot())
+    monkeypatch.setattr(app_module, "_docs_job_state", {"status": "idle"})
+    client = app_module.app.test_client()
+    headers = {"X-Admin-Token": "test-docs-token"}
+
+    started = client.post("/api/load-docs?async=true", headers=headers)
+
+    assert started.status_code == 202
+    assert started.get_json()["status"] in {"queued", "running", "succeeded"}
+    deadline = time.monotonic() + 2
+    status = None
+    while time.monotonic() < deadline:
+        status = client.get("/api/load-docs/status", headers=headers).get_json()
+        if status["status"] == "succeeded":
+            break
+        time.sleep(0.01)
+    assert status["status"] == "succeeded"
+    assert status["source_files"] == 20
+    assert status["vector_store_chunks"] == 189
 
 
 def test_evaluation_email_allowlist_is_case_insensitive(monkeypatch):

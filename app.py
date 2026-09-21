@@ -265,6 +265,9 @@ chatbot = None
 _chatbot_lock = threading.Lock()
 _rag_chatbot_class = None
 
+_docs_job_lock = threading.Lock()
+_docs_job_state = {"status": "idle"}
+
 _evaluation_store = None
 _evaluation_store_key = None
 _evaluation_store_lock = threading.Lock()
@@ -438,7 +441,10 @@ def evaluation_session():
     if allowed_reviewers:
         reviewer = reviewer.lower()
         if reviewer not in allowed_reviewers:
-            return jsonify({"error": "This email is not approved for this workspace"}), 403
+            return (
+                jsonify({"error": "This email is not approved for this workspace"}),
+                403,
+            )
 
     expected = _evaluation_token()
     if not entra_reviewer:
@@ -664,6 +670,55 @@ def docs_stats():
         return jsonify({"error": "Unable to read document statistics"}), 500
 
 
+def _docs_job_snapshot() -> dict:
+    with _docs_job_lock:
+        return dict(_docs_job_state)
+
+
+def _run_docs_index_job(job_id: str) -> None:
+    """Build the index outside the request lifecycle to avoid proxy timeouts."""
+    with _docs_job_lock:
+        _docs_job_state.update(
+            {"job_id": job_id, "status": "running", "started_at": time.time()}
+        )
+    try:
+        chatbot_instance = get_chatbot()
+        chatbot_instance.process_documents()
+        processor = chatbot_instance.doc_processor
+        scan = processor.scan_source_files()
+        chunk_count = processor.vector_store_count() or 0
+        if scan.get("total_files", 0) < 1 or chunk_count < 1:
+            raise RuntimeError("Document index rebuild produced an empty collection")
+        with _docs_job_lock:
+            _docs_job_state.update(
+                {
+                    "status": "succeeded",
+                    "completed_at": time.time(),
+                    "source_files": scan["total_files"],
+                    "vector_store_chunks": chunk_count,
+                }
+            )
+    except Exception:
+        logger.exception("Background document-index rebuild failed")
+        with _docs_job_lock:
+            _docs_job_state.update(
+                {
+                    "status": "failed",
+                    "completed_at": time.time(),
+                    "error": "Document index rebuild failed",
+                }
+            )
+
+
+@app.route("/api/load-docs/status", methods=["GET"])
+def load_docs_status():
+    """Return the state of the current or most recent index rebuild."""
+    auth_error = _admin_error()
+    if auth_error:
+        return auth_error
+    return jsonify(_docs_job_snapshot())
+
+
 @app.route("/api/history", methods=["GET"])
 def history():
     """Get conversation history."""
@@ -701,6 +756,29 @@ def load_docs():
         response = jsonify({"error": "Document loading is temporarily rate limited"})
         response.headers["Retry-After"] = str(retry_after)
         return response, 429
+
+    async_requested = request.args.get("async", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if async_requested:
+        with _docs_job_lock:
+            if _docs_job_state.get("status") in {"queued", "running"}:
+                return jsonify(dict(_docs_job_state)), 409
+            job_id = secrets.token_urlsafe(12)
+            _docs_job_state.clear()
+            _docs_job_state.update(
+                {"job_id": job_id, "status": "queued", "created_at": time.time()}
+            )
+        threading.Thread(
+            target=_run_docs_index_job,
+            args=(job_id,),
+            name=f"docs-index-{job_id}",
+            daemon=True,
+        ).start()
+        return jsonify(_docs_job_snapshot()), 202
 
     try:
         chatbot_instance = get_chatbot()

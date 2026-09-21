@@ -64,10 +64,33 @@ jobs:
             exit 1
           }
           curl --fail --silent --show-error \
-            --max-time 600 \
+            --max-time 30 \
             --request POST \
             --header "X-Admin-Token: $DOCS_LOAD_TOKEN" \
-            "$APP_URL/api/load-docs"
+            "$APP_URL/api/load-docs?async=true" \
+            --output docs-job.json
+          for attempt in {1..80}; do
+            curl --fail --silent --show-error \
+              --max-time 30 \
+              --header "X-Admin-Token: $DOCS_LOAD_TOKEN" \
+              "$APP_URL/api/load-docs/status" \
+              --output docs-job.json
+            status="$(jq --raw-output '.status' docs-job.json)"
+            case "$status" in
+              succeeded) exit 0 ;;
+              failed)
+                cat docs-job.json
+                exit 1
+                ;;
+              queued|running) sleep 15 ;;
+              *)
+                cat docs-job.json
+                exit 1
+                ;;
+            esac
+          done
+          echo "Document index rebuild did not complete in time" >&2
+          exit 1
 
       - name: Verify production advising index
         run: |
