@@ -42,17 +42,32 @@ class HashingEmbeddings(Embeddings):
     an external API call.
     """
 
-    def __init__(self, dimensions: int = 384):
+    _STOPWORDS = {
+        "a", "an", "and", "are", "as", "at", "be", "by", "do", "does",
+        "for", "from", "how", "i", "in", "is", "it", "many", "of", "on",
+        "or", "that", "the", "there", "to", "what", "when", "where", "which",
+        "who", "why", "with",
+    }
+
+    def __init__(self, dimensions: int = 2048):
         self.dimensions = dimensions
 
     def _embed(self, text: str) -> list[float]:
         vector = [0.0] * self.dimensions
-        tokens = re.findall(r"[a-z0-9]+", text.casefold())
+        tokens = [
+            token
+            for token in re.findall(r"[a-z0-9]+", text.casefold())
+            if token not in self._STOPWORDS
+        ]
+        if "bsisda" in tokens:
+            tokens.extend(["bs", "isda", "information", "science", "data", "analytics"])
+        elif "isda" in tokens:
+            tokens.extend(["information", "science", "data", "analytics"])
         for token in tokens:
             digest = hashlib.blake2b(token.encode("utf-8"), digest_size=8).digest()
             value = int.from_bytes(digest, "big")
             index = value % self.dimensions
-            vector[index] += -1.0 if value & 1 else 1.0
+            vector[index] += 1.0
         magnitude = math.sqrt(sum(component * component for component in vector))
         if magnitude:
             vector = [component / magnitude for component in vector]
