@@ -42,7 +42,7 @@ class Config:
 
     # OpenAI
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6-luna")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-6-luna")
 
     # Azure OpenAI
     AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
@@ -53,6 +53,12 @@ class Config:
     )
     AZURE_OPENAI_EMBEDDING_DEPLOYMENT = os.getenv(
         "AZURE_OPENAI_EMBEDDING_DEPLOYMENT", ""
+    )
+    AZURE_BENCHMARK_LEFT_DEPLOYMENT = os.getenv(
+        "AZURE_BENCHMARK_LEFT_DEPLOYMENT", "gpt-4o-mini"
+    )
+    AZURE_BENCHMARK_RIGHT_DEPLOYMENT = os.getenv(
+        "AZURE_BENCHMARK_RIGHT_DEPLOYMENT", "gpt-6-luna"
     )
 
     # Indexing is offline and quota-free by default. Operators can explicitly

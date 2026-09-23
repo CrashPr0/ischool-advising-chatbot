@@ -1,4 +1,6 @@
 import json
+import re
+from pathlib import Path
 
 import pytest
 from langchain_core.documents import Document
@@ -122,7 +124,21 @@ def test_benchmark_defaults_compare_both_azure_deployments():
     assert args.left_provider == "azure_openai"
     assert args.left_model == "gpt-4o-mini"
     assert args.right_provider == "azure_openai"
-    assert args.right_model == "gpt-5.6-luna"
+    assert args.right_model == "gpt-6-luna"
+    assert args.embedding_provider == "hashing"
+
+
+def test_benchmark_question_set_matches_chat_presets():
+    project_root = Path(__file__).resolve().parents[1]
+    page = (project_root / "templates" / "index.html").read_text(encoding="utf-8")
+    preset_questions = []
+    for payload in re.findall(r"data-samples='([^']+)'", page):
+        preset_questions.extend(json.loads(payload))
+
+    benchmark = load_questions(project_root / "evals" / "advising_questions.json")
+
+    assert len(preset_questions) == 24
+    assert [item["question"] for item in benchmark] == preset_questions
 
 
 def test_model_invocation_retries_transient_rate_limits(monkeypatch):

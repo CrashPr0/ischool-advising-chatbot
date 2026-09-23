@@ -419,10 +419,12 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument("--questions", type=Path, default=DEFAULT_QUESTIONS)
     parser.add_argument("--left-provider", default="azure_openai")
-    parser.add_argument("--left-model", default="gpt-4o-mini")
+    parser.add_argument("--left-model", default=Config.AZURE_BENCHMARK_LEFT_DEPLOYMENT)
     parser.add_argument("--left-label", default=None)
     parser.add_argument("--right-provider", default="azure_openai")
-    parser.add_argument("--right-model", default="gpt-5.6-luna")
+    parser.add_argument(
+        "--right-model", default=Config.AZURE_BENCHMARK_RIGHT_DEPLOYMENT
+    )
     parser.add_argument("--right-label", default=None)
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument(
@@ -435,9 +437,9 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--build-index", action="store_true")
     parser.add_argument(
         "--embedding-provider",
-        choices=("local", "auto", "azure_openai", "openai"),
-        default="local",
-        help="Embedding backend for retrieval (default: local)",
+        choices=("hashing", "local", "auto", "azure_openai", "openai"),
+        default="hashing",
+        help="Embedding backend for retrieval (default: offline hashing)",
     )
     parser.add_argument(
         "--vector-store-path",

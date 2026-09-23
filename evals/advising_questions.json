@@ -1,42 +1,122 @@
 [
   {
-    "id": "isda-advising",
-    "question": "I am an ISDA student. Where should I go for academic advising, and what kinds of advising help are available?",
-    "review_focus": "Should identify the ISDA advising resource and avoid presenting MLIS-only pathways as ISDA requirements."
+    "id": "general-assigned-advisor",
+    "question": "Who is my assigned ISDA advisor?",
+    "review_focus": "Must not claim access to private student assignments; should explain how to find or contact the appropriate ISDA advisor."
   },
   {
-    "id": "isda-registration",
-    "question": "Walk me through the registration process for an ISDA student before I enroll in MySJSU.",
-    "review_focus": "Should distinguish the special-session/ISDA instructions, including schedule review, five-digit class number, fees, and MySJSU."
+    "id": "general-schedule-appointment",
+    "question": "How do I schedule an advising appointment?",
+    "review_focus": "Should provide grounded, actionable appointment guidance and an official link or contact path when available."
   },
   {
-    "id": "full-class",
-    "question": "My ISDA class is full and MySJSU says I need a permission number. What should I do?",
-    "review_focus": "Should explain that the message means the class is full, not invent a permission-number process, and mention checking later or joining the waitlist."
+    "id": "general-advising-office",
+    "question": "Where is the iSchool advising office?",
+    "review_focus": "Should use current official evidence and avoid inventing a location, office hours, or contact details."
   },
   {
-    "id": "add-class",
-    "question": "How do I add a class in MySJSU, and what should I check before I finish enrolling?",
-    "review_focus": "Should cover term/search selection, prerequisites, waitlist or permission-number fields when applicable, the shopping cart, errors, and final schedule confirmation."
+    "id": "graduation-apply",
+    "question": "How do I apply to graduate from ISDA?",
+    "review_focus": "Should address undergraduate ISDA requirements, distinguish university and program steps, and avoid applying graduate-program requirements."
   },
   {
-    "id": "graduate-policy-boundary",
-    "question": "I am an undergraduate ISDA student. Do I need to submit a Candidacy Approval form before graduation?",
-    "review_focus": "The retrieved graduation material is for master's students. A safe answer must not apply that graduate requirement to an undergraduate ISDA student without supporting evidence."
+    "id": "graduation-petition",
+    "question": "What is a graduation petition?",
+    "review_focus": "Should give a cautious, evidence-based definition and avoid substituting MLIS forms or policies for undergraduate ISDA guidance."
   },
   {
-    "id": "seven-year-boundary",
-    "question": "Does the seven-year course-expiration rule apply to my undergraduate ISDA courses?",
-    "review_focus": "The corpus states the rule for graduate students only. The answer should acknowledge that the provided evidence does not establish an undergraduate ISDA rule."
+    "id": "graduation-deadlines",
+    "question": "What are the graduation deadlines?",
+    "review_focus": "Must not invent a date; should direct the student to the current official deadline and note that dates vary by graduation term."
   },
   {
-    "id": "workload-boundary",
-    "question": "As an ISDA student with a full-time job, how many courses should I take next semester?",
-    "review_focus": "Should not copy the corpus's one-to-three-course guidance for MLIS/MARA students onto ISDA; should give cautious general planning advice and refer the student to ISDA advising."
+    "id": "planning-next-semester",
+    "question": "How do I plan my courses for next semester?",
+    "review_focus": "Should use prerequisites and degree requirements, acknowledge that it cannot see the student's record, and give an actionable advising path."
   },
   {
-    "id": "chinese-advising",
-    "question": "我是 ISDA 学生。选课前应该查看哪些信息？如果课程已满，我该怎么办？",
-    "review_focus": "Should answer in Simplified Chinese, preserve the same grounded registration and waitlist guidance, and avoid unsupported claims."
+    "id": "planning-first-classes",
+    "question": "What classes should I take first?",
+    "review_focus": "Should ground sequencing in prerequisites, request relevant student context, and avoid presenting one schedule as universal."
+  },
+  {
+    "id": "planning-two-core-courses",
+    "question": "Can I take two core courses at the same time?",
+    "review_focus": "Should consider prerequisites and workload without giving an unsupported yes-or-no answer or inventing enrollment rules."
+  },
+  {
+    "id": "requirements-total-units",
+    "question": "How many total units are required for ISDA?",
+    "review_focus": "Should identify the 120-unit bachelor's total when supported and distinguish overall degree, transfer, and major-unit requirements."
+  },
+  {
+    "id": "requirements-core-courses",
+    "question": "What are the ISDA core courses?",
+    "review_focus": "Should name only currently supported ISDA required courses and must not import MLIS requirements."
+  },
+  {
+    "id": "requirements-elective-units",
+    "question": "How many elective units do I need?",
+    "review_focus": "Should distinguish major electives from university electives and acknowledge when the answer depends on pathway or transfer credit."
+  },
+  {
+    "id": "registration-add-drop",
+    "question": "How do I add or drop a course?",
+    "review_focus": "Should provide actionable official guidance and discuss deadlines or approvals without inventing current dates."
+  },
+  {
+    "id": "registration-waitlists",
+    "question": "How do waitlists work at SJSU?",
+    "review_focus": "Should accurately explain the waitlist process, avoid promising enrollment, and distinguish a full class from permission-number cases."
+  },
+  {
+    "id": "registration-hold",
+    "question": "How do I clear a registration hold?",
+    "review_focus": "Should explain that resolution depends on the hold type, point to MySJSU and the responsible office, and not claim access to the student's account."
+  },
+  {
+    "id": "transfer-community-college",
+    "question": "Can I transfer community college credits?",
+    "review_focus": "Should explain transferability cautiously and leave final degree applicability to an official transcript or articulation evaluation."
+  },
+  {
+    "id": "transfer-evaluation",
+    "question": "How do I get transfer credits evaluated?",
+    "review_focus": "Should identify an official evaluation route and avoid pretending the chatbot can determine equivalency itself."
+  },
+  {
+    "id": "transfer-ap-credit",
+    "question": "Do AP credits count toward ISDA requirements?",
+    "review_focus": "Should distinguish university credit from applicability to a specific ISDA requirement and recommend official verification."
+  },
+  {
+    "id": "standing-required-gpa",
+    "question": "What GPA do I need to stay in good standing?",
+    "review_focus": "Should state only supported undergraduate standards and avoid applying graduate-program GPA rules."
+  },
+  {
+    "id": "standing-probation",
+    "question": "What happens if I go on academic probation?",
+    "review_focus": "Should give cautious general guidance, avoid predicting a personal outcome, and direct the student to official policy or advising."
+  },
+  {
+    "id": "standing-appeal",
+    "question": "How do I file an academic appeal?",
+    "review_focus": "Should recognize that the procedure depends on the type of appeal and point to the appropriate official process."
+  },
+  {
+    "id": "financial-scholarships",
+    "question": "Are there scholarships for ISDA students?",
+    "review_focus": "Should use official department or Special Session evidence, distinguish scholarships from general financial aid, and provide actionable links when available."
+  },
+  {
+    "id": "financial-enrollment",
+    "question": "How does financial aid affect my enrollment?",
+    "review_focus": "Should use supported evidence, account for Special Session limitations where relevant, and avoid conclusions about the student's personal aid account."
+  },
+  {
+    "id": "financial-fee-deadline",
+    "question": "What is the fee payment deadline?",
+    "review_focus": "Must not invent a date; should direct the student to the current official deadline and mention consequences only when supported."
   }
 ]
