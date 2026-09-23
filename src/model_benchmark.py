@@ -430,8 +430,11 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--request-delay",
         type=float,
-        default=3.0,
-        help="Seconds to pause between question pairs to reduce provider throttling",
+        default=float(os.getenv("BENCHMARK_REQUEST_DELAY_SECONDS", "60")),
+        help=(
+            "Seconds to pause between question pairs to reduce provider throttling "
+            "(default: 60 or BENCHMARK_REQUEST_DELAY_SECONDS)"
+        ),
     )
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--build-index", action="store_true")
@@ -479,9 +482,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     Config.EMBEDDING_PROVIDER = args.embedding_provider
     Config.VECTOR_STORE_PATH = str(args.vector_store_path)
     processor = DocumentProcessor()
-    vector_store = processor.load_vector_store()
-    if not vector_store and args.build_index:
+    if args.build_index:
         vector_store = processor.process_and_index()
+    else:
+        vector_store = processor.load_vector_store()
     if not vector_store:
         raise SystemExit(
             "No advising vector index is available. Re-run with --build-index "

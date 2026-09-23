@@ -296,11 +296,11 @@ black .
 flake8 .
 ```
 
-## Azure GPT-4o mini vs. GPT-6 Luna benchmark
+## Azure GPT-4o mini vs. GPT-5.6 Luna benchmark
 
 The repository includes a repeatable RAG A/B test. Each advising question is
 retrieved once with the offline hashing index, then the Azure deployments named
-`gpt-4o-mini` and `gpt-6-luna` receive the exact same system prompt and
+`gpt-4o-mini` and `gpt-5.6-luna` receive the exact same system prompt and
 document excerpts. This keeps Azure embedding rate limits and retrieval
 variance out of the model comparison. Invocation order alternates to reduce
 connection-warming bias. The generated Markdown report includes both answers,
@@ -311,12 +311,15 @@ two deployment names above; set `AZURE_BENCHMARK_LEFT_DEPLOYMENT` and
 `AZURE_BENCHMARK_RIGHT_DEPLOYMENT` (or use `--left-model` and
 `--right-model`) if your Azure deployment names differ. Transient Azure
 429/time-out responses use bounded exponential backoff, and the benchmark
-paces question pairs with `--request-delay` (3 seconds by default).
+paces question pairs with `--request-delay` (60 seconds by default for the
+current student deployment). Set `BENCHMARK_REQUEST_DELAY_SECONDS` or pass the
+flag explicitly after increasing the Azure deployment's rate limit.
 
 Then run the 24-question benchmark. The question set exactly mirrors the three
 preset questions in each of the chat UI's eight advising topics. The first run
 builds an isolated, quota-free hashing index and does not download an embedding
-model:
+model. Passing `--build-index` always replaces a stale or incompatible benchmark
+index before invoking either model:
 
 ```bash
 python -m src.model_benchmark --build-index
@@ -328,13 +331,13 @@ For a cheap smoke test before the full run:
 python -m src.model_benchmark --build-index --limit 1
 ```
 
-If GPT-6 Luna is available through an OpenAI API account rather than as a
+If GPT-5.6 Luna is available through an OpenAI API account rather than as a
 deployment in the Azure resource, keep GPT-4o mini on Azure and route only the
 right side to OpenAI:
 
 ```bash
 python -m src.model_benchmark --build-index \
-  --right-provider openai --right-model gpt-6-luna
+  --right-provider openai --right-model gpt-5.6-luna
 ```
 
 That mixed-provider run requires `OPENAI_API_KEY`; the shared prompt, retrieved
@@ -351,8 +354,8 @@ remain local build artifacts:
 Edit `evals/advising_questions.json` to add questions or reviewer expectations.
 The supplied review focus for every preset covers grounding, policy boundaries,
 personal-data limits, or the need to avoid invented dates. A test fails if the
-benchmark questions drift from the chat presets. GPT-6 Luna's current API model
-ID and capabilities are documented on the [official OpenAI model page](https://developers.openai.com/api/docs/models/gpt-6-luna).
+benchmark questions drift from the chat presets. GPT-5.6 Luna's current API
+model ID and capabilities are documented on the [official OpenAI model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna).
 
 ### Human evaluation workspace
 
