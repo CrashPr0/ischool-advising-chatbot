@@ -38,13 +38,35 @@
           candidates for a question are reviewed.
         </p>
       </div>
-      <div class="scale-key" aria-label="Rating scale">
+      <button
+        id="show-results-button"
+        class="scale-key results-button"
+        type="button"
+        aria-label="Show model result comparison"
+        aria-expanded="false"
+        aria-controls="results-chart-container"
+      >
         <span><b>1</b> Unusable</span>
         <span><b>4</b> Mixed</span>
         <span><b>7</b> Excellent</span>
+      </button>
+    </section>
+    <section id="results-chart-container" class="results-chart-container hidden">
+      <h2>Model Results by Question</h2>
+      <canvas id="results-chart"></canvas>
+
+      <div class="distribution-chart-grid">
+        <div>
+          <h3 id="left-distribution-title"></h3>
+          <canvas id="left-distribution-chart"></canvas>
+        </div>
+
+        <div>
+          <h3 id="right-distribution-title"></h3>
+          <canvas id="right-distribution-chart"></canvas>
+        </div>
       </div>
     </section>
-
     <section class="metric-grid" aria-label="Review progress">
       <article class="metric-card">
         <span>Questions complete</span>
@@ -212,6 +234,7 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="{{ url_for('static', filename='evaluation.js') }}"></script>
 </body>
 </html>

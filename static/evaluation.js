@@ -454,3 +454,177 @@ elements.exportButton.addEventListener("click", exportCsv);
 elements.logoutButton.addEventListener("click", signOut);
 
 initializeSession();
+
+const showResultsButton = document.getElementById("show-results-button");
+const resultsChartContainer = document.getElementById("results-chart-container");
+const resultsCanvas = document.getElementById("results-chart");
+
+let resultsChart = null;
+
+const leftDistributionCanvas = document.getElementById("left-distribution-chart");
+const rightDistributionCanvas = document.getElementById("right-distribution-chart");
+const leftDistributionTitle = document.getElementById("left-distribution-title");
+const rightDistributionTitle = document.getElementById("right-distribution-title");
+
+let leftDistributionChart = null;
+let rightDistributionChart = null;
+
+showResultsButton.addEventListener("click", async () => {
+  const isOpening =
+    resultsChartContainer.classList.contains("hidden");
+
+  resultsChartContainer.classList.toggle("hidden", !isOpening);
+
+  showResultsButton.setAttribute(
+    "aria-expanded",
+    String(isOpening)
+  );
+
+  if (isOpening && !resultsChart) {
+    await loadResultsChart();
+  }
+});
+
+async function loadResultsChart() {
+  try {
+    const response = await fetch("/api/evaluation/summary", {
+  credentials: "same-origin"
+  });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || "Unable to load evaluation summary"
+      );
+    }
+
+    const leftModel = data.models.left;
+    const rightModel = data.models.right;
+
+    resultsChart = new Chart(resultsCanvas, {
+      type: "bar",
+      data: {
+        labels: [
+          leftModel.label,
+          rightModel.label
+        ],
+        datasets: [
+          {
+            label: "Average rating",
+            data: [
+              leftModel.average_rating,
+              rightModel.average_rating
+            ],
+            backgroundColor: [
+              "#0055a5",
+              "#e57200"
+            ],
+            borderColor: [
+              "#003b73",
+              "#b85a00"
+            ],
+            borderWidth: 1,
+            borderRadius: 8
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            display: false
+          },
+          title: {
+            display: true,
+            text: "Average Evaluation Rating"
+          }
+        },
+        scales: {
+          y: {
+            min: 0,
+            max: 7,
+            ticks: {
+              stepSize: 1
+            },
+            title: {
+              display: true,
+              text: "Average score"
+            }
+          }
+        }
+      }
+    });
+    createDistributionChart(
+      leftModel,
+      leftDistributionCanvas,
+      leftDistributionTitle,
+      "left"
+    );
+
+    createDistributionChart(
+      rightModel,
+      rightDistributionCanvas,
+      rightDistributionTitle,
+      "right"
+    );
+  } catch (error) {
+    resultsChartContainer.classList.add("hidden");
+    showResultsButton.setAttribute("aria-expanded", "false");
+    showToast(error.message, true);
+  }
+}
+
+function createDistributionChart(model, canvas, titleElement, side) {
+  titleElement.textContent = `${model.label} Rating Distribution`;
+
+  const labels = Object.keys(model.distribution).sort(
+    (a, b) => Number(a) - Number(b)
+  );
+
+  const values = labels.map(
+    rating => model.distribution[rating]
+  );
+
+  if (side === "left" && leftDistributionChart) {
+    leftDistributionChart.destroy();
+  }
+
+  if (side === "right" && rightDistributionChart) {
+    rightDistributionChart.destroy();
+  }
+
+  const chart = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: labels.map(rating => `Rating ${rating}`),
+      datasets: [
+        {
+          label: "Number of reviews",
+          data: values,
+          backgroundColor: side === "left"
+            ? "#0055a5"
+            : "#e57200",
+          borderRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1
+          }
+        }
+      }
+    }
+  });
+
+  if (side === "left") {
+    leftDistributionChart = chart;
+  } else {
+    rightDistributionChart = chart;
+  }
+}
