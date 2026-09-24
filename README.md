@@ -310,10 +310,11 @@ Both models use the existing Azure endpoint and key. The defaults assume the
 two deployment names above; set `AZURE_BENCHMARK_LEFT_DEPLOYMENT` and
 `AZURE_BENCHMARK_RIGHT_DEPLOYMENT` (or use `--left-model` and
 `--right-model`) if your Azure deployment names differ. Transient Azure
-429/time-out responses use bounded exponential backoff, and the benchmark
-paces question pairs with `--request-delay` (60 seconds by default for the
-current student deployment). Set `BENCHMARK_REQUEST_DELAY_SECONDS` or pass the
-flag explicitly after increasing the Azure deployment's rate limit.
+429/time-out responses first honor provider `Retry-After` and rate-limit reset
+headers, then fall back to bounded exponential backoff. The benchmark paces
+question pairs with `--request-delay` (60 seconds by default for the current
+student deployment). Set `BENCHMARK_REQUEST_DELAY_SECONDS` or pass the flag
+explicitly after increasing the Azure deployment's rate limit.
 
 Then run the 24-question benchmark. The question set exactly mirrors the three
 preset questions in each of the chat UI's eight advising topics. The first run
@@ -325,11 +326,29 @@ index before invoking either model:
 python -m src.model_benchmark --build-index
 ```
 
+Every model response is atomically checkpointed to
+`evals/results/latest.partial.json`. Re-running the same command resumes the
+matching run and skips successful responses, including when only one side of a
+question finished. The console reports completed responses, errors, retry
+delays, and an estimated time remaining. `evals/results/latest.json` and the
+Markdown report are replaced only after all 48 responses succeed, so an
+interrupted or throttled run cannot replace the live review dataset.
+
+Use `--fresh` to deliberately discard a matching partial run. A checkpoint
+whose questions, model deployments, retrieval settings, or system prompt do not
+match is rejected instead of being mixed into the new run. Retry behavior can
+be tuned with `--max-attempts`, `--retry-delay`, and `--max-retry-delay`.
+
 For a cheap smoke test before the full run:
 
 ```bash
-python -m src.model_benchmark --build-index --limit 1
+python -m src.model_benchmark --build-index --limit 1 \
+  --output evals/results/smoke.json \
+  --report evals/results/smoke.md
 ```
+
+Limited runs must use non-default output paths and therefore cannot replace the
+24-question dataset used by the hosted evaluation workspace.
 
 If GPT-5.6 Luna is available through an OpenAI API account rather than as a
 deployment in the Azure resource, keep GPT-4o mini on Azure and route only the

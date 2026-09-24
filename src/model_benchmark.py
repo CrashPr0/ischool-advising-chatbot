@@ -11,12 +11,15 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import statistics
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 from langchain_core.prompts import PromptTemplate
 
@@ -36,6 +39,40 @@ DEFAULT_QUESTIONS = Path("evals/advising_questions.json")
 DEFAULT_JSON_OUTPUT = Path(os.getenv("EVAL_RESULTS_PATH", "evals/results/latest.json"))
 DEFAULT_MARKDOWN_OUTPUT = Path("evals/results/latest.md")
 DEFAULT_VECTOR_STORE = Path("evals/vector_store")
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _write_text_atomic(path: Path, value: str) -> None:
+    """Replace a text artifact atomically so readers never see partial data."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Optional[Path] = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            handle.write(value)
+            handle.flush()
+            os.fsync(handle.fileno())
+            temporary_path = Path(handle.name)
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path and temporary_path.exists():
+            temporary_path.unlink()
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    _write_text_atomic(
+        path,
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+    )
 
 
 def load_questions(path: Path) -> list[dict[str, str]]:
@@ -146,15 +183,91 @@ def _retryable_model_error(exc: Exception) -> bool:
     )
 
 
+def _exception_headers(exc: Exception) -> dict[str, str]:
+    """Return normalized provider response headers, including wrapped errors."""
+    current: Optional[BaseException] = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        response = getattr(current, "response", None)
+        headers = getattr(response, "headers", None)
+        if headers:
+            try:
+                return {str(key).lower(): str(value) for key, value in headers.items()}
+            except (AttributeError, TypeError, ValueError):
+                pass
+        current = getattr(current, "__cause__", None) or getattr(
+            current, "__context__", None
+        )
+    return {}
+
+
+def _duration_seconds(value: str) -> Optional[float]:
+    """Parse numeric seconds, HTTP dates, or provider durations such as 1m30s."""
+    normalized = str(value or "").strip().lower()
+    if not normalized:
+        return None
+    try:
+        return max(0.0, float(normalized))
+    except ValueError:
+        pass
+
+    units = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
+    matches = re.findall(r"(\d+(?:\.\d+)?)\s*(ms|s|m|h)", normalized)
+    if matches and "".join(f"{amount}{unit}" for amount, unit in matches) == re.sub(
+        r"\s+", "", normalized
+    ):
+        return sum(float(amount) * units[unit] for amount, unit in matches)
+
+    try:
+        retry_at = parsedate_to_datetime(value)
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        return max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds())
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _provider_retry_delay(
+    exc: Exception,
+    fallback_seconds: float,
+    *,
+    max_delay_seconds: float,
+) -> float:
+    """Prefer the provider's retry/reset headers over guessed backoff."""
+    headers = _exception_headers(exc)
+    candidates: list[float] = []
+    retry_after_ms = headers.get("retry-after-ms", "").strip().lower()
+    if retry_after_ms:
+        try:
+            candidates.append(max(0.0, float(retry_after_ms)) / 1000.0)
+        except ValueError:
+            parsed = _duration_seconds(retry_after_ms)
+            if parsed is not None:
+                candidates.append(parsed)
+    for name in (
+        "retry-after",
+        "x-ratelimit-reset-requests",
+        "x-ratelimit-reset-tokens",
+    ):
+        parsed = _duration_seconds(headers.get(name, ""))
+        if parsed is not None:
+            candidates.append(parsed)
+    requested = max(candidates) + 1.0 if candidates else fallback_seconds
+    return min(max(0.0, requested), max_delay_seconds)
+
+
 def invoke_model(
     model: Any,
     prompt: str,
     *,
-    max_attempts: int = 3,
+    max_attempts: int = 6,
     retry_delay_seconds: float = 30.0,
+    max_retry_delay_seconds: float = 300.0,
 ) -> dict[str, Any]:
     """Invoke one model with bounded retries for transient provider failures."""
     started = time.perf_counter()
+    retry_delays: list[float] = []
     for attempt in range(1, max_attempts + 1):
         try:
             response = model.invoke(prompt)
@@ -163,11 +276,18 @@ def invoke_model(
                 "latency_seconds": round(time.perf_counter() - started, 3),
                 "usage": _usage(response),
                 "attempts": attempt,
+                "retry_delays_seconds": retry_delays,
                 "error": None,
             }
         except Exception as exc:  # benchmark should preserve the other model's run
             if attempt < max_attempts and _retryable_model_error(exc):
-                delay = retry_delay_seconds * (2 ** (attempt - 1))
+                fallback = retry_delay_seconds * (2 ** (attempt - 1))
+                delay = _provider_retry_delay(
+                    exc,
+                    fallback,
+                    max_delay_seconds=max_retry_delay_seconds,
+                )
+                retry_delays.append(round(delay, 3))
                 print(
                     f"Transient {type(exc).__name__}; retrying in {delay:g}s "
                     f"({attempt}/{max_attempts})",
@@ -180,6 +300,7 @@ def invoke_model(
                 "latency_seconds": round(time.perf_counter() - started, 3),
                 "usage": {},
                 "attempts": attempt,
+                "retry_delays_seconds": retry_delays,
                 "error": f"{type(exc).__name__}: {exc}",
             }
 
@@ -193,6 +314,103 @@ def _display_source(source: str, project_root: Path) -> str:
         return Path(source).name or "unknown"
 
 
+def benchmark_fingerprint(
+    *,
+    questions: list[dict[str, str]],
+    left_spec: dict[str, str],
+    right_spec: dict[str, str],
+    top_k: int,
+    embedding_provider: str,
+) -> str:
+    """Identify every input that makes a checkpoint safe to resume."""
+    payload = {
+        "questions": questions,
+        "left_model": {
+            "provider": left_spec.get("provider"),
+            "model": left_spec.get("model"),
+        },
+        "right_model": {
+            "provider": right_spec.get("provider"),
+            "model": right_spec.get("model"),
+        },
+        "top_k": top_k,
+        "embedding_provider": embedding_provider,
+        "system_prompt_sha256": hashlib.sha256(
+            RAGAdvisingChatbot.SYSTEM_PROMPT.encode("utf-8")
+        ).hexdigest(),
+    }
+    serialized = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _successful_response(response: Any) -> bool:
+    return bool(
+        isinstance(response, dict)
+        and not response.get("error")
+        and str(response.get("answer", "")).strip()
+    )
+
+
+def _update_run_progress(result: dict[str, Any], total_questions: int) -> None:
+    results = result.get("results", [])
+    successful_responses = sum(
+        _successful_response(item.get(side))
+        for item in results
+        for side in ("left", "right")
+    )
+    completed_questions = sum(
+        _successful_response(item.get("left"))
+        and _successful_response(item.get("right"))
+        for item in results
+    )
+    failed_responses = sum(
+        isinstance(item.get(side), dict) and bool(item[side].get("error"))
+        for item in results
+        for side in ("left", "right")
+    )
+    result.update(
+        {
+            "updated_at": _utc_now(),
+            "status": (
+                "complete" if completed_questions == total_questions else "in_progress"
+            ),
+            "completed_questions": completed_questions,
+            "total_questions": total_questions,
+            "successful_responses": successful_responses,
+            "total_responses": total_questions * 2,
+            "failed_responses": failed_responses,
+        }
+    )
+
+
+def _format_duration(seconds: float) -> str:
+    seconds = max(0, round(seconds))
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {minutes}m"
+    if minutes:
+        return f"{minutes}m {seconds}s"
+    return f"{seconds}s"
+
+
+def _response_progress(response: dict[str, Any]) -> str:
+    usage = response.get("usage") or {}
+    tokens = usage.get("total_tokens")
+    token_text = str(tokens) if isinstance(tokens, int) else "unreported"
+    if response.get("error"):
+        error_name = str(response["error"]).split(":", 1)[0]
+        outcome = f"error={error_name}"
+    else:
+        outcome = "ok"
+    return (
+        f"{outcome}, latency={response.get('latency_seconds', 'n/a')}s, "
+        f"tokens={token_text}, attempts={response.get('attempts', 'n/a')}"
+    )
+
+
 def run_benchmark(
     *,
     questions: list[dict[str, str]],
@@ -204,9 +422,27 @@ def run_benchmark(
     top_k: int = 5,
     project_root: Optional[Path] = None,
     request_delay_seconds: float = 0.0,
+    existing_result: Optional[dict[str, Any]] = None,
+    progress_callback: Optional[Callable[[dict[str, Any]], None]] = None,
+    max_attempts: int = 6,
+    retry_delay_seconds: float = 30.0,
+    max_retry_delay_seconds: float = 300.0,
 ) -> dict[str, Any]:
-    """Run a fair A/B test using one retrieval operation per question."""
+    """Run or resume a fair A/B test using one retrieval operation per question."""
     root = project_root or Path.cwd()
+    embedding_provider = getattr(Config, "EMBEDDING_PROVIDER", "auto")
+    fingerprint = benchmark_fingerprint(
+        questions=questions,
+        left_spec=left_spec,
+        right_spec=right_spec,
+        top_k=top_k,
+        embedding_provider=embedding_provider,
+    )
+    if existing_result and existing_result.get("run_fingerprint") != fingerprint:
+        raise ValueError(
+            "Checkpoint inputs do not match this benchmark. Start a fresh run."
+        )
+
     prompt_template = PromptTemplate(
         input_variables=["context", "question"],
         template=(
@@ -216,7 +452,46 @@ def run_benchmark(
             "Assistant Response:"
         ),
     )
-    results = []
+    result: dict[str, Any] = {
+        "created_at": (
+            existing_result.get("created_at") if existing_result else _utc_now()
+        ),
+        "method": (
+            "Shared retrieval context and identical prompt; invocation order "
+            "alternates by question. Successful responses are checkpointed and "
+            "resumed without another model call."
+        ),
+        "run_fingerprint": fingerprint,
+        "system_prompt_sha256": hashlib.sha256(
+            RAGAdvisingChatbot.SYSTEM_PROMPT.encode("utf-8")
+        ).hexdigest(),
+        "embedding_provider": embedding_provider,
+        "top_k": top_k,
+        "left_model": left_spec,
+        "right_model": right_spec,
+        "results": [],
+    }
+    existing_by_id = {
+        str(item.get("id")): item
+        for item in (existing_result or {}).get("results", [])
+        if isinstance(item, dict) and item.get("id")
+    }
+    results_by_id = dict(existing_by_id)
+    question_ids = [item["id"] for item in questions]
+
+    def checkpoint() -> None:
+        result["results"] = [
+            results_by_id[question_id]
+            for question_id in question_ids
+            if question_id in results_by_id
+        ]
+        _update_run_progress(result, len(questions))
+        if progress_callback:
+            progress_callback(result)
+
+    checkpoint()
+    run_started = time.perf_counter()
+    worked_questions = 0
     for index, item in enumerate(questions):
         documents = document_processor.retrieve_relevant_docs(item["question"], k=top_k)
         context = build_context(documents)
@@ -224,15 +499,7 @@ def run_benchmark(
             context=context,
             question=item["question"],
         )
-
-        # Alternate invocation order so one model is not always advantaged by
-        # being called first (connection warming or transient load).
-        if index % 2 == 0:
-            left = invoke_model(left_model, prompt)
-            right = invoke_model(right_model, prompt)
-        else:
-            right = invoke_model(right_model, prompt)
-            left = invoke_model(left_model, prompt)
+        context_sha256 = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
         sources = []
         for document in documents:
@@ -240,33 +507,81 @@ def run_benchmark(
             source = _display_source(str(metadata.get("source", "unknown")), root)
             if source not in sources:
                 sources.append(source)
-        results.append(
-            {
-                **item,
-                "sources": sources,
-                "context_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
-                "left": left,
-                "right": right,
-            }
+
+        previous = results_by_id.get(item["id"], {})
+        same_context = (
+            previous.get("question") == item["question"]
+            and previous.get("context_sha256") == context_sha256
         )
-        if request_delay_seconds and index < len(questions) - 1:
+        current = {
+            **item,
+            "sources": sources,
+            "context_sha256": context_sha256,
+            "left": previous.get("left") if same_context else None,
+            "right": previous.get("right") if same_context else None,
+        }
+        results_by_id[item["id"]] = current
+        needed_sides = [
+            side
+            for side in ("left", "right")
+            if not _successful_response(current.get(side))
+        ]
+        if not needed_sides:
+            print(
+                f"[{index + 1}/{len(questions)}] {item['id']}: resumed both responses"
+            )
+            checkpoint()
+            continue
+
+        worked_questions += 1
+        ordered_sides = ("left", "right") if index % 2 == 0 else ("right", "left")
+        models = {"left": left_model, "right": right_model}
+
+        # Alternate invocation order so one model is not always advantaged by
+        # being called first (connection warming or transient load).
+        for side in ordered_sides:
+            if side not in needed_sides:
+                continue
+            model_label = result[f"{side}_model"]["label"]
+            print(
+                f"[{index + 1}/{len(questions)}] {item['id']}: requesting "
+                f"{model_label}"
+            )
+            current[side] = invoke_model(
+                models[side],
+                prompt,
+                max_attempts=max_attempts,
+                retry_delay_seconds=retry_delay_seconds,
+                max_retry_delay_seconds=max_retry_delay_seconds,
+            )
+            checkpoint()
+            print(
+                f"[{index + 1}/{len(questions)}] {item['id']}: {model_label}: "
+                f"{_response_progress(current[side])}"
+            )
+
+        elapsed = time.perf_counter() - run_started
+        remaining = max(0, len(questions) - result["completed_questions"])
+        average = elapsed / worked_questions if worked_questions else 0
+        eta = average * remaining
+        outcome = (
+            "complete"
+            if all(
+                _successful_response(current.get(side)) for side in ("left", "right")
+            )
+            else "needs retry"
+        )
+        print(
+            f"[{index + 1}/{len(questions)}] {item['id']}: {outcome}; "
+            f"{result['successful_responses']}/{result['total_responses']} responses; "
+            f"ETA {_format_duration(eta)}"
+        )
+
+        if request_delay_seconds and index < len(questions) - 1 and needed_sides:
             time.sleep(request_delay_seconds)
 
-    return {
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "method": (
-            "Shared retrieval context and identical prompt; invocation order "
-            "alternates by question."
-        ),
-        "system_prompt_sha256": hashlib.sha256(
-            RAGAdvisingChatbot.SYSTEM_PROMPT.encode("utf-8")
-        ).hexdigest(),
-        "embedding_provider": getattr(Config, "EMBEDDING_PROVIDER", "auto"),
-        "top_k": top_k,
-        "left_model": left_spec,
-        "right_model": right_spec,
-        "results": results,
-    }
+    checkpoint()
+    return result
 
 
 def _quote_markdown(value: str) -> str:
@@ -413,6 +728,23 @@ def _provider_error(provider: str) -> str:
     return f"Complete the .env settings for provider '{provider}'."
 
 
+def _default_checkpoint_path(output_path: Path) -> Path:
+    suffix = output_path.suffix or ".json"
+    return output_path.with_name(f"{output_path.stem}.partial{suffix}")
+
+
+def _load_checkpoint(path: Path) -> Optional[dict[str, Any]]:
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Checkpoint is unreadable: {path}") from exc
+    if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
+        raise ValueError(f"Checkpoint is not a benchmark result: {path}")
+    return payload
+
+
 def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Compare two advising models using identical RAG context."
@@ -439,6 +771,24 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--build-index", action="store_true")
     parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=6,
+        help="Maximum attempts for each model response (default: 6)",
+    )
+    parser.add_argument(
+        "--retry-delay",
+        type=float,
+        default=30.0,
+        help="Fallback initial retry delay when the provider omits one (default: 30)",
+    )
+    parser.add_argument(
+        "--max-retry-delay",
+        type=float,
+        default=300.0,
+        help="Maximum provider-directed or exponential retry delay (default: 300)",
+    )
+    parser.add_argument(
         "--embedding-provider",
         choices=("hashing", "local", "auto", "azure_openai", "openai"),
         default="hashing",
@@ -452,6 +802,17 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_JSON_OUTPUT)
     parser.add_argument("--report", type=Path, default=DEFAULT_MARKDOWN_OUTPUT)
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=None,
+        help="Partial-run checkpoint (default: <output stem>.partial.json)",
+    )
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="Discard the matching partial checkpoint and start a new run",
+    )
     return parser.parse_args(argv)
 
 
@@ -461,8 +822,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     args.right_provider = Config.normalize_provider(args.right_provider)
     if not 1 <= args.top_k <= 20:
         raise SystemExit("--top-k must be between 1 and 20")
-    if not 0 <= args.request_delay <= 60:
-        raise SystemExit("--request-delay must be between 0 and 60 seconds")
+    if not 0 <= args.request_delay <= 3600:
+        raise SystemExit("--request-delay must be between 0 and 3600 seconds")
+    if not 1 <= args.max_attempts <= 20:
+        raise SystemExit("--max-attempts must be between 1 and 20")
+    if not 0 <= args.retry_delay <= 3600:
+        raise SystemExit("--retry-delay must be between 0 and 3600 seconds")
+    if not 0 <= args.max_retry_delay <= 3600:
+        raise SystemExit("--max-retry-delay must be between 0 and 3600 seconds")
 
     for provider in (args.left_provider, args.right_provider):
         if not Config.validate_provider(provider):
@@ -474,6 +841,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.limit is not None:
         if args.limit < 1:
             raise SystemExit("--limit must be at least 1")
+        if args.output.resolve() == DEFAULT_JSON_OUTPUT.resolve():
+            raise SystemExit(
+                "--limit cannot publish to the default evaluation dataset. "
+                "Provide --output and --report paths for the smoke run."
+            )
         questions = questions[: args.limit]
 
     # Keep benchmark retrieval separate from the app's production index. Local
@@ -512,22 +884,74 @@ def main(argv: Optional[list[str]] = None) -> int:
         or _model_label(args.right_provider, args.right_model),
     }
 
-    result = run_benchmark(
+    checkpoint_path = args.checkpoint or _default_checkpoint_path(args.output)
+    if args.fresh:
+        checkpoint_path.unlink(missing_ok=True)
+    try:
+        existing_result = _load_checkpoint(checkpoint_path)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    expected_fingerprint = benchmark_fingerprint(
         questions=questions,
-        left_model=left_model,
-        right_model=right_model,
         left_spec=left_spec,
         right_spec=right_spec,
-        document_processor=processor,
         top_k=args.top_k,
-        request_delay_seconds=args.request_delay,
+        embedding_provider=Config.EMBEDDING_PROVIDER,
     )
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.report.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
-        json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    args.report.write_text(render_markdown(result), encoding="utf-8")
+    if existing_result:
+        if existing_result.get("run_fingerprint") != expected_fingerprint:
+            raise SystemExit(
+                f"Checkpoint {checkpoint_path} belongs to different benchmark "
+                "inputs. Use --fresh to start over or choose --checkpoint PATH."
+            )
+        print(
+            f"Resuming {checkpoint_path}: "
+            f"{existing_result.get('completed_questions', 0)}/{len(questions)} "
+            "questions complete"
+        )
+
+    def save_checkpoint(progress: dict[str, Any]) -> None:
+        _write_json_atomic(checkpoint_path, progress)
+
+    try:
+        result = run_benchmark(
+            questions=questions,
+            left_model=left_model,
+            right_model=right_model,
+            left_spec=left_spec,
+            right_spec=right_spec,
+            document_processor=processor,
+            top_k=args.top_k,
+            request_delay_seconds=args.request_delay,
+            existing_result=existing_result,
+            progress_callback=save_checkpoint,
+            max_attempts=args.max_attempts,
+            retry_delay_seconds=args.retry_delay,
+            max_retry_delay_seconds=args.max_retry_delay,
+        )
+    except KeyboardInterrupt:
+        print(
+            f"Benchmark interrupted; resume data remains at {checkpoint_path}",
+            file=sys.stderr,
+        )
+        return 130
+
+    if result["status"] != "complete":
+        _write_json_atomic(checkpoint_path, result)
+        print(
+            f"Benchmark is incomplete: {result['completed_questions']}/"
+            f"{result['total_questions']} questions and "
+            f"{result['successful_responses']}/{result['total_responses']} "
+            f"responses succeeded. Resume with the same command. Checkpoint: "
+            f"{checkpoint_path}",
+            file=sys.stderr,
+        )
+        return 2
+
+    _write_json_atomic(args.output, result)
+    _write_text_atomic(args.report, render_markdown(result))
+    checkpoint_path.unlink(missing_ok=True)
     print(f"Wrote machine-readable results to {args.output}")
     print(f"Wrote review report to {args.report}")
     return 0
