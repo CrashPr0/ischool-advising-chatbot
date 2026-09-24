@@ -305,6 +305,9 @@ document excerpts. This keeps Azure embedding rate limits and retrieval
 variance out of the model comparison. Invocation order alternates to reduce
 connection-warming bias. The generated Markdown report includes both answers,
 retrieved sources, latency, reported token usage, and a 1–7 human-review rubric.
+The default retrieves three chunks per question so prompts fit the current
+student deployment's small token-per-minute allocation; both models always
+receive the same three chunks.
 
 Both models use the existing Azure endpoint and key. The defaults assume the
 two deployment names above; set `AZURE_BENCHMARK_LEFT_DEPLOYMENT` and

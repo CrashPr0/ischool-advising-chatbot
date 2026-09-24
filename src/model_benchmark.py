@@ -758,7 +758,12 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         "--right-model", default=Config.AZURE_BENCHMARK_RIGHT_DEPLOYMENT
     )
     parser.add_argument("--right-label", default=None)
-    parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=3,
+        help="Retrieved document chunks shared by both models (default: 3)",
+    )
     parser.add_argument(
         "--request-delay",
         type=float,

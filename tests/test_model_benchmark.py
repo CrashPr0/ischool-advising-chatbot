@@ -159,6 +159,7 @@ def test_benchmark_defaults_compare_both_azure_deployments():
     assert args.right_provider == "azure_openai"
     assert args.right_model == "gpt-5.6-luna"
     assert args.embedding_provider == "hashing"
+    assert args.top_k == 3
     assert args.request_delay == 60
     assert args.max_attempts == 6
 
