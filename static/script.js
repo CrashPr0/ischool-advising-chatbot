@@ -121,11 +121,15 @@ function setVoiceSupportBadge(message, state = "") {
 
 function updateVoiceListenButton(listening) {
   if (!voiceListenButton || !voiceListenLabel) return;
+
   voiceListenButton.classList.toggle("listening", listening);
   voiceListenButton.setAttribute("aria-pressed", String(listening));
+
   voiceListenLabel.textContent = listening
     ? "Stop listening"
     : "Start voice input";
+
+  voiceListenButton.title = voiceListenLabel.textContent;
 }
 
 function populateVoiceLanguages() {
@@ -305,11 +309,13 @@ function stopVoiceInput() {
 }
 
 function initializeVoiceControls() {
-  if (!voiceTools) return;
-  if (!voiceConfig.enabled || voiceConfig.mode === "disabled") {
-    voiceTools.classList.add("hidden");
-    return;
-  }
+ if (!voiceConfig.enabled || voiceConfig.mode === "disabled") {
+  voiceTools.classList.add("hidden");
+  voiceListenButton.disabled = true;
+  voiceListenButton.title = "Voice input is disabled for this deployment";
+  setVoiceStatus("Type your question to get started. Voice input is disabled.");
+  return;
+}
 
   populateVoiceLanguages();
   const sttSupported = Boolean(getSpeechRecognitionConstructor());
@@ -362,19 +368,24 @@ async function loadVoiceConfig() {
 
 // ── TOPIC SELECTOR ──
 topicButtons.forEach((btn) => {
+  btn.setAttribute("aria-pressed", "false");
+
   btn.addEventListener("click", () => {
-    topicButtons.forEach((b) => b.classList.remove("active"));
+    topicButtons.forEach((b) => {
+      b.classList.remove("active");
+      b.setAttribute("aria-pressed", "false");
+    });
+
     btn.classList.add("active");
+    btn.setAttribute("aria-pressed", "true");
 
     activeTopic = btn.dataset.topic;
     activeTopicLabel.textContent = `Topic: ${activeTopic}`;
     activeBanner.classList.remove("hidden");
 
-    // Show sample chips for this topic
     const samples = JSON.parse(btn.dataset.samples || "[]");
     showSampleChips(activeTopic, samples);
 
-    // Send silent priming message to backend
     const hint = btn.dataset.hint;
     if (hint) {
       sendMessage(hint, true);
@@ -563,7 +574,7 @@ async function sendMessage(prefilledMessage = null, silent = false) {
       speakResponse(responseText);
     } else {
       addMessage(
-        `Got it! I'm now focused on ${activeTopic}. Click a sample question above or type your own below!`,
+        `Got it! I'm now focused on ${activeTopic}. Choose a sample question below or type your own!`,
         "bot-message",
         "ISDA Bot"
       );
@@ -589,8 +600,8 @@ async function loadStatus() {
     const data = await response.json();
 
     if (data.status === "ready") {
-      statusText.textContent = `Status: ${data.status}`;
-      providerText.textContent = `Providers available: ${data.available_providers?.join(", ") || "None"} | Hardcoded questions: ${data.hardcoded_questions ?? 0}`;
+     statusText.textContent = "Ready to help";
+providerText.textContent = "Advising support is available.";
     } else {
       statusText.textContent = "Status: error";
       providerText.textContent = data.error || "Could not load status.";
@@ -613,23 +624,32 @@ async function clearHistory() {
 // ── EVENT LISTENERS ──
 sendButton.addEventListener("click", () => sendMessage());
 
-userInput.addEventListener("keypress", (event) => {
-  if (event.key === "Enter") sendMessage();
+userInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.isComposing) {
+    event.preventDefault();
+    sendMessage();
+  }
 });
 
 clearButton.addEventListener("click", async () => {
   chatBox.innerHTML = `
     <div class="message bot-message">
       <div class="message-label">ISDA Bot</div>
-      <div>Hi! I'm the ISDA Advising Support Chatbot. I can help with general questions about advising, degree requirements, course planning, and registration.<br><br>Select a topic on the left to get focused answers and sample questions!</div>
+      <div>Hi! I’m your ISDA advising assistant. I can help you explore degree requirements, plan your courses, and navigate registration. Choose a topic or ask me a question to get started.</div>
     </div>
   `;
-  topicButtons.forEach((b) => b.classList.remove("active"));
+
+  topicButtons.forEach((b) => {
+    b.classList.remove("active");
+    b.setAttribute("aria-pressed", "false");
+  });
+
   activeBanner.classList.add("hidden");
   sampleChipsArea.classList.add("hidden");
   sampleChipsContainer.innerHTML = "";
   activeTopic = null;
   updateMeta({});
+
   await clearHistory();
 });
 

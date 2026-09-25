@@ -4,18 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ISDA Advising Support Chatbot</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260920-links') }}" />
-  <style>.message { white-space: normal !important; }</style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260924-composer') }}" />
 </head>
-<body>
-  <div class="page-shell">
 
+<body>
+  <a class="skip-link" href="#user-input">Skip to chat</a>
+
+  <div class="page-shell">
     <header class="site-header">
       <div class="header-image"></div>
       <div class="header-overlay"></div>
+
       <div class="header-content">
         <div class="brand-row">
           <div class="brand-left">
@@ -25,12 +28,13 @@
               class="ischool-logo"
             />
           </div>
+
           <div class="brand-text">
             <p class="brand-kicker">San José State University</p>
-            <h1>ISDA Advising Support Chatbot</h1>
+            <h1>Your next step starts here.</h1>
             <p class="hero-subtitle">
-              A student support tool for general questions about advising, course planning,
-              graduation requirements, registration, and ISDA program logistics.
+              ISDA advising support, whenever you need it. Get guidance on courses,
+              registration, and the path to graduation.
             </p>
           </div>
         </div>
@@ -38,14 +42,13 @@
     </header>
 
     <main class="main-layout">
-
-      <section class="left-panel">
-
+      <aside class="left-panel" aria-label="Advising topics and resources">
         <div class="panel-card topics-card">
           <div class="topics-header">
             <h2>Advising Topics</h2>
             <p>Select a topic to focus the chatbot on your specific need.</p>
           </div>
+
           <ul class="topic-list" id="topic-list">
             <li>
               <button class="topic-btn" data-topic="General Advising"
@@ -55,6 +58,7 @@
                 <span class="topic-sub">All advising questions</span>
               </button>
             </li>
+
             <li>
               <button class="topic-btn" data-topic="Graduation"
                 data-hint="I have a question about graduation. Can you help me understand graduation requirements, petitions, or how to apply to graduate from ISDA?"
@@ -63,6 +67,7 @@
                 <span class="topic-sub">Requirements &amp; petitions</span>
               </button>
             </li>
+
             <li>
               <button class="topic-btn" data-topic="Course Planning"
                 data-hint="I need help with course planning. Can you help me plan my courses or build my semester schedule for ISDA?"
@@ -71,6 +76,7 @@
                 <span class="topic-sub">Schedule &amp; semester planning</span>
               </button>
             </li>
+
             <li>
               <button class="topic-btn" data-topic="Degree Requirements"
                 data-hint="I have a question about ISDA degree requirements. Can you explain the core courses, electives, and total units needed?"
@@ -79,6 +85,7 @@
                 <span class="topic-sub">Core courses &amp; units</span>
               </button>
             </li>
+
             <li>
               <button class="topic-btn" data-topic="Registration"
                 data-hint="I have a question about registration. Can you help me with adding or dropping courses, waitlists, or registration holds?"
@@ -87,6 +94,7 @@
                 <span class="topic-sub">Add, drop &amp; waitlists</span>
               </button>
             </li>
+
             <li>
               <button class="topic-btn" data-topic="Transfer Credits"
                 data-hint="I have a question about transferring credits. Can you help me understand how community college or university transfer credits work for ISDA?"
@@ -95,6 +103,7 @@
                 <span class="topic-sub">CC &amp; university transfers</span>
               </button>
             </li>
+
             <li>
               <button class="topic-btn" data-topic="Academic Standing"
                 data-hint="I have a question about academic standing. Can you help me understand GPA requirements, academic probation, or how to file an appeal?"
@@ -103,6 +112,7 @@
                 <span class="topic-sub">GPA, probation &amp; appeals</span>
               </button>
             </li>
+
             <li>
               <button class="topic-btn" data-topic="Financial Aid"
                 data-hint="I have a question about financial aid. Can you help me with scholarships, payment deadlines, or how aid affects my enrollment?"
@@ -112,6 +122,7 @@
               </button>
             </li>
           </ul>
+
           <div class="active-topic-banner hidden" id="active-topic-banner">
             <span class="banner-dot"></span>
             <span id="active-topic-label">Topic selected</span>
@@ -121,39 +132,58 @@
         <div class="panel-card links-card">
           <h3>Helpful resources</h3>
           <ul class="resource-list">
-            <li><a href="https://ischool.sjsu.edu/student-services/advising" target="_blank" rel="noopener noreferrer">iSchool Advising</a></li>
-            <li><a href="https://catalog.sjsu.edu/" target="_blank" rel="noopener noreferrer">SJSU Course Catalog</a></li>
-            <li><a href="https://www.sjsu.edu/registrar/" target="_blank" rel="noopener noreferrer">Registrar's Office</a></li>
-            <li><a href="https://ischool.sjsu.edu/" target="_blank" rel="noopener noreferrer">iSchool Homepage</a></li>
+            <li>
+              <a href="https://ischool.sjsu.edu/student-services/advising"
+                 target="_blank" rel="noopener noreferrer">iSchool Advising</a>
+            </li>
+            <li>
+              <a href="https://catalog.sjsu.edu/"
+                 target="_blank" rel="noopener noreferrer">SJSU Course Catalog</a>
+            </li>
+            <li>
+              <a href="https://www.sjsu.edu/registrar/"
+                 target="_blank" rel="noopener noreferrer">Registrar's Office</a>
+            </li>
+            <li>
+              <a href="https://ischool.sjsu.edu/"
+                 target="_blank" rel="noopener noreferrer">iSchool Homepage</a>
+            </li>
           </ul>
         </div>
 
         <div class="panel-card status-card">
-          <h3>System Status</h3>
+          <h3>Service status</h3>
           <p id="status-text">Checking chatbot status...</p>
           <p id="provider-text" class="small-muted"></p>
-          <p class="small-muted">Document indexing is managed by deployment administrators.</p>
         </div>
+      </aside>
 
-      </section>
-
-      <section class="chat-panel">
+      <section class="chat-panel" aria-labelledby="chat-heading">
         <div class="chat-card">
-
           <div class="chat-header">
             <div>
-              <h2>Chat</h2>
-              <p>Ask a general ISDA advising question below.</p>
+              <p class="chat-eyebrow">ISDA STUDENT SUPPORT</p>
+              <h2 id="chat-heading">Let’s talk about your next step</h2>
+              <p>Ask a question or choose an advising topic.</p>
             </div>
+
             <div class="header-actions">
-              <button id="clear-button" class="clear-btn">Clear</button>
+              <button id="clear-button" class="clear-btn" type="button">
+                New chat
+              </button>
             </div>
           </div>
 
-          <div id="chat-box" class="chat-box">
+          <div id="chat-box" class="chat-box" role="log"
+               aria-label="Conversation" aria-live="polite"
+               aria-relevant="additions">
             <div class="message bot-message">
               <div class="message-label">ISDA Bot</div>
-              <div>Hi! I'm the ISDA Advising Support Chatbot. I can help with general questions about advising, degree requirements, course planning, and registration. Select a topic on the left to get focused answers and sample questions!</div>
+              <div>
+                Hi! I’m your ISDA advising assistant. I can help you explore
+                degree requirements, plan your courses, and navigate registration.
+                Choose a topic or ask me a question to get started.
+              </div>
             </div>
           </div>
 
@@ -163,40 +193,60 @@
           </div>
 
           <div class="input-row-wrapper">
-            <div class="spartan-send-col">
-              <img
-                src="{{ url_for('static', filename='images/animated spartan.png') }}"
-                alt="SJSU Spartan Mascot"
-                class="spartan-mascot"
-              />
-              <button id="send-button">Send</button>
-            </div>
             <div class="input-container">
-              <input
-                type="text"
-                id="user-input"
-                placeholder="Type your question here..."
-                autocomplete="off"
-              />
+              <label class="sr-only" for="user-input">
+                Your advising question
+              </label>
+
+              <input type="text" id="user-input"
+                     placeholder="Ask an advising question…"
+                     autocomplete="off" />
+
+              <button id="voice-listen-button"
+                      class="voice-btn composer-mic"
+                      type="button"
+                      aria-pressed="false"
+                      aria-describedby="voice-status voice-privacy-note"
+                      title="Start voice input"
+                      disabled>
+                <svg viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" aria-hidden="true">
+                  <rect x="9" y="3" width="6" height="12" rx="3"/>
+                  <path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3m-3 0h6"/>
+                </svg>
+                <span id="voice-listen-label" class="sr-only">
+                  Start voice input
+                </span>
+              </button>
+
+              <button id="send-button" type="button"
+                      title="Send question" aria-label="Send question">
+                <svg viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true">
+                  <path d="M12 19V5m-6 6 6-6 6 6"/>
+                </svg>
+              </button>
             </div>
           </div>
 
-          <section class="voice-tools" id="voice-tools" aria-labelledby="voice-tools-heading">
-            <div class="voice-tools-heading-row">
-              <h3 id="voice-tools-heading">Voice mode</h3>
-              <span id="voice-support-badge" class="voice-support-badge" role="status">Checking browser support…</span>
-            </div>
+          <p id="voice-status" class="voice-status"
+             role="status" aria-live="polite">
+            Type your question or use the microphone.
+          </p>
+
+          <details class="voice-tools" id="voice-tools">
+            <summary>
+              Voice settings
+              <span id="voice-support-badge"
+                    class="voice-support-badge" role="status">
+                Checking browser support…
+              </span>
+            </summary>
+
             <div class="voice-controls">
-              <button
-                id="voice-listen-button"
-                class="voice-btn"
-                type="button"
-                aria-pressed="false"
-                aria-describedby="voice-status voice-privacy-note"
-              >
-                <span aria-hidden="true">🎙️</span>
-                <span id="voice-listen-label">Start voice input</span>
-              </button>
               <label class="voice-select-label" for="voice-language-select">
                 Language
                 <select id="voice-language-select" autocomplete="language">
@@ -204,22 +254,24 @@
                   <option value="zh-CN">普通话（简体中文）</option>
                 </select>
               </label>
+
               <label class="voice-toggle-label" for="voice-reply-toggle">
                 <input id="voice-reply-toggle" type="checkbox" />
                 <span>Read replies aloud</span>
               </label>
-              <button id="voice-stop-button" class="voice-btn voice-btn-secondary" type="button">
+
+              <button id="voice-stop-button"
+                      class="voice-btn voice-btn-secondary" type="button">
                 Stop audio
               </button>
             </div>
-            <p id="voice-status" class="voice-status" role="status" aria-live="polite">
-              Voice input is off until you press the microphone button.
-            </p>
+
             <p id="voice-privacy-note" class="voice-privacy-note">
-              No audio is uploaded to this app's server. Your browser may use its own speech service;
-              check your browser privacy settings before granting microphone access.
+              No audio is uploaded to this app's server. Your browser may use
+              its own speech service; check your browser privacy settings
+              before granting microphone access.
             </p>
-          </section>
+          </details>
 
           <div class="meta-row">
             <span id="source-badge" class="meta-pill hidden"></span>
@@ -228,15 +280,15 @@
           </div>
 
           <p class="chat-disclaimer">
-            This chatbot provides general program guidance only. It does not access personal records,
-            transcripts, or private academic information. For individualized advising, please contact an advisor.
+            This chatbot provides general program guidance only. It does not
+            access personal records, transcripts, or private academic information.
+            For individualized advising, please contact an advisor.
           </p>
         </div>
       </section>
-
     </main>
   </div>
 
-  <script src="{{ url_for('static', filename='script.js', v='20260920-links') }}"></script>
+  <script src="{{ url_for('static', filename='script.js', v='20260924-composer') }}"></script>
 </body>
 </html>

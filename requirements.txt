@@ -24,7 +24,7 @@ chromadb>=1.5.8
 langchain-chroma>=0.1.0
 # Chroma can use the stdlib sqlite3 on macOS; the replacement package has no
 # reliable macOS wheel, so keep it for Linux deployments that need it.
-pysqlite3-binary>=0.5.2; platform_system != "Darwin"
+pysqlite3-binary>=0.5.2; platform_system == "Linux"
 
 # Document processing
 pypdf>=3.17.0
