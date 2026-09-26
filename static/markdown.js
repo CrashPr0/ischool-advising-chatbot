@@ -2,7 +2,7 @@
 //
 // Escape the whole string first, then add only the tags this file creates.
 // Model HTML such as <script> or <img onerror> stays text. Links are emitted
-// only for http(s) URLs and mailto addresses.
+// only for http(s) URLs, mailto addresses, and short tel/sms numbers.
 
 function escapeHtml(value) {
   return String(value)
@@ -33,7 +33,7 @@ function safeLinkHref(raw) {
     return null;
   }
 
-  if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
+  if (!['http:', 'https:', 'mailto:', 'tel:', 'sms:'].includes(parsed.protocol)) {
     return null;
   }
   if (/[\u0000-\u001F\u007F\s]/.test(parsed.href)) return null;
@@ -44,20 +44,31 @@ function safeLinkHref(raw) {
     if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(parsed.pathname)) {
       return null;
     }
+  } else if (parsed.protocol === "tel:" || parsed.protocol === "sms:") {
+    // Crisis templates link only a short phone number, never an arbitrary URI.
+    const number = decodeURIComponent(parsed.pathname || "").replace(/^\/+/, "");
+    if (!/^\+?\d{3,15}$/.test(number)) return null;
   } else if (!/^https?:\/\//i.test(parsed.href)) {
     return null;
   }
   return escapeHtml(parsed.href);
 }
 
-function externalLink(href, innerHtml) {
+function externalLink(href, innerHtml, openInNewTab) {
+  const blank = openInNewTab === false ? "" : ' target="_blank" rel="noopener noreferrer"';
   return (
     '<a class="message-link" href="' +
     href +
-    '" target="_blank" rel="noopener noreferrer">' +
+    '"' +
+    blank +
+    ">" +
     innerHtml +
     "</a>"
   );
+}
+
+function linkOpensInNewTab(href) {
+  return !/^tel:|^sms:/i.test(String(href || ""));
 }
 
 function renderEmphasis(value) {
@@ -99,7 +110,7 @@ function renderInline(escaped) {
     const href = safeLinkHref(unescapeHtml(url));
     if (!href) return match;
     const inner = restore(renderEmphasis(label));
-    return tokenFor(externalLink(href, inner));
+    return tokenFor(externalLink(href, inner, linkOpensInNewTab(href)));
   });
 
   text = text.replace(/https?:\/\/[^\s<]+/gi, (rawUrl) => {
@@ -108,7 +119,7 @@ function renderInline(escaped) {
     if (!href) return rawUrl;
     const trailing = rawUrl.slice(cleanUrl.length);
     const visible = escapeHtml(unescapeHtml(cleanUrl));
-    return tokenFor(externalLink(href, visible)) + trailing;
+    return tokenFor(externalLink(href, visible, linkOpensInNewTab(href))) + trailing;
   });
 
   text = renderEmphasis(text);

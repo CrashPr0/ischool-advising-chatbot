@@ -26,6 +26,15 @@ try:
         chat_request_metrics,
         retrieval_terms,
     )
+    from .safety import (
+        TIER_CRISIS,
+        TIER_DISTRESS,
+        TIER_NONE,
+        classify_message,
+        message_has_advising_request,
+        model_assist_enabled,
+        safety_reply,
+    )
 except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
     from catalog_recency import catalog_prompt_note, document_heading
@@ -38,6 +47,15 @@ except ImportError:  # pragma: no cover
         _is_rate_limit,
         chat_request_metrics,
         retrieval_terms,
+    )
+    from safety import (
+        TIER_CRISIS,
+        TIER_DISTRESS,
+        TIER_NONE,
+        classify_message,
+        message_has_advising_request,
+        model_assist_enabled,
+        safety_reply,
     )
 
 
@@ -376,7 +394,12 @@ current catalog lacks the information, and name that older year. For course \
 titles, unit counts, prerequisites, and degree requirements, the current \
 official catalog is authoritative over iSchool or other web pages. If another \
 page gives a different title or links an older catalog, use the catalog's \
-title and link."""
+title and link.
+
+Do not produce phone numbers, hotlines, or crisis instructions. A separate \
+safety layer already handles distress and crisis with vetted wording. If the \
+student also asked an advising question, answer only that question from the \
+retrieved pages."""
 
     def __init__(
         self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None
@@ -483,6 +506,7 @@ title and link."""
             "retrieved_docs": [],
             "citations": [],
             "confidence": None,
+            "safety_tier": TIER_NONE,
         }
         metrics = _new_request_metrics()
         token = chat_request_metrics.set(metrics)
@@ -502,6 +526,23 @@ title and link."""
         metrics: dict,
         started: float,
     ) -> Dict:
+        # Classify before keyword shortcuts, retrieval, and the model.
+        # Crisis is a static template only: do not retrieve, call the model,
+        # or store the turn. Message text is not written to the log.
+        tier = classify_message(
+            user_message,
+            model_assist=self._safety_model_tier if model_assist_enabled() else None,
+        )
+        response_data["safety_tier"] = tier
+        if tier == TIER_CRISIS:
+            response_data["response"] = safety_reply(TIER_CRISIS, user_message)
+            response_data["source"] = "safety"
+            return self._finalize(response_data, None, metrics, started)
+        if tier == TIER_DISTRESS and not message_has_advising_request(user_message):
+            response_data["response"] = safety_reply(TIER_DISTRESS, user_message)
+            response_data["source"] = "safety"
+            return self._finalize(response_data, history, metrics, started)
+
         # Step 1: Check knowledge base first
         kb_answer = self.knowledge_base.find_answer(user_message)
 
@@ -553,6 +594,7 @@ title and link."""
             if not prompt_docs:
                 response_data["response"] = self._missing_context_response(user_message)
                 response_data["source"] = "fallback"
+                self._prefix_distress_template(user_message, tier, response_data)
                 return self._finalize(response_data, history, metrics, started)
 
             # Step 4: Generate response with LLM. 429 / timeout / 5xx try the
@@ -607,7 +649,43 @@ title and link."""
             finally:
                 metrics["llm_ms"] = (time.perf_counter() - llm_started) * 1000.0
 
+        self._prefix_distress_template(user_message, tier, response_data)
         return self._finalize(response_data, history, metrics, started)
+
+    def _prefix_distress_template(
+        self, user_message: str, tier: str, response_data: dict
+    ) -> None:
+        """Lead a grounded distress answer with the vetted template."""
+        if tier != TIER_DISTRESS or not response_data.get("response"):
+            return
+        prefix = safety_reply(TIER_DISTRESS, user_message)
+        body = str(response_data["response"])
+        if not body.startswith(prefix):
+            response_data["response"] = f"{prefix}\n\n{body}"
+
+    def _safety_model_tier(self, message: str) -> str:
+        """Optional upgrade-only label. Failures return an empty string.
+
+        The prompt asks for one tier word. Resource text from the model is
+        discarded; crisis and distress replies stay on the static templates.
+        """
+        try:
+            result = self._invoke_prepared(
+                getattr(self, "chain", None),
+                getattr(self, "llm", None),
+                {
+                    "system": (
+                        "Reply with exactly one word: crisis, distress, or none. "
+                        "Do not include advice, phone numbers, or resources."
+                    ),
+                    "user": neutralize_delimiters(message),
+                },
+            )
+        except Exception as exc:
+            logger.warning("Safety model assist failed (%s)", type(exc).__name__)
+            return ""
+        text = result.content if hasattr(result, "content") else str(result)
+        return text if isinstance(text, str) else ""
 
     def _finalize(
         self,

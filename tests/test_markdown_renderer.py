@@ -50,15 +50,19 @@ class _FragmentChecker(HTMLParser):
         if tag == "a":
             self.anchors.append(attributes)
             href = attributes.get("href", "")
-            if not (
-                href.startswith(("http://", "https://")) or href.startswith("mailto:")
-            ):
+            phone = href.startswith(("tel:", "sms:"))
+            web = href.startswith(("http://", "https://", "mailto:"))
+            if not (phone or web):
                 self.problems.append(f"unsafe href {href!r}")
-            rel = attributes.get("rel", "")
-            if "noopener" not in rel or "noreferrer" not in rel:
-                self.problems.append(f"missing link rel {rel!r}")
-            if attributes.get("target") != "_blank":
-                self.problems.append("link target is not _blank")
+            if phone:
+                if attributes.get("target") or attributes.get("rel"):
+                    self.problems.append("phone link should stay on this page")
+            else:
+                rel = attributes.get("rel", "")
+                if "noopener" not in rel or "noreferrer" not in rel:
+                    self.problems.append(f"missing link rel {rel!r}")
+                if attributes.get("target") != "_blank":
+                    self.problems.append("link target is not _blank")
 
     def handle_data(self, data):
         self.text.append(data)
@@ -110,6 +114,8 @@ CASES = [
         "input": '[x](mailto:a@b.com"onclick="alert(1))',
     },
     {"name": "https_link", "input": "[docs](https://example.com/path)"},
+    {"name": "tel_link", "input": "Call [988](tel:988) or text [988](sms:988)."},
+    {"name": "tel_reject", "input": "[x](tel:javascript:alert(1))"},
     {"name": "http_link", "input": "See http://example.com/a."},
     {"name": "bare_https", "input": "Catalog: https://catalog.sjsu.edu/"},
     {"name": "query_url", "input": "https://example.com/search?q=a&b=2"},
@@ -176,6 +182,8 @@ def test_safe_markdown_subset(tmp_path):
         "mailto_breakout",
         "quote_breakout",
         "https_link",
+        "tel_link",
+        "tel_reject",
         "http_link",
         "bare_https",
         "query_url",
@@ -213,6 +221,11 @@ def test_safe_markdown_subset(tmp_path):
     assert len(quote.anchors) == 1
     assert quote.anchors[0]["href"].startswith("https://example.com/")
     assert list(quote.anchors[0]) == ["class", "href", "target", "rel"]
+
+    phone = _check(html["tel_link"])
+    assert [anchor["href"] for anchor in phone.anchors] == ["tel:988", "sms:988"]
+    assert all("target" not in anchor for anchor in phone.anchors)
+    assert "<a " not in html["tel_reject"]
 
     docs = _check(html["https_link"])
     assert docs.anchors[0]["href"] == "https://example.com/path"

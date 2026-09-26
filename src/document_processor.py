@@ -144,10 +144,11 @@ _RELEVANCE_FUNCTION_WORDS = {
 # 0.25, and the right advisor page was cosine-rank 56. The floor below uses
 # the hasher's own tokenizer and keeps a chunk only when specific terms
 # overlap. On that run every in-scope question except the overwhelmed
-# distress item (the corpus has no counseling page) kept a relevant chunk,
-# and the off-topic controls kept none. Coverage 0.27 is the gap between
-# that distress item (0.25, financial-aid page) and the ISDA 101 item (0.27,
-# required-courses page).
+# distress item kept a relevant chunk, and the off-topic controls kept none.
+# Coverage 0.27 is the gap between that distress item (0.25, financial-aid
+# page) and the ISDA 101 item (0.27, required-courses page). Later wellness
+# and withdrawal pages avoid that question's terms, so the floor still
+# returns nothing; the safety layer answers it before retrieval.
 RELEVANCE_MIN_TERMS = 2
 RELEVANCE_MIN_COVERAGE = 0.27
 RELEVANCE_SHORT_QUERY_TERMS = 2

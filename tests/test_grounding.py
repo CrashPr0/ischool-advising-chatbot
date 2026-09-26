@@ -27,8 +27,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 QUESTIONS_PATH = PROJECT_ROOT / "evals" / "advising_questions.json"
 DOCS_PATH = PROJECT_ROOT / "data" / "advising_docs"
 
-# In-scope questions the floor must keep. The overwhelmed item has no
-# counseling page in the corpus, so the honest result is no chunk.
+# In-scope questions the floor must keep. The overwhelmed item is answered
+# by the safety layer; its wording still must not clear this floor.
 MUST_RETRIEVE = {
     "admissions-two-pathways",
     "admissions-change-of-major",

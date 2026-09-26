@@ -142,8 +142,8 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert 'role="tablist"' in template
     assert "conversation_id" in script
     assert "localStorage" in script
-    assert "filename='markdown.js', v='20260927-mailto'" in template
-    assert "markdown.js?v=20260927-mailto" in docs
+    assert "filename='markdown.js', v='20261002-safety-links'" in template
+    assert "markdown.js?v=20261002-safety-links" in docs
     assert "filename='script.js', v='20260927-markdown'" not in template
     assert "script.js?v=20260927-markdown" not in docs
     assert "filename='script.js', v='20260924-composer'" not in template
@@ -154,7 +154,7 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "about one hour" in template
     assert "Spartan Connect" in template
     markdown = (ROOT / "static" / "markdown.js").read_text(encoding="utf-8")
-    assert "if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol))" in markdown
+    assert "if (!['http:', 'https:', 'mailto:', 'tel:', 'sms:'].includes(parsed.protocol))" in markdown
     assert "container.textContent = text" in script
     assert "container.innerHTML = renderBotMarkdown(text)" in script
     assert "botMarkdownPlainText(responseText)" in script
