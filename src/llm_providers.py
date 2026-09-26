@@ -11,8 +11,15 @@ from langchain_core.language_models import LLM
 _ADVISING_TEMPERATURE = object()
 _DEFAULT_ADVISING_TEMPERATURE = 0.2
 _DEFAULT_REQUEST_TIMEOUT_SECONDS = 45.0
-_DEFAULT_MAX_RETRIES = 2
-_DEFAULT_MAX_TOKENS = 1024
+# 0 so the OpenAI SDK does not sleep for Retry-After on HTTP 429. Student
+# chat fails over immediately (see BUSY_RESPONSE in rag_chatbot). Raise with
+# LLM_MAX_RETRIES only if that wait is acceptable.
+_DEFAULT_MAX_RETRIES = 0
+_DEFAULT_MAX_TOKENS = 512
+# Fallback retry for a reasoning deployment that rejects temperature and
+# wants max_completion_tokens. Not the benchmark path: the timeout and the
+# token cap still apply.
+REASONING_RETRY = object()
 
 
 def _env_float(name: str, default: float, low: float, high: float) -> float:
@@ -49,10 +56,11 @@ def advising_temperature() -> float:
 def chat_limit_kwargs() -> dict:
     """HTTP timeout, retry bound, and completion cap for the chat client.
 
-    One attempt is capped at 45 seconds and at two retries, so a stuck Azure
-    call returns within about three attempts. That stays inside the Gunicorn
-    worker timeout. ``max_tokens`` stops a long completion from spending the
-    student quota before the reply is trimmed for display.
+    One attempt is capped at 45 seconds. ``max_retries`` defaults to 0 so a
+    429 cannot sit inside the SDK until Retry-After expires (that wait has
+    been about 30 seconds). ``LLM_MAX_TOKENS`` overrides the 512 completion
+    cap. The cap stops a long completion from spending the student quota
+    before the reply is trimmed for display.
     """
     return {
         "timeout": _env_float(
@@ -81,8 +89,19 @@ def _apply_chat_controls(kwargs: dict, temperature: Any) -> dict:
     ``temperature=None`` is the benchmark contract: omit temperature so a
     reasoning model can use its own default, and omit the chat timeout and
     token cap so those longer runs are not cut off.
+
+    ``REASONING_RETRY`` is the student-chat fallback for a deployment that
+    rejects ``temperature`` or ``max_tokens``. The timeout and token cap
+    stay; temperature is omitted and the cap is sent as
+    ``max_completion_tokens``.
     """
     if temperature is None:
+        return kwargs
+    if temperature is REASONING_RETRY:
+        limits = chat_limit_kwargs()
+        kwargs["timeout"] = limits["timeout"]
+        kwargs["max_retries"] = limits["max_retries"]
+        kwargs["max_completion_tokens"] = limits["max_tokens"]
         return kwargs
     kwargs["temperature"] = _resolve_temperature(temperature)
     kwargs.update(chat_limit_kwargs())
@@ -166,7 +185,9 @@ class LLMFactory:
                          is low (0.2, or ``LLM_TEMPERATURE``) because answers
                          are factual. Pass None to omit temperature and the
                          chat timeout/token cap so benchmark reasoning models
-                         can use their own defaults.
+                         can use their own defaults. Pass ``REASONING_RETRY``
+                         to omit temperature but keep the timeout and send
+                         the token cap as ``max_completion_tokens``.
 
         Returns:
             LLM instance

@@ -111,9 +111,9 @@ def test_requisite_spellings_share_a_token_and_course_codes_stay_intact():
         "prereq",
         "prereqs",
     ]
-    assert [tokenize(form) for form in prerequisite_forms] == [
-        ["prerequisite"]
-    ] * len(prerequisite_forms)
+    assert [tokenize(form) for form in prerequisite_forms] == [["prerequisite"]] * len(
+        prerequisite_forms
+    )
 
     corequisite_forms = [
         "corequisite",
@@ -122,9 +122,9 @@ def test_requisite_spellings_share_a_token_and_course_codes_stay_intact():
         "coreq",
         "coreqs",
     ]
-    assert [tokenize(form) for form in corequisite_forms] == [
-        ["corequisite"]
-    ] * len(corequisite_forms)
+    assert [tokenize(form) for form in corequisite_forms] == [["corequisite"]] * len(
+        corequisite_forms
+    )
 
     either_forms = [
         "pre/corequisite",
@@ -238,3 +238,94 @@ def test_hashing_index_hybrid_finds_compact_course_code(monkeypatch, tmp_path):
     )
     assert vector_only
     assert all(isinstance(hit.page_content, str) for hit in vector_only)
+
+
+def test_collection_records_are_cached_by_collection_id():
+    collection = _Collection(_records())
+    collection.id = "live-id"
+    collection.gets = 0
+    original = collection.get
+
+    def counting_get(include=None):
+        collection.gets += 1
+        return original(include)
+
+    collection.get = counting_get
+    store = _VectorStore(_records(), ["office", "generic", "isda111", "elective"])
+    store._collection = collection
+    hybrid_retrieve(
+        store, "What are the prerequisites for ISDA150?", k=1, collection_id="live-id"
+    )
+    hybrid_retrieve(
+        store, "What are the prerequisites for ISDA 111?", k=1, collection_id="live-id"
+    )
+    assert collection.gets == 1
+    hybrid_retrieve(
+        store, "What are the prerequisites for ISDA 111?", k=1, collection_id="new-id"
+    )
+    assert collection.gets == 2
+
+
+def test_hybrid_uses_bm25_when_query_embedding_fails():
+    store = _VectorStore(_records(), ["office", "generic", "isda111", "elective"])
+
+    def boom(query, k=3):
+        raise RuntimeError("429 rate limit")
+
+    store.similarity_search = boom
+    hits = hybrid_retrieve(store, "What are the prerequisites for ISDA150?", k=1)
+    assert hits
+    assert hits[0].metadata["source"] == "elective.txt"
+    assert "ISDA 150" in hits[0].page_content
+
+
+def test_retrieve_does_not_hold_the_index_lock_during_search(monkeypatch):
+    monkeypatch.delenv("HYBRID_RETRIEVAL", raising=False)
+    store = _VectorStore(_records(), ["office", "generic", "isda111", "elective"])
+    processor = _processor(store)
+    processor._align_open_collection = lambda: None
+
+    class TrackingLock:
+        def __init__(self):
+            self.depth = 0
+            self._inner = threading.RLock()
+
+        def __enter__(self):
+            self._inner.acquire()
+            self.depth += 1
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            self.depth -= 1
+            self._inner.release()
+
+    processor._index_lock = TrackingLock()
+    started = threading.Event()
+    release = threading.Event()
+    acquired = []
+    original = store.similarity_search
+
+    def search(query, k=3):
+        assert processor._index_lock.depth == 0
+        started.set()
+        assert release.wait(2)
+        return original(query, k)
+
+    def other():
+        assert started.wait(2)
+        got = processor._index_lock._inner.acquire(timeout=0.5)
+        acquired.append(got)
+        if got:
+            processor._index_lock._inner.release()
+        release.set()
+
+    store.similarity_search = search
+    thread = threading.Thread(target=other)
+    thread.start()
+    hits = processor.retrieve_relevant_docs(
+        "What are the prerequisites for ISDA150?", k=1
+    )
+    thread.join(2)
+    assert acquired == [True]
+    assert hits
+    assert hits[0].metadata["source"] == "office.txt"

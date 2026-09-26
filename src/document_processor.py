@@ -8,6 +8,7 @@ try:
 except ImportError:
     pass
 
+import contextvars
 import os
 import hashlib
 import json
@@ -116,6 +117,16 @@ EMBEDDING_BATCH_TOKEN_BUDGET = 800
 EMBEDDING_RATE_LIMIT_ATTEMPTS = 8
 _RETRY_BASE_SECONDS = 2.0
 _RETRY_MAX_SECONDS = 60.0
+# Chat-path query embeddings only. Index builds keep the 8-attempt backoff
+# above. A student question must not sleep through a long Retry-After.
+QUERY_EMBED_ATTEMPTS = 2
+QUERY_EMBED_TIMEOUT_SECONDS = 8.0
+QUERY_EMBED_BACKOFF_BUDGET_SECONDS = 2.0
+# chat() installs a dict for the current request. Index builds leave it unset
+# so their retries are not counted as student latency.
+chat_request_metrics: contextvars.ContextVar = contextvars.ContextVar(
+    "chat_request_metrics", default=None
+)
 _STAGING_SUFFIX = "__staging"
 _PREVIOUS_SUFFIX = "__previous"
 _HOSTED_EMBEDDING_PROVIDERS = {"azure_openai", "openai"}
@@ -236,6 +247,62 @@ def _retry_delay_seconds(exc: BaseException, backoff: float) -> float:
     return min(max(header, floor), 120.0)
 
 
+def _metrics_bucket() -> Optional[dict]:
+    bucket = chat_request_metrics.get()
+    return bucket if isinstance(bucket, dict) else None
+
+
+def _note_embedding_ms(elapsed_ms: float) -> None:
+    bucket = _metrics_bucket()
+    if bucket is None:
+        return
+    bucket["embedding_ms"] = float(bucket.get("embedding_ms", 0.0)) + float(elapsed_ms)
+
+
+def _note_rate_limit() -> None:
+    bucket = _metrics_bucket()
+    if bucket is None:
+        return
+    bucket["rate_limit_count"] = int(bucket.get("rate_limit_count", 0)) + 1
+
+
+def _secret_value(value):
+    getter = getattr(value, "get_secret_value", None)
+    if callable(getter):
+        return getter()
+    return value
+
+
+def _build_query_embedder(inner, timeout_seconds: float):
+    """Copy a hosted embedder with a short HTTP timeout, or return None.
+
+    Index builds keep ``inner``. Only ``embed_query`` uses this copy, so a
+    student request cannot inherit the SDK's long default timeout. Test
+    doubles and the hashing embedder return None and are called directly.
+    """
+    name = type(inner).__name__
+    try:
+        if name == "AzureOpenAIEmbeddings":
+            return type(inner)(
+                azure_deployment=inner.deployment,
+                azure_endpoint=inner.azure_endpoint,
+                api_key=_secret_value(inner.openai_api_key),
+                api_version=inner.openai_api_version,
+                max_retries=0,
+                timeout=timeout_seconds,
+            )
+        if name == "OpenAIEmbeddings":
+            return type(inner)(
+                model=inner.model,
+                api_key=_secret_value(inner.openai_api_key),
+                max_retries=0,
+                timeout=timeout_seconds,
+            )
+    except Exception:
+        return None
+    return None
+
+
 class DescribedEmbeddings(Embeddings):
     """One embedder for indexing and queries, with receipt metadata.
 
@@ -277,31 +344,102 @@ class DescribedEmbeddings(Embeddings):
         return vectors
 
     def embed_query(self, text: str) -> List[float]:
-        if self.embedding_provider in _HOSTED_EMBEDDING_PROVIDERS:
-            return self._embed_with_retry([text])[0]
-        vector = self.inner.embed_query(text)
-        self._remember([vector])
-        return vector
+        """Embed one student question with a short timeout and tiny backoff.
 
-    def _embed_with_retry(self, texts: List[str]) -> List[List[float]]:
+        Index builds call ``embed_documents``, which keeps the 8-attempt
+        backoff. This path is the chat request: at most two attempts, about
+        8 seconds per attempt, and at most about 2 seconds of sleep total.
+        """
+        started = time.perf_counter()
+        try:
+            if self.embedding_provider in _HOSTED_EMBEDDING_PROVIDERS:
+                return self._embed_with_retry(
+                    [text],
+                    attempts=QUERY_EMBED_ATTEMPTS,
+                    timeout_seconds=QUERY_EMBED_TIMEOUT_SECONDS,
+                    backoff_budget_seconds=QUERY_EMBED_BACKOFF_BUDGET_SECONDS,
+                )[0]
+            vector = self.inner.embed_query(text)
+            self._remember([vector])
+            return vector
+        finally:
+            _note_embedding_ms((time.perf_counter() - started) * 1000.0)
+
+    def _query_embedder(self):
+        cached = getattr(self, "_query_embedder_instance", None)
+        if cached is not None:
+            return cached
+        built = _build_query_embedder(self.inner, QUERY_EMBED_TIMEOUT_SECONDS)
+        if built is None and type(self.inner).__name__ in {
+            "AzureOpenAIEmbeddings",
+            "OpenAIEmbeddings",
+        }:
+            print(
+                "Query embedder could not set an 8s timeout; "
+                "using the index embedding client"
+            )
+        embedder = self.inner if built is None else built
+        self._query_embedder_instance = embedder
+        return embedder
+
+    def _invoke_embed(self, texts: List[str], timeout_seconds: Optional[float]):
+        embedder = self.inner if timeout_seconds is None else self._query_embedder()
+        return embedder.embed_documents(list(texts))
+
+    def _next_embed_wait(
+        self,
+        exc: BaseException,
+        delay: float,
+        spent: float,
+        backoff_budget_seconds: Optional[float],
+    ) -> Optional[float]:
+        """Return the next sleep, or None when the query budget is spent.
+
+        Index builds pass no budget and honor Retry-After. Query embeddings
+        cap the total sleep so a 30 second Retry-After cannot stall chat.
+        """
+        if backoff_budget_seconds is None:
+            return _retry_delay_seconds(exc, delay)
+        remaining = float(backoff_budget_seconds) - spent
+        if remaining <= 0:
+            return None
+        header = _retry_after_seconds(exc)
+        if header is None:
+            return min(delay, remaining)
+        return min(max(0.0, header), remaining)
+
+    def _embed_with_retry(
+        self,
+        texts: List[str],
+        *,
+        attempts: Optional[int] = None,
+        timeout_seconds: Optional[float] = None,
+        backoff_budget_seconds: Optional[float] = None,
+    ) -> List[List[float]]:
+        attempt_limit = (
+            EMBEDDING_RATE_LIMIT_ATTEMPTS if attempts is None else max(1, int(attempts))
+        )
         delay = _RETRY_BASE_SECONDS
+        spent = 0.0
         last_error: Optional[BaseException] = None
-        for attempt in range(EMBEDDING_RATE_LIMIT_ATTEMPTS):
+        for attempt in range(attempt_limit):
             try:
-                vectors = self.inner.embed_documents(list(texts))
+                vectors = self._invoke_embed(texts, timeout_seconds)
             except Exception as exc:
                 last_error = exc
-                if (
-                    not _is_rate_limit(exc)
-                    or attempt + 1 == EMBEDDING_RATE_LIMIT_ATTEMPTS
-                ):
+                if _is_rate_limit(exc):
+                    _note_rate_limit()
+                if not _is_rate_limit(exc) or attempt + 1 == attempt_limit:
                     raise
-                wait = _retry_delay_seconds(exc, delay)
+                wait = self._next_embed_wait(exc, delay, spent, backoff_budget_seconds)
+                if wait is None:
+                    raise
                 delay = min(delay * 2, _RETRY_MAX_SECONDS)
+                spent += wait
                 print(
                     "Embedding request was rate limited; "
                     f"retrying {len(texts)} texts in {wait:.0f}s "
-                    f"(attempt {attempt + 1} of {EMBEDDING_RATE_LIMIT_ATTEMPTS})"
+                    f"(attempt {attempt + 1} of {attempt_limit})"
                 )
                 self._sleep(wait)
                 continue
@@ -843,6 +981,23 @@ class DocumentProcessor:
             return
         self.load_vector_store()
 
+    def _snapshot_aligned_store(self):
+        """Align to the live collection, then release the lock.
+
+        Staging swap (promote / restore) and this snapshot share
+        ``_index_lock``. The network embedding call happens later, on the
+        returned store, so a 429 cannot block the swap and the swap cannot
+        make the student wait out embedding retries. Hybrid chunk text is
+        cached under the lock by collection id before that call.
+        """
+        with self._index_lock:
+            self._align_open_collection()
+            store = self.vector_store
+            collection_id = getattr(self, "active_collection_id", None)
+            if store is not None:
+                _prime_hybrid_records(store, collection_id)
+            return store, collection_id
+
     def retrieve_relevant_docs(self, query: str, k: int = 3) -> List[Document]:
         """
         Retrieve relevant documents for a query.
@@ -856,24 +1011,24 @@ class DocumentProcessor:
         """
         if not isinstance(query, str) or not query.strip():
             return []
-        with self._index_lock:
-            self._align_open_collection()
+        store, collection_id = self._snapshot_aligned_store()
+        if not store:
+            return []
 
-            if not self.vector_store:
-                return []
-
-            try:
-                k = max(1, min(int(k), 20))
-                # None keeps vector-only search. That is the production path
-                # when HYBRID_RETRIEVAL is unset or false.
-                hybrid_hits = _optional_hybrid_retrieve(self.vector_store, query, k)
-                if hybrid_hits is not None:
-                    return hybrid_hits
-                results = self.vector_store.similarity_search(query, k=k)
-                return results
-            except Exception as e:
-                print(f"Error retrieving documents: {e}")
-                return []
+        try:
+            k = max(1, min(int(k), 20))
+            # None keeps vector-only search. That is the production path
+            # when HYBRID_RETRIEVAL is unset or false.
+            hybrid_hits = _optional_hybrid_retrieve(
+                store, query, k, collection_id=collection_id
+            )
+            if hybrid_hits is not None:
+                return hybrid_hits
+            results = store.similarity_search(query, k=k)
+            return results
+        except Exception as e:
+            print(f"Error retrieving documents: {e}")
+            return []
 
     def process_and_index(self) -> Optional[Chroma]:
         """Load, split, and atomically replace the advising index."""
@@ -973,7 +1128,46 @@ Contact the iSchool Advising Office:
         print(f"Created sample document: {sample_file}")
 
 
-def _optional_hybrid_retrieve(vector_store, query: str, k: int):
+def _hybrid_api():
+    """Import hybrid helpers lazily so vector-only chat can skip the module."""
+    try:
+        from .hybrid_retrieval import (
+            hybrid_retrieval_enabled,
+            hybrid_retrieve,
+            prime_collection_records,
+        )
+    except ImportError:  # pragma: no cover - src/ on sys.path
+        from hybrid_retrieval import (
+            hybrid_retrieval_enabled,
+            hybrid_retrieve,
+            prime_collection_records,
+        )
+    return hybrid_retrieval_enabled, hybrid_retrieve, prime_collection_records
+
+
+def _prime_hybrid_records(vector_store, collection_id) -> None:
+    """Fill the chunk cache while the index lock is still held.
+
+    A miss here is not fatal: hybrid retrieval reads the collection again
+    after the lock is released. The cache key is the live collection id, so
+    a staging swap that publishes a new id does not reuse these chunks.
+    """
+    try:
+        hybrid_retrieval_enabled, _hybrid_retrieve, prime_collection_records = (
+            _hybrid_api()
+        )
+    except Exception as error:
+        print(f"Hybrid retrieval unavailable: {error}")
+        return
+    try:
+        if not hybrid_retrieval_enabled():
+            return
+        prime_collection_records(vector_store, collection_id)
+    except Exception as error:
+        print(f"Hybrid record cache skipped: {error}")
+
+
+def _optional_hybrid_retrieve(vector_store, query: str, k: int, collection_id=None):
     """Return fused hits when hybrid retrieval is on, otherwise None.
 
     The import stays inside the helper so the vector-only path does not
@@ -981,13 +1175,10 @@ def _optional_hybrid_retrieve(vector_store, query: str, k: int):
     on similarity_search.
     """
     try:
-        try:
-            from .hybrid_retrieval import hybrid_retrieval_enabled, hybrid_retrieve
-        except ImportError:  # pragma: no cover - src/ on sys.path
-            from hybrid_retrieval import hybrid_retrieval_enabled, hybrid_retrieve
+        hybrid_retrieval_enabled, hybrid_retrieve, _prime = _hybrid_api()
     except Exception as error:
         print(f"Hybrid retrieval unavailable: {error}")
         return None
     if not hybrid_retrieval_enabled():
         return None
-    return hybrid_retrieve(vector_store, query, k)
+    return hybrid_retrieve(vector_store, query, k, collection_id=collection_id)

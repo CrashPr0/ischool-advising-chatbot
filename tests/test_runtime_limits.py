@@ -57,8 +57,8 @@ def test_chat_client_caps_temperature_timeout_retries_and_tokens(monkeypatch):
 
     assert llm.kwargs["temperature"] == 0.2
     assert llm.kwargs["timeout"] == 45.0
-    assert llm.kwargs["max_retries"] == 2
-    assert llm.kwargs["max_tokens"] == 1024
+    assert llm.kwargs["max_retries"] == 0
+    assert llm.kwargs["max_tokens"] == 512
 
 
 def test_azure_chat_client_uses_the_same_caps(monkeypatch):
@@ -76,8 +76,8 @@ def test_azure_chat_client_uses_the_same_caps(monkeypatch):
     assert llm.kwargs["azure_deployment"] == "advising"
     assert llm.kwargs["temperature"] == 0.2
     assert llm.kwargs["timeout"] == 45.0
-    assert llm.kwargs["max_retries"] == 2
-    assert llm.kwargs["max_tokens"] == 1024
+    assert llm.kwargs["max_retries"] == 0
+    assert llm.kwargs["max_tokens"] == 512
 
 
 def test_benchmark_omits_temperature_and_chat_caps(monkeypatch):
@@ -98,8 +98,8 @@ def test_explicit_temperature_still_gets_spend_caps(monkeypatch):
     llm = LLMFactory.create_llm("anthropic", temperature=0.0)
 
     assert llm.kwargs["temperature"] == 0.0
-    assert llm.kwargs["max_tokens"] == 1024
-    assert llm.kwargs["max_retries"] == 2
+    assert llm.kwargs["max_tokens"] == 512
+    assert llm.kwargs["max_retries"] == 0
 
 
 def test_env_overrides_are_clamped(monkeypatch):
@@ -114,7 +114,7 @@ def test_env_overrides_are_clamped(monkeypatch):
 
     assert llm.kwargs["temperature"] == 2.0
     assert llm.kwargs["timeout"] == 1.0
-    assert llm.kwargs["max_retries"] == 2
+    assert llm.kwargs["max_retries"] == 0
     assert llm.kwargs["max_tokens"] == 4096
     assert chat_limit_kwargs()["max_tokens"] == 4096
 
@@ -133,7 +133,7 @@ def test_huggingface_community_wrapper_puts_caps_in_model_kwargs(monkeypatch):
 
     llm = LLMFactory.create_llm("huggingface")
 
-    assert llm.kwargs["model_kwargs"]["max_new_tokens"] == 1024
+    assert llm.kwargs["model_kwargs"]["max_new_tokens"] == 512
     assert llm.kwargs["model_kwargs"]["temperature"] == 0.2
     assert "timeout" not in llm.kwargs
     assert "max_tokens" not in llm.kwargs
@@ -163,7 +163,7 @@ def test_huggingface_modern_wrapper_accepts_timeout_field(monkeypatch):
         repo_id="org/model", api_token="token", temperature=_ADVISING_TEMPERATURE
     )
 
-    assert kwargs["max_new_tokens"] == 1024
+    assert kwargs["max_new_tokens"] == 512
     assert kwargs["temperature"] == 0.2
     assert kwargs["timeout"] == 45
     assert "model_kwargs" not in kwargs
@@ -314,3 +314,74 @@ def test_chat_timeout_budget_fits_inside_the_worker_timeout(monkeypatch):
     worst_case = limits["timeout"] * (limits["max_retries"] + 1)
     assert worst_case < config.timeout
     assert config.timeout <= config.graceful_timeout
+
+
+def test_reasoning_retry_omits_temperature_and_sends_completion_tokens(monkeypatch):
+    _clear_llm_env(monkeypatch)
+    monkeypatch.setattr(llm_providers, "AzureChatOpenAI", _FakeChat)
+    monkeypatch.setattr(Config, "AZURE_OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        Config, "AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com"
+    )
+    monkeypatch.setattr(Config, "AZURE_OPENAI_DEPLOYMENT", "advising")
+    monkeypatch.setattr(Config, "AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+
+    llm = LLMFactory.create_llm(
+        "azure_openai", model="o3-mini", temperature=llm_providers.REASONING_RETRY
+    )
+
+    assert llm.kwargs["azure_deployment"] == "o3-mini"
+    assert "temperature" not in llm.kwargs
+    assert "max_tokens" not in llm.kwargs
+    assert llm.kwargs["max_completion_tokens"] == 512
+    assert llm.kwargs["max_retries"] == 0
+    assert llm.kwargs["timeout"] == 45.0
+
+
+def test_real_azure_client_reasoning_retry_payload_drops_temperature(monkeypatch):
+    """The installed client must send max_completion_tokens and no temperature."""
+    pytest.importorskip("langchain_openai")
+    from langchain_openai import AzureChatOpenAI
+
+    _clear_llm_env(monkeypatch)
+    monkeypatch.setattr(llm_providers, "AzureChatOpenAI", AzureChatOpenAI)
+    monkeypatch.setattr(Config, "AZURE_OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        Config, "AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com"
+    )
+    monkeypatch.setattr(Config, "AZURE_OPENAI_DEPLOYMENT", "advising")
+    monkeypatch.setattr(Config, "AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+
+    llm = LLMFactory.create_llm(
+        "azure_openai", model="o3-mini", temperature=llm_providers.REASONING_RETRY
+    )
+
+    params = llm._default_params
+    assert "temperature" not in params
+    assert params.get("max_completion_tokens") == 512
+    assert "max_tokens" not in params
+
+
+def test_gunicorn_warm_start_is_a_noop_under_pytest():
+    config = _load_gunicorn_config()
+    started = []
+    config._start_chatbot_warm_start = lambda: started.append(True)
+    config.post_worker_init(object())
+    assert started == []
+    assert config._should_warm_start() is False
+
+
+def test_warm_chatbot_calls_get_chatbot_and_swallows_errors(monkeypatch):
+    import app as app_module
+
+    config = _load_gunicorn_config()
+    calls = []
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: calls.append("ok"))
+    config._warm_chatbot()
+    assert calls == ["ok"]
+
+    def explode():
+        raise RuntimeError("index down")
+
+    monkeypatch.setattr(app_module, "get_chatbot", explode)
+    config._warm_chatbot()

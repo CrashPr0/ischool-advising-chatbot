@@ -386,7 +386,9 @@ a rebuild for the running commit succeeds. Watch the Actions log; a red job
 can mean the new code is already live while chat is still refusing the old
 receipt.
 
-Hosted embedding calls are batched to about 800 tokens and retried on HTTP 429.
+Hosted embedding calls during an index build are batched to about 800 tokens
+and retried on HTTP 429 (8 attempts, backing off from 2 seconds up to 60).
+A student question does not use that backoff; see Process and chat limits.
 The advising corpus is about 19,500 tokens after chunking, so a 1000
 token-per-minute deployment takes about 20 minutes and can outlast the
 deploy script's 20-minute wait. Use at least 10000 tokens per minute on
@@ -445,6 +447,9 @@ back inside it.
 The worker class is `gthread`. It is not an environment variable. Two workers
 keep a cold Chroma load from freezing `/healthz`. The 180-second timeout sits
 above the chat client's retry budget and under App Service's front-end cutoff.
+After each worker can serve `/healthz`, it builds the chatbot in a background
+thread so the first student does not pay that cost and the startup probe is
+not blocked.
 
 Chat completions use the limits in `src/llm_providers.py`:
 
@@ -452,8 +457,33 @@ Chat completions use the limits in `src/llm_providers.py`:
 | --- | --- | --- |
 | `LLM_TEMPERATURE` | 0.2 | 0–2 |
 | `LLM_REQUEST_TIMEOUT` | 45 seconds | 1–120 |
-| `LLM_MAX_RETRIES` | 2 | 0–5 |
-| `LLM_MAX_TOKENS` | 1024 | 64–4096 |
+| `LLM_MAX_RETRIES` | 0 | 0–5 |
+| `LLM_MAX_TOKENS` | 512 | 64–4096 |
+
+`LLM_MAX_RETRIES` defaults to 0. The OpenAI SDK otherwise sleeps for the
+provider's Retry-After header, which has held student replies for about 30
+seconds on HTTP 429. On 429, timeout, or 5xx the app immediately tries
+`AZURE_OPENAI_FALLBACK_DEPLOYMENT` when that setting names another deployment
+on the same endpoint and key. If the fallback rejects `temperature` (some
+reasoning models), the app retries it once without temperature and sends the
+token cap as `max_completion_tokens`. If no fallback is set or it also fails,
+`/api/chat` returns HTTP 200 with source `busy` and asks the student to try
+again in about a minute. An Azure content-filter block returns HTTP 200 with
+source `filtered` and points the student at the iSchool advising page.
+
+`CHAT_DEBUG_TIMINGS=true` adds a `timings` object to that JSON
+(`retrieval_ms`, `embedding_ms`, `llm_ms`, `total_ms`, `llm_attempts`,
+`rate_limit_count`, `deployment`). Leave it unset in production. Every
+request still logs one `chat_request` line with those fields. On
+`source=error` the line also includes the exception class and a short
+message.
+
+Query embeddings (the student question, not the index build) use at most two
+attempts, an 8-second timeout, and about 2 seconds of backoff. If that call
+fails and hybrid retrieval is on, the answer uses BM25 only. The index lock
+is held for collection alignment, not during the embedding call. Chunk text
+is cached by the live collection id, so a staging swap that publishes a new
+id does not reuse the previous chunks.
 
 `/healthz` stays the platform health check and the deploy probe. `/api/status`
 loads the RAG stack and is not a health check. `/readyz` is the index receipt.
