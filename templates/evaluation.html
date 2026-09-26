@@ -34,25 +34,28 @@
         <p class="eyebrow">Quality assurance</p>
         <h1 id="page-title">Advising response review</h1>
         <p>
-          Score each response independently. Model identities stay hidden until both
-          candidates for a question are reviewed.
+          Score information accuracy, tone, length, and edge-case handling for each
+          response. Model identities stay hidden until both candidates for a question
+          are reviewed.
         </p>
       </div>
       <button
         id="show-results-button"
         class="scale-key results-button"
         type="button"
-        aria-label="Show model result comparison"
+        aria-label="Show model results. Each dimension is scored from 1 poor to 5 excellent."
         aria-expanded="false"
         aria-controls="results-chart-container"
       >
-        <span><b>1</b> Unusable</span>
-        <span><b>4</b> Mixed</span>
-        <span><b>7</b> Excellent</span>
+        <span><b>1</b> Poor</span>
+        <span><b>3</b> Adequate</span>
+        <span><b>5</b> Excellent</span>
+        <span><b>Results</b></span>
       </button>
     </section>
     <section id="results-chart-container" class="results-chart-container hidden">
-      <h2>Model Results by Question</h2>
+      <h2 id="results-chart-title">Model results by dimension</h2>
+      <p id="legacy-results-note" class="legacy-results-note hidden"></p>
       <canvas id="results-chart"></canvas>
 
       <div class="distribution-chart-grid">
@@ -124,6 +127,13 @@
           <h2 id="question-text"></h2>
           <details class="review-guidance">
             <summary>Reviewer guidance and retrieved sources</summary>
+            <p class="rubric-note">
+              Score each dimension from 1 (poor) to 5 (excellent): information accuracy,
+              tone (warmth and support), appropriate length, and handling of edge cases
+              or distress. When a question has no distress or unusual edge, the last
+              score reflects whether the reply stays appropriate. Add one note of one
+              to three sentences for the response as a whole.
+            </p>
             <p id="review-focus"></p>
             <div id="source-list" class="source-list"></div>
           </details>
@@ -141,14 +151,27 @@
             <div id="answer-A" class="candidate-answer"></div>
             <button class="expand-answer text-button" data-candidate="A" type="button">Expand answer</button>
             <form class="review-form" data-candidate="A" novalidate>
+              <p id="legacy-A" class="legacy-note hidden"></p>
               <fieldset>
-                <legend>Overall quality <span>Required</span></legend>
-                <div class="rating-scale" id="rating-A" role="radiogroup" aria-label="Candidate A rating"></div>
+                <legend>Information accuracy <span>1 inaccurate · 5 accurate</span></legend>
+                <div class="rating-scale" id="accuracy-A" role="radiogroup" aria-label="Candidate A information accuracy"></div>
+              </fieldset>
+              <fieldset>
+                <legend>Tone <span>1 cold · 5 warm and supportive</span></legend>
+                <div class="rating-scale" id="tone-A" role="radiogroup" aria-label="Candidate A tone"></div>
+              </fieldset>
+              <fieldset>
+                <legend>Appropriate length <span>1 too long or brief · 5 succinct</span></legend>
+                <div class="rating-scale" id="succinctness-A" role="radiogroup" aria-label="Candidate A appropriate length"></div>
+              </fieldset>
+              <fieldset>
+                <legend>Edge cases and distress <span>1 mishandled · 5 handled with care</span></legend>
+                <div class="rating-scale" id="edge_cases-A" role="radiogroup" aria-label="Candidate A edge cases and distress"></div>
               </fieldset>
               <label for="comment-A">
                 Review note <span>1–3 sentences</span>
               </label>
-              <textarea id="comment-A" maxlength="1000" rows="4" placeholder="Describe what was correct, missing, misleading, or especially useful."></textarea>
+              <textarea id="comment-A" maxlength="1000" rows="3" placeholder="Explain what drove the accuracy, tone, length, or edge-case scores."></textarea>
               <div class="form-footer">
                 <span id="sentence-count-A" class="sentence-count">0 sentences</span>
                 <button class="button button--primary save-review" type="submit">Save Candidate A</button>
@@ -168,14 +191,27 @@
             <div id="answer-B" class="candidate-answer"></div>
             <button class="expand-answer text-button" data-candidate="B" type="button">Expand answer</button>
             <form class="review-form" data-candidate="B" novalidate>
+              <p id="legacy-B" class="legacy-note hidden"></p>
               <fieldset>
-                <legend>Overall quality <span>Required</span></legend>
-                <div class="rating-scale" id="rating-B" role="radiogroup" aria-label="Candidate B rating"></div>
+                <legend>Information accuracy <span>1 inaccurate · 5 accurate</span></legend>
+                <div class="rating-scale" id="accuracy-B" role="radiogroup" aria-label="Candidate B information accuracy"></div>
+              </fieldset>
+              <fieldset>
+                <legend>Tone <span>1 cold · 5 warm and supportive</span></legend>
+                <div class="rating-scale" id="tone-B" role="radiogroup" aria-label="Candidate B tone"></div>
+              </fieldset>
+              <fieldset>
+                <legend>Appropriate length <span>1 too long or brief · 5 succinct</span></legend>
+                <div class="rating-scale" id="succinctness-B" role="radiogroup" aria-label="Candidate B appropriate length"></div>
+              </fieldset>
+              <fieldset>
+                <legend>Edge cases and distress <span>1 mishandled · 5 handled with care</span></legend>
+                <div class="rating-scale" id="edge_cases-B" role="radiogroup" aria-label="Candidate B edge cases and distress"></div>
               </fieldset>
               <label for="comment-B">
                 Review note <span>1–3 sentences</span>
               </label>
-              <textarea id="comment-B" maxlength="1000" rows="4" placeholder="Describe what was correct, missing, misleading, or especially useful."></textarea>
+              <textarea id="comment-B" maxlength="1000" rows="3" placeholder="Explain what drove the accuracy, tone, length, or edge-case scores."></textarea>
               <div class="form-footer">
                 <span id="sentence-count-B" class="sentence-count">0 sentences</span>
                 <button class="button button--primary save-review" type="submit">Save Candidate B</button>

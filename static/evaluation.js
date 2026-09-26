@@ -1,9 +1,27 @@
+const DIMENSIONS = [
+  { key: "accuracy", low: "Inaccurate", high: "Accurate" },
+  { key: "tone", low: "Cold or dismissive", high: "Warm and supportive" },
+  { key: "succinctness", low: "Too long or too brief", high: "Appropriately succinct" },
+  { key: "edge_cases", low: "Mishandled", high: "Handled with care" }
+];
+
+const DIMENSION_COLORS = {
+  accuracy: "#0055a2",
+  tone: "#0874d1",
+  succinctness: "#e5a823",
+  edge_cases: "#16704a"
+};
+
+function emptyScores() {
+  return { accuracy: null, tone: null, succinctness: null, edge_cases: null };
+}
+
 const state = {
   csrf: null,
   reviewer: null,
   workspace: null,
   currentIndex: 0,
-  selectedRatings: { A: null, B: null }
+  selectedScores: { A: emptyScores(), B: emptyScores() }
 };
 
 const elements = {
@@ -94,26 +112,28 @@ function updateSentenceCount(candidate) {
 
 function buildRatingScales() {
   ["A", "B"].forEach((candidate) => {
-    const container = document.getElementById(`rating-${candidate}`);
-    for (let score = 1; score <= 7; score += 1) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "rating-option";
-      button.dataset.rating = String(score);
-      button.textContent = String(score);
-      button.setAttribute("role", "radio");
-      button.setAttribute("aria-checked", "false");
-      button.title = score === 1 ? "Unusable" : score === 4 ? "Mixed" : score === 7 ? "Excellent" : `Rating ${score}`;
-      button.addEventListener("click", () => selectRating(candidate, score));
-      container.appendChild(button);
-    }
+    DIMENSIONS.forEach((dimension) => {
+      const container = document.getElementById(`${dimension.key}-${candidate}`);
+      for (let score = 1; score <= 5; score += 1) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "rating-option";
+        button.dataset.score = String(score);
+        button.textContent = String(score);
+        button.setAttribute("role", "radio");
+        button.setAttribute("aria-checked", "false");
+        button.title = score === 1 ? dimension.low : score === 5 ? dimension.high : `Score ${score}`;
+        button.addEventListener("click", () => selectScore(candidate, dimension.key, score));
+        container.appendChild(button);
+      }
+    });
   });
 }
 
-function selectRating(candidate, score) {
-  state.selectedRatings[candidate] = score;
-  document.querySelectorAll(`#rating-${candidate} .rating-option`).forEach((button) => {
-    const selected = Number(button.dataset.rating) === Number(score);
+function selectScore(candidate, dimension, score) {
+  state.selectedScores[candidate][dimension] = score;
+  document.querySelectorAll(`#${dimension}-${candidate} .rating-option`).forEach((button) => {
+    const selected = score != null && Number(button.dataset.score) === Number(score);
     button.classList.toggle("selected", selected);
     button.setAttribute("aria-checked", String(selected));
   });
@@ -232,7 +252,7 @@ function renderQuestionList() {
   state.workspace.questions.forEach((question, index) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `question-nav-item${question.complete ? " complete" : ""}${index === state.currentIndex ? " active" : ""}`;
+    button.className = `question-nav-item${question.complete ? " complete" : ""}${question.needs_rescore ? " legacy" : ""}${index === state.currentIndex ? " active" : ""}`;
     button.setAttribute("aria-current", index === state.currentIndex ? "true" : "false");
 
     const number = document.createElement("span");
@@ -243,7 +263,12 @@ function renderQuestionList() {
     title.textContent = question.question;
     const status = document.createElement("span");
     status.className = "question-nav-item__state";
-    status.setAttribute("aria-label", question.complete ? "Complete" : "Incomplete");
+    const navLabel = !question.complete
+      ? "Incomplete"
+      : question.needs_rescore
+        ? "Saved on the previous 1 to 7 rubric"
+        : "Complete";
+    status.setAttribute("aria-label", navLabel);
     button.append(number, title, status);
     button.addEventListener("click", () => navigateTo(index));
     elements.questionList.appendChild(button);
@@ -256,8 +281,14 @@ function renderCurrentQuestion() {
   if (!question) return;
   elements.questionNumber.textContent = `Question ${state.currentIndex + 1} · ${question.id}`;
   elements.questionText.textContent = question.question;
-  elements.questionStatus.textContent = question.complete ? "Review complete" : "Review in progress";
-  elements.questionStatus.classList.toggle("complete", question.complete);
+  const statusLabel = !question.complete
+    ? "Review in progress"
+    : question.needs_rescore
+      ? "Previous 1–7 score"
+      : "Review complete";
+  elements.questionStatus.textContent = statusLabel;
+  elements.questionStatus.classList.toggle("complete", question.complete && !question.needs_rescore);
+  elements.questionStatus.classList.toggle("legacy", Boolean(question.needs_rescore));
   elements.reviewFocus.textContent = question.review_focus || "Evaluate accuracy, evidence use, clarity, and appropriate uncertainty.";
   elements.sourceList.replaceChildren();
   (question.sources || []).forEach((source) => {
@@ -288,8 +319,19 @@ function renderCandidate(candidate, data) {
   document.querySelector(`.expand-answer[data-candidate='${candidate}']`).textContent = "Expand answer";
 
   const review = data.review;
-  state.selectedRatings[candidate] = review?.rating || null;
-  selectRating(candidate, review?.rating || null);
+  const dimensional = review && review.rubric !== "legacy";
+  DIMENSIONS.forEach((dimension) => {
+    const value = dimensional ? review[dimension.key] : null;
+    selectScore(candidate, dimension.key, value);
+  });
+  const legacy = document.getElementById(`legacy-${candidate}`);
+  if (review?.rubric === "legacy") {
+    legacy.textContent = `Saved under the previous overall score of ${review.rating}/7. Choose the four dimension scores to replace it. The short note can stay or be rewritten.`;
+    legacy.classList.remove("hidden");
+  } else {
+    legacy.textContent = "";
+    legacy.classList.add("hidden");
+  }
   const textarea = document.getElementById(`comment-${candidate}`);
   textarea.value = review?.comment || "";
   updateSentenceCount(candidate);
@@ -321,13 +363,13 @@ async function saveReview(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const candidate = form.dataset.candidate;
-  const rating = state.selectedRatings[candidate];
+  const scores = state.selectedScores[candidate];
   const comment = document.getElementById(`comment-${candidate}`).value.trim();
   const errorElement = document.getElementById(`error-${candidate}`);
   const sentences = countSentences(comment);
   errorElement.textContent = "";
-  if (!rating) {
-    errorElement.textContent = "Choose a rating from 1 to 7.";
+  if (DIMENSIONS.some((dimension) => !scores[dimension.key])) {
+    errorElement.textContent = "Score every dimension from 1 to 5.";
     return;
   }
   if (comment.length < 10 || sentences < 1 || sentences > 3) {
@@ -342,7 +384,7 @@ async function saveReview(event) {
   try {
     await api(`/api/evaluation/reviews/${encodeURIComponent(question.id)}/${candidate}`, {
       method: "PUT",
-      body: JSON.stringify({ rating, comment })
+      body: JSON.stringify({ ...scores, comment })
     });
     showToast(`Candidate ${candidate} review saved.`);
     await loadWorkspace();
@@ -366,14 +408,29 @@ async function loadSummary() {
       provider.textContent = model.provider || "Model";
       const heading = document.createElement("h3");
       heading.textContent = model.label;
-      const score = document.createElement("div");
-      score.className = "model-score";
-      const strong = document.createElement("strong");
-      strong.textContent = model.average_rating ?? "—";
-      const scale = document.createElement("span");
-      scale.textContent = `/ 7 · ${model.review_count} reviews`;
-      score.append(strong, scale);
-      card.append(provider, heading, score);
+      const count = document.createElement("p");
+      count.className = "model-result__count";
+      count.textContent = `${model.dimension_review_count} dimension review${model.dimension_review_count === 1 ? "" : "s"} · averages out of 5`;
+      const list = document.createElement("ul");
+      list.className = "dimension-list";
+      (summary.dimension_definitions || []).forEach((dimension) => {
+        const item = document.createElement("li");
+        const name = document.createElement("span");
+        name.textContent = dimension.label;
+        const value = document.createElement("strong");
+        const average = model.dimensions?.[dimension.key]?.average;
+        value.textContent = average == null ? "—" : String(average);
+        item.append(name, value);
+        list.appendChild(item);
+      });
+      card.append(provider, heading, count, list);
+      if (model.legacy_review_count) {
+        const note = document.createElement("p");
+        note.className = "legacy-note";
+        const average = model.legacy?.average_rating;
+        note.textContent = `${model.legacy_review_count} review${model.legacy_review_count === 1 ? "" : "s"} used the previous 1–7 overall score${average == null ? "" : ` (average ${average})`}.`;
+        card.appendChild(note);
+      }
       elements.modelSummary.appendChild(card);
     });
     elements.reviewerCount.textContent = `${summary.total_reviewers} reviewer${summary.total_reviewers === 1 ? "" : "s"}`;
@@ -469,101 +526,114 @@ const rightDistributionTitle = document.getElementById("right-distribution-title
 let leftDistributionChart = null;
 let rightDistributionChart = null;
 
+const resultsChartTitle = document.getElementById("results-chart-title");
+const legacyResultsNote = document.getElementById("legacy-results-note");
+
 showResultsButton.addEventListener("click", async () => {
-  const isOpening =
-    resultsChartContainer.classList.contains("hidden");
-
+  const isOpening = resultsChartContainer.classList.contains("hidden");
   resultsChartContainer.classList.toggle("hidden", !isOpening);
-
-  showResultsButton.setAttribute(
-    "aria-expanded",
-    String(isOpening)
-  );
-
-  if (isOpening && !resultsChart) {
+  showResultsButton.setAttribute("aria-expanded", String(isOpening));
+  if (isOpening) {
     await loadResultsChart();
   }
 });
 
+function destroyChart(chart) {
+  if (chart) chart.destroy();
+  return null;
+}
+
 async function loadResultsChart() {
   try {
     const response = await fetch("/api/evaluation/summary", {
-  credentials: "same-origin"
-  });
-
+      credentials: "same-origin"
+    });
     const data = await response.json();
-
     if (!response.ok) {
-      throw new Error(
-        data.error || "Unable to load evaluation summary"
-      );
+      throw new Error(data.error || "Unable to load evaluation summary");
+    }
+    if (!data.available) {
+      throw new Error(data.message || "Complete all reviews before viewing results.");
     }
 
     const leftModel = data.models.left;
     const rightModel = data.models.right;
+    const legacyCount = Object.values(data.models).reduce(
+      (sum, model) => sum + (model.legacy_review_count || 0),
+      0
+    );
+    const hasDimensionReviews = Object.values(data.models).some(
+      (model) => model.dimension_review_count > 0
+    );
 
-    resultsChart = new Chart(resultsCanvas, {
-      type: "bar",
-      data: {
-        labels: [
-          leftModel.label,
-          rightModel.label
-        ],
-        datasets: [
+    resultsChart = destroyChart(resultsChart);
+    leftDistributionChart = destroyChart(leftDistributionChart);
+    rightDistributionChart = destroyChart(rightDistributionChart);
+
+    if (!hasDimensionReviews) {
+      resultsChartTitle.textContent = "Previous overall score";
+      legacyResultsNote.textContent = "These reviews used the previous 1–7 overall score. Dimension charts appear after responses are re-scored on the four-part rubric.";
+      legacyResultsNote.classList.remove("hidden");
+      resultsChart = createAverageChart(
+        [leftModel.label, rightModel.label],
+        [
           {
-            label: "Average rating",
+            label: "Average overall score",
             data: [
-              leftModel.average_rating,
-              rightModel.average_rating
+              leftModel.legacy?.average_rating,
+              rightModel.legacy?.average_rating
             ],
-            backgroundColor: [
-              "#0055a5",
-              "#e57200"
-            ],
-            borderColor: [
-              "#003b73",
-              "#b85a00"
-            ],
-            borderWidth: 1,
+            backgroundColor: ["#0055a2", "#e57200"],
             borderRadius: 8
           }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            display: false
-          },
-          title: {
-            display: true,
-            text: "Average Evaluation Rating"
-          }
+        ],
+        "Previous overall score (1–7)",
+        7
+      );
+      createLegacyDistributionChart(leftModel, leftDistributionCanvas, leftDistributionTitle, "left");
+      createLegacyDistributionChart(rightModel, rightDistributionCanvas, rightDistributionTitle, "right");
+      return;
+    }
+
+    resultsChartTitle.textContent = "Model results by dimension";
+    if (legacyCount) {
+      legacyResultsNote.textContent = `${legacyCount} review${legacyCount === 1 ? "" : "s"} used the previous 1–7 overall score and ${legacyCount === 1 ? "is" : "are"} excluded from the dimension charts.`;
+      legacyResultsNote.classList.remove("hidden");
+    } else {
+      legacyResultsNote.textContent = "";
+      legacyResultsNote.classList.add("hidden");
+    }
+
+    const definitions = data.dimension_definitions || [];
+    resultsChart = createAverageChart(
+      definitions.map((dimension) => dimension.label),
+      [
+        {
+          label: leftModel.label,
+          data: definitions.map((dimension) => leftModel.dimensions[dimension.key].average),
+          backgroundColor: "#0055a2",
+          borderRadius: 8
         },
-        scales: {
-          y: {
-            min: 0,
-            max: 7,
-            ticks: {
-              stepSize: 1
-            },
-            title: {
-              display: true,
-              text: "Average score"
-            }
-          }
+        {
+          label: rightModel.label,
+          data: definitions.map((dimension) => rightModel.dimensions[dimension.key].average),
+          backgroundColor: "#e57200",
+          borderRadius: 8
         }
-      }
-    });
-    createDistributionChart(
+      ],
+      "Average score by dimension",
+      data.scale?.max || 5
+    );
+    createDimensionDistributionChart(
       leftModel,
+      definitions,
       leftDistributionCanvas,
       leftDistributionTitle,
       "left"
     );
-
-    createDistributionChart(
+    createDimensionDistributionChart(
       rightModel,
+      definitions,
       rightDistributionCanvas,
       rightDistributionTitle,
       "right"
@@ -575,56 +645,73 @@ async function loadResultsChart() {
   }
 }
 
-function createDistributionChart(model, canvas, titleElement, side) {
-  titleElement.textContent = `${model.label} Rating Distribution`;
+function createAverageChart(labels, datasets, title, maximum) {
+  return new Chart(resultsCanvas, {
+    type: "bar",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: datasets.length > 1 },
+        title: { display: true, text: title }
+      },
+      scales: {
+        y: {
+          min: 0,
+          max: maximum,
+          ticks: { stepSize: 1 },
+          title: { display: true, text: "Average score" }
+        }
+      }
+    }
+  });
+}
 
-  const labels = Object.keys(model.distribution).sort(
-    (a, b) => Number(a) - Number(b)
-  );
+function storeDistributionChart(side, chart) {
+  if (side === "left") leftDistributionChart = chart;
+  else rightDistributionChart = chart;
+}
 
-  const values = labels.map(
-    rating => model.distribution[rating]
-  );
-
-  if (side === "left" && leftDistributionChart) {
-    leftDistributionChart.destroy();
-  }
-
-  if (side === "right" && rightDistributionChart) {
-    rightDistributionChart.destroy();
-  }
-
-  const chart = new Chart(canvas, {
+function createLegacyDistributionChart(model, canvas, titleElement, side) {
+  titleElement.textContent = `${model.label} previous overall-score distribution`;
+  const labels = ["1", "2", "3", "4", "5", "6", "7"];
+  storeDistributionChart(side, new Chart(canvas, {
     type: "bar",
     data: {
-      labels: labels.map(rating => `Rating ${rating}`),
+      labels: labels.map((rating) => `Rating ${rating}`),
       datasets: [
         {
           label: "Number of reviews",
-          data: values,
-          backgroundColor: side === "left"
-            ? "#0055a5"
-            : "#e57200",
+          data: labels.map((rating) => model.legacy?.distribution?.[rating] || 0),
+          backgroundColor: side === "left" ? "#0055a2" : "#e57200",
           borderRadius: 6
         }
       ]
     },
     options: {
       responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            stepSize: 1
-          }
-        }
-      }
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
     }
-  });
+  }));
+}
 
-  if (side === "left") {
-    leftDistributionChart = chart;
-  } else {
-    rightDistributionChart = chart;
-  }
+function createDimensionDistributionChart(model, definitions, canvas, titleElement, side) {
+  titleElement.textContent = `${model.label} dimension distribution`;
+  const labels = ["1", "2", "3", "4", "5"];
+  storeDistributionChart(side, new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: labels.map((score) => `Score ${score}`),
+      datasets: definitions.map((dimension) => ({
+        label: dimension.label,
+        data: labels.map((score) => model.dimensions[dimension.key].distribution[score] || 0),
+        backgroundColor: DIMENSION_COLORS[dimension.key] || "#0055a2",
+        borderRadius: 6
+      }))
+    },
+    options: {
+      responsive: true,
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  }));
 }

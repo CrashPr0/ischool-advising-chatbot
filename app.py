@@ -494,7 +494,7 @@ def evaluation_workspace():
 
 @app.route("/api/evaluation/reviews/<question_id>/<candidate>", methods=["PUT"])
 def save_evaluation_review(question_id: str, candidate: str):
-    """Persist one 1–7 response score with a short reviewer rationale."""
+    """Persist four 1–5 dimension scores and a short reviewer rationale."""
     auth_error = _evaluation_auth_error(require_csrf=True)
     if auth_error:
         return auth_error
@@ -514,7 +514,10 @@ def save_evaluation_review(question_id: str, candidate: str):
             reviewer=_evaluation_reviewer(),
             question_id=question_id,
             candidate=candidate,
-            rating=data.get("rating"),
+            accuracy=data.get("accuracy"),
+            tone=data.get("tone"),
+            succinctness=data.get("succinctness"),
+            edge_cases=data.get("edge_cases"),
             comment=data.get("comment"),
         )
         return jsonify({"success": True, "review": review})
