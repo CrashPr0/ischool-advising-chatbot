@@ -24,6 +24,7 @@ const elements = {
   responsesProgress: document.getElementById("responses-progress"),
   runCreated: document.getElementById("run-created"),
   questionNumber: document.getElementById("question-number"),
+  questionCategory: document.getElementById("question-category"),
   questionStatus: document.getElementById("question-status"),
   questionText: document.getElementById("question-text"),
   reviewFocus: document.getElementById("review-focus"),
@@ -238,13 +239,20 @@ function renderQuestionList() {
     const number = document.createElement("span");
     number.className = "question-nav-item__number";
     number.textContent = String(index + 1).padStart(2, "0");
+    const copy = document.createElement("span");
+    copy.className = "question-nav-item__copy";
     const title = document.createElement("span");
     title.className = "question-nav-item__title";
     title.textContent = question.question;
+    const category = document.createElement("span");
+    category.className = "question-nav-item__category";
+    category.textContent = question.category || "";
+    if (!question.category) category.classList.add("hidden");
+    copy.append(title, category);
     const status = document.createElement("span");
     status.className = "question-nav-item__state";
     status.setAttribute("aria-label", question.complete ? "Complete" : "Incomplete");
-    button.append(number, title, status);
+    button.append(number, copy, status);
     button.addEventListener("click", () => navigateTo(index));
     elements.questionList.appendChild(button);
   });
@@ -255,6 +263,8 @@ function renderCurrentQuestion() {
   const question = questions[state.currentIndex];
   if (!question) return;
   elements.questionNumber.textContent = `Question ${state.currentIndex + 1} · ${question.id}`;
+  elements.questionCategory.textContent = question.category || "";
+  elements.questionCategory.classList.toggle("hidden", !question.category);
   elements.questionText.textContent = question.question;
   elements.questionStatus.textContent = question.complete ? "Review complete" : "Review in progress";
   elements.questionStatus.classList.toggle("complete", question.complete);

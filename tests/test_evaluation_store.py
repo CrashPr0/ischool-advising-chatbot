@@ -28,6 +28,7 @@ def _write_results(path):
         "results": [
             {
                 "id": "q1",
+                "category": "degree requirements",
                 "question": "Which course should I take next?",
                 "review_focus": "Grounded, actionable advice.",
                 "sources": ["handbook.md"],
@@ -50,6 +51,7 @@ def test_workspace_stays_blind_until_both_candidates_are_reviewed(store):
     initial = store.workspace("Reviewer One")
 
     assert initial["progress"]["total_reviews"] == 2
+    assert initial["questions"][0]["category"] == "degree requirements"
     assert initial["questions"][0]["reveal"] is None
     assert initial["questions"][0]["candidates"]["A"]["error"] is None
     assert initial["questions"][0]["candidates"]["B"]["error"] is None

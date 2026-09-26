@@ -319,11 +319,17 @@ question pairs with `--request-delay` (60 seconds by default for the current
 student deployment). Set `BENCHMARK_REQUEST_DELAY_SECONDS` or pass the flag
 explicitly after increasing the Azure deployment's rate limit.
 
-Then run the 24-question benchmark. The question set exactly mirrors the three
-preset questions in each of the chat UI's eight advising topics. The first run
-builds an isolated, quota-free hashing index and does not download an embedding
-model. Passing `--build-index` always replaces a stale or incompatible benchmark
-index before invoking either model:
+Then run the curated benchmark in `evals/advising_questions.json`. That file is
+the review-queue source: a smaller set of non-overlapping questions across
+admissions, advising access, courses and registration, degree requirements,
+career, policies and deadlines, out-of-scope and sensitive-data requests, and
+distress or academic failure. Each item has a `category` and a `review_focus`
+describing what a good answer should do. The chat UI's topic chips stay a
+separate, student-facing starter list. Distress and requests for student IDs,
+grades, finances, or other sensitive records are not offered as chips. The
+first run builds an isolated, quota-free hashing index and does not download
+an embedding model. Passing `--build-index` always replaces a stale or
+incompatible benchmark index before invoking either model:
 
 ```bash
 python -m src.model_benchmark --build-index
@@ -334,8 +340,9 @@ Every model response is atomically checkpointed to
 matching run and skips successful responses, including when only one side of a
 question finished. The console reports completed responses, errors, retry
 delays, and an estimated time remaining. `evals/results/latest.json` and the
-Markdown report are replaced only after all 48 responses succeed, so an
-interrupted or throttled run cannot replace the live review dataset.
+Markdown report are replaced only after both responses succeed for every
+question, so an interrupted or throttled run cannot replace the live review
+dataset.
 
 Use `--fresh` to deliberately discard a matching partial run. A checkpoint
 whose questions, model deployments, retrieval settings, or system prompt do not
@@ -351,7 +358,10 @@ python -m src.model_benchmark --build-index --limit 1 \
 ```
 
 Limited runs must use non-default output paths and therefore cannot replace the
-24-question dataset used by the hosted evaluation workspace.
+curated dataset used by the hosted evaluation workspace. The published
+`evals/results/latest.json` snapshot is the previous completed run. It stays in
+place until a full benchmark succeeds, so the review queue does not switch to
+the new questions until both models have answered them.
 
 If GPT-5.6 Luna is available through an OpenAI API account rather than as a
 deployment in the Azure resource, keep GPT-4o mini on Azure and route only the
@@ -374,10 +384,13 @@ remain local build artifacts:
 - `evals/vector_store/` — local evaluation-only retrieval index
 
 Edit `evals/advising_questions.json` to add questions or reviewer expectations.
-The supplied review focus for every preset covers grounding, policy boundaries,
-personal-data limits, or the need to avoid invented dates. A test fails if the
-benchmark questions drift from the chat presets. GPT-5.6 Luna's current API
-model ID and capabilities are documented on the [official OpenAI model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna).
+Every curated question needs a category and a review focus covering the
+expected facts, handoff, or refusal. A test checks that the set stays inside
+12–20 questions, covers each category, includes more than one distress or
+academic-failure case, and does not copy those cases into the chat presets.
+The chat presets and the benchmark are allowed to differ. GPT-5.6 Luna's
+current API model ID and capabilities are documented on the [official OpenAI
+model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna).
 
 ### Human evaluation workspace
 
