@@ -342,6 +342,40 @@ def test_history_is_optional_and_follow_ups_include_prior_question(monkeypatch):
     assert alone["confidence"] is None
 
 
+def test_missing_prior_turns_degrade_to_the_current_question(monkeypatch):
+    """Another worker's memory is invisible here. Don't error; answer alone."""
+    llm = _TextModel()
+    bot = _bot(monkeypatch, llm)
+    seen = []
+
+    def retrieve(query, k=5):
+        seen.append(query)
+        return []
+
+    bot.doc_processor.retrieve_relevant_docs = retrieve
+    anaphora = "What about that?"
+    topical = "what about the online pathway?"
+    missing_histories = (
+        [],
+        [{"source": "rag"}],
+        ["not-a-turn"],
+        [{"user": "   ", "assistant": "ignored"}],
+    )
+
+    for history in missing_histories:
+        result = bot.chat(anaphora, history=history)
+        assert result["source"] == "fallback"
+        assert result["confidence"] is None
+        assert result["response"].startswith("I couldn't find enough information")
+
+    topical_result = bot.chat(topical, history=[])
+    assert topical_result["source"] == "fallback"
+    assert seen[-1] == topical
+    assert all(query == anaphora for query in seen[:-1])
+    # A non-list is the same as omitting history, and must not raise.
+    assert bot.chat(anaphora, history=None)["source"] == "fallback"
+
+
 def test_prior_turns_are_untrusted_data_not_system_text(monkeypatch):
     llm = _RecordingChatModel()
     llm._captured = []
