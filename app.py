@@ -1,6 +1,8 @@
 """Flask web app for the iSchool Advising Chatbot."""
 
+import csv
 import hmac
+import io
 import json
 import logging
 import os
@@ -42,8 +44,10 @@ def _prepend_first_existing_path(candidates: list[str]) -> str | None:
 _prepend_first_existing_path(_src_candidates)
 
 from flask import Flask, Response, jsonify, render_template, request, send_file, session
+from flask.sessions import SecureCookieSessionInterface
 from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.middleware.proxy_fix import ProxyFix
 from evaluation_store import (
     EvaluationDataError,
     EvaluationStore,
@@ -99,12 +103,138 @@ def _looks_like_placeholder(value: str | None) -> bool:
     )
 
 
-_session_secret = os.getenv("SESSION_SECRET_KEY")
-if _looks_like_placeholder(_session_secret):
-    # An ephemeral development key prevents accidentally running with a known
-    # default, while the warning makes the restart/session trade-off visible.
-    _session_secret = secrets.token_hex(32)
-    logger.warning("SESSION_SECRET_KEY is not set; using an ephemeral session key")
+def _on_app_service() -> bool:
+    """True when Azure App Service is hosting this process.
+
+    The platform sets these variables and places the worker behind its
+    front end. That front end is the only proxy whose forwarded headers
+    identify the real client.
+    """
+    return bool(
+        os.getenv("WEBSITE_SITE_NAME", "").strip()
+        or os.getenv("WEBSITE_INSTANCE_ID", "").strip()
+    )
+
+
+def _is_production() -> bool:
+    if _on_app_service():
+        return True
+    explicit = os.getenv("APP_ENV", os.getenv("FLASK_ENV", "")).strip().lower()
+    return explicit in {"production", "prod"}
+
+
+def _resolve_session_secret() -> str:
+    """Return the configured session key, or a one-process development key."""
+    configured = os.getenv("SESSION_SECRET_KEY")
+    if isinstance(configured, str) and not _looks_like_placeholder(configured):
+        return configured
+    if _is_production():
+        logger.warning(
+            "SESSION_SECRET_KEY is unset in production; using an ephemeral "
+            "session key. Set a stable SESSION_SECRET_KEY in the App Service "
+            "configuration before students use the site. Without it, reviewer "
+            "sessions reset on every restart and are rejected by other workers."
+        )
+    else:
+        # An ephemeral development key prevents accidentally running with a
+        # known default, while the warning makes the restart trade-off visible.
+        logger.warning(
+            "SESSION_SECRET_KEY is not set; using an ephemeral session key"
+        )
+    return secrets.token_hex(32)
+
+
+def _trusted_proxy_hops() -> int:
+    """How many reverse proxies may append ``X-Forwarded-*`` values.
+
+    App Service's front end is one hop: the rightmost value is the one it
+    added, and a client-supplied prefix is ignored. Zero hops anywhere else
+    means the header is not trusted at all. ``TRUSTED_PROXY_COUNT`` overrides
+    the platform default when another trusted proxy, such as Front Door, sits
+    in front. Values outside 0–5 are clamped.
+    """
+    raw = os.getenv("TRUSTED_PROXY_COUNT")
+    if raw is not None and raw.strip():
+        try:
+            hops = int(raw)
+        except ValueError:
+            _warn_once(
+                "trusted-proxy-count",
+                "Invalid TRUSTED_PROXY_COUNT %r; using the platform default",
+                raw,
+            )
+        else:
+            clamped = max(0, min(hops, 5))
+            if clamped != hops:
+                _warn_once(
+                    "trusted-proxy-count-range",
+                    "TRUSTED_PROXY_COUNT %s is outside 0-5; clamping",
+                    hops,
+                )
+            return clamped
+    return 1 if _on_app_service() else 0
+
+
+_once_warnings: set[str] = set()
+
+
+def _warn_once(key: str, message: str, *args: object) -> None:
+    if key in _once_warnings:
+        return
+    _once_warnings.add(key)
+    logger.warning(message, *args)
+
+
+class _TrustedProxyMiddleware:
+    """Apply :class:`ProxyFix` only for the configured trusted hop count.
+
+    The hop count is read on each request so tests and App Service settings
+    agree without recycling the interpreter. A count of zero leaves
+    ``REMOTE_ADDR`` and the URL scheme untouched, which is what local HTTP
+    development needs.
+    """
+
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        hops = _trusted_proxy_hops()
+        if hops < 1:
+            return self.wsgi_app(environ, start_response)
+        # Trust the client address and the original scheme only. Host and
+        # prefix stay untrusted so a forwarded host cannot retarget links.
+        return ProxyFix(
+            self.wsgi_app,
+            x_for=hops,
+            x_proto=hops,
+            x_host=0,
+            x_port=0,
+            x_prefix=0,
+        )(environ, start_response)
+
+
+def _session_cookie_should_be_secure() -> bool:
+    """Mark the session cookie Secure on HTTPS, including Azure's front end.
+
+    TLS ends at that front end, so the worker often sees plain HTTP.
+    ``_TrustedProxyMiddleware`` restores the visitor's scheme first. An
+    explicit ``SESSION_COOKIE_SECURE=true`` forces the flag even on HTTP.
+    An explicit false does not remove it from an HTTPS response. Plain HTTP
+    on localhost stays usable.
+    """
+    if os.getenv("SESSION_COOKIE_SECURE", "").strip().lower() == "true":
+        return True
+    try:
+        scheme = (request.scheme or "").lower()
+    except RuntimeError:
+        return False
+    return scheme in {"https", "wss"}
+
+
+class _HttpsAwareSessionInterface(SecureCookieSessionInterface):
+    def get_cookie_secure(self, app: Flask) -> bool:
+        return _session_cookie_should_be_secure()
+
 
 _session_samesite = os.getenv("SESSION_COOKIE_SAMESITE", "Lax").strip().capitalize()
 if _session_samesite not in {"Lax", "Strict", "None"}:
@@ -113,13 +243,43 @@ if _session_samesite not in {"Lax", "Strict", "None"}:
 
 # Flask's signed session cookie carries only an opaque identifier. The actual
 # transcript stays server-side and is bounded by _SessionHistoryStore below.
+# SESSION_COOKIE_SECURE in config is the HTTP fallback; the session interface
+# turns the flag on when the request itself is HTTPS.
 app.config.update(
-    SECRET_KEY=_session_secret,
+    SECRET_KEY=_resolve_session_secret(),
     MAX_CONTENT_LENGTH=_env_int("MAX_REQUEST_BYTES", 64 * 1024, 1024, 2 * 1024 * 1024),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE=_session_samesite,
     SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true",
 )
+app.session_interface = _HttpsAwareSessionInterface()
+
+# Templates load same-origin JS plus Google Fonts on the student page and
+# Chart.js from jsDelivr on the review page. No inline scripts.
+_CONTENT_SECURITY_POLICY = "; ".join(
+    [
+        "default-src 'self'",
+        "base-uri 'self'",
+        "object-src 'none'",
+        "frame-ancestors 'none'",
+        "form-action 'self'",
+        "script-src 'self' https://cdn.jsdelivr.net",
+        "style-src 'self' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "img-src 'self' data:",
+        "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com",
+    ]
+)
+
+
+@app.after_request
+def _apply_security_headers(response):
+    """Attach browser hardening headers without touching the response body."""
+    response.headers["Content-Security-Policy"] = _CONTENT_SECURITY_POLICY
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
 class _SessionHistoryStore:
@@ -222,6 +382,12 @@ def _session_id() -> str:
 
 
 def _client_key() -> str:
+    """Return the address used as a rate-limit bucket.
+
+    Behind App Service, the proxy middleware has already replaced
+    ``remote_addr`` with the address the front end appended. Otherwise the
+    forwarded header is ignored, so a caller cannot mint a new bucket.
+    """
     return request.remote_addr or "unknown"
 
 
@@ -265,6 +431,9 @@ CORS(
     app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=True
 )
 logger.info("CORS allowed origins: %s", allowed_origins)
+# Outermost wrapper so the client address is corrected before Flask or CORS
+# see the request. Local processes keep hop count 0 and ignore the headers.
+app.wsgi_app = _TrustedProxyMiddleware(app.wsgi_app)
 
 # Initialize chatbot (singleton)
 chatbot = None
@@ -344,6 +513,35 @@ def _is_local_request() -> bool:
     return (request.remote_addr or "") in {"127.0.0.1", "::1"}
 
 
+def _easy_auth_enabled() -> bool:
+    """True only when App Service Authentication is actually turned on.
+
+    The platform sets ``WEBSITE_AUTH_ENABLED`` and, only in that mode,
+    strips client-supplied ``X-MS-CLIENT-PRINCIPAL*`` headers before
+    replacing them with the signed-in user. Without that switch the headers
+    are ordinary request data.
+    """
+    return os.getenv("WEBSITE_AUTH_ENABLED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _easy_auth_principal_name() -> str:
+    """Return the platform identity, never a client-supplied header.
+
+    Related Easy Auth headers (``X-MS-CLIENT-PRINCIPAL``,
+    ``X-MS-CLIENT-PRINCIPAL-ID``, and ``X-MS-CLIENT-PRINCIPAL-IDP``) are not
+    consulted. Sign-in falls back to ``EVAL_ACCESS_TOKEN`` or the disabled
+    response when this returns an empty string.
+    """
+    if not _easy_auth_enabled():
+        return ""
+    return request.headers.get("X-MS-CLIENT-PRINCIPAL-NAME", "").strip()
+
+
 def _evaluation_reviewer() -> str | None:
     reviewer = session.get("evaluation_reviewer")
     return reviewer if isinstance(reviewer, str) and reviewer else None
@@ -359,6 +557,25 @@ def _evaluation_auth_error(*, require_csrf: bool = False):
         if not expected or not provided or not hmac.compare_digest(provided, expected):
             return jsonify({"error": "Invalid evaluation session token"}), 403
     return None
+
+
+def _csv_rows_for_reviewer(csv_text: str, reviewer: str | None) -> str:
+    """Drop every review row that belongs to someone else.
+
+    The store export is an audit trail of the whole run. A signed-in
+    reviewer may download their own comments only.
+    """
+    reader = csv.DictReader(io.StringIO(csv_text))
+    fieldnames = list(reader.fieldnames or [])
+    if "reviewer" not in fieldnames or not reviewer:
+        raise ValueError("Review export is missing a reviewer column")
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    for row in reader:
+        if row.get("reviewer") == reviewer:
+            writer.writerow(row)
+    return output.getvalue()
 
 
 def _normalize_reviewer(value: object) -> str:
@@ -424,9 +641,7 @@ def evaluation_session():
                 "csrf": session.get("evaluation_csrf") if reviewer else None,
                 "token_required": bool(_evaluation_token()),
                 "email_allowlist_enabled": bool(_evaluation_allowed_reviewers()),
-                "entra_identity_available": bool(
-                    request.headers.get("X-MS-CLIENT-PRINCIPAL-NAME")
-                ),
+                "entra_identity_available": bool(_easy_auth_principal_name()),
             }
         )
 
@@ -442,7 +657,7 @@ def evaluation_session():
     if not isinstance(data, dict):
         return jsonify({"error": "Request body must be a JSON object"}), 400
 
-    entra_reviewer = request.headers.get("X-MS-CLIENT-PRINCIPAL-NAME", "").strip()
+    entra_reviewer = _easy_auth_principal_name()
     try:
         reviewer = _normalize_reviewer(entra_reviewer or data.get("reviewer"))
     except ValueError as exc:
@@ -556,7 +771,7 @@ def evaluation_summary():
 
 @app.route("/api/evaluation/export.csv", methods=["GET"])
 def export_evaluation_reviews():
-    """Export the current run's complete review audit trail."""
+    """Export the signed-in reviewer's rows from the current run."""
     auth_error = _evaluation_auth_error()
     if auth_error:
         return auth_error
@@ -565,7 +780,7 @@ def export_evaluation_reviews():
         summary = store.summary(_evaluation_reviewer())
         if not summary.get("available"):
             return jsonify({"error": summary["message"]}), 409
-        csv_text = store.export_csv()
+        csv_text = _csv_rows_for_reviewer(store.export_csv(), _evaluation_reviewer())
         return Response(
             csv_text,
             mimetype="text/csv",
@@ -960,10 +1175,27 @@ def clear_history():
 
 @app.route("/api/load-docs", methods=["POST"])
 def load_docs():
-    """Load and process documents."""
+    """Queue a document-index rebuild. Synchronous rebuilds are rejected."""
     auth_error = _admin_error()
     if auth_error:
         return auth_error
+
+    # A synchronous rebuild holds the only Gunicorn worker until Chroma
+    # finishes. The deploy workflow already calls this route with
+    # ``?async=true`` and polls ``/api/load-docs/status``.
+    if request.args.get("async", "").strip().lower() not in {"1", "true", "yes", "on"}:
+        return (
+            jsonify(
+                {
+                    "error": (
+                        "Synchronous document loading is disabled because a "
+                        "full rebuild blocks the web worker. Retry with "
+                        "?async=true and poll /api/load-docs/status."
+                    )
+                }
+            ),
+            400,
+        )
 
     allowed, retry_after = _rate_limiter.allow(
         f"load-docs:{_client_key()}",
@@ -975,33 +1207,13 @@ def load_docs():
         response.headers["Retry-After"] = str(retry_after)
         return response, 429
 
-    async_requested = request.args.get("async", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-    if async_requested:
-        # Give Gunicorn time to flush the 202 before the CPU-intensive rebuild
-        # starts. On the smallest App Service tier an immediately-started
-        # thread can win the GIL and make an accepted job look like a request
-        # timeout to the deploy workflow. Job state is written to the shared
-        # index directory first, so a different worker does not report idle.
-        job, status_code = _begin_docs_job()
-        return jsonify(job), status_code
-
-    try:
-        chatbot_instance = get_chatbot()
-        chatbot_instance.process_documents()
-        _write_index_receipt(
-            chatbot_instance.doc_processor,
-            commit=_deployment_version(),
-            job_id=None,
-        )
-        return jsonify({"success": True, "message": "Documents loaded successfully"})
-    except Exception:
-        logger.exception("Error loading documents")
-        return jsonify({"error": "Unable to load documents"}), 500
+    # Give Gunicorn time to flush the 202 before the CPU-intensive rebuild
+    # starts. On the smallest App Service tier an immediately-started
+    # thread can win the GIL and make an accepted job look like a request
+    # timeout to the deploy workflow. Job state is written to the shared
+    # index directory first, so a different worker does not report idle.
+    job, status_code = _begin_docs_job()
+    return jsonify(job), status_code
 
 
 @app.route("/api/questions", methods=["GET"])
