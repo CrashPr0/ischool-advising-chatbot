@@ -359,22 +359,33 @@ def test_evaluation_api_blinds_models_and_requires_complete_review_for_export(
 
     invalid = client.put(
         "/api/evaluation/reviews/q1/A",
-        json={"rating": 9, "comment": "This is a valid-length comment."},
+        json={
+            "accuracy": 9,
+            "tone": 3,
+            "succinctness": 3,
+            "edge_cases": 3,
+            "comment": "This is a valid-length comment.",
+        },
         headers={"X-Evaluation-CSRF": csrf},
     )
     assert invalid.status_code == 400
+    assert "1 and 5" in invalid.get_json()["error"]
     assert client.get("/api/evaluation/export.csv").status_code == 409
 
-    for candidate, rating in (("A", 6), ("B", 5)):
+    for candidate, accuracy in (("A", 5), ("B", 3)):
         response = client.put(
             f"/api/evaluation/reviews/q1/{candidate}",
             json={
-                "rating": rating,
+                "accuracy": accuracy,
+                "tone": 4,
+                "succinctness": 4,
+                "edge_cases": 3,
                 "comment": "This is a grounded and actionable advising response.",
             },
             headers={"X-Evaluation-CSRF": csrf},
         )
         assert response.status_code == 200
+        assert response.get_json()["review"]["rubric"] == "dimensions"
 
     revealed = client.get("/api/evaluation/workspace").get_data(as_text=True)
     assert "Azure GPT-4o mini" in revealed

@@ -398,7 +398,7 @@ After generating `evals/results/latest.json`, start the Flask app and open
 `http://localhost:5000/evaluation`. The workspace gives reviewers a blind,
 per-reviewer randomized Candidate A/B comparison with:
 
-- a required 1–7 score and 1–3 sentence rationale for every response;
+- a required 1–5 score on four dimensions (information accuracy, tone, appropriate length, and edge-case or distress handling) and a 1–3 sentence rationale for every response;
 - per-reviewer progress, editable saved reviews, and a next-incomplete shortcut;
 - model identity reveal only after both responses to a question are scored;
 - aggregate model results and CSV audit export only after the run is complete.
