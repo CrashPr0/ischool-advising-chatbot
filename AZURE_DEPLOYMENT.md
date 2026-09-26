@@ -17,7 +17,7 @@ rebuilds the advising index and checks the receipt.
 | URL | `https://ischooladvisingchatbot-dx4ynl.azurewebsites.net` |
 | Plan | Linux, Basic B1 |
 | Build | Oryx (`SCM_DO_BUILD_DURING_DEPLOYMENT=true`) |
-| Process | `Procfile`: `gunicorn --bind 0.0.0.0:${PORT:-8000} app:app` |
+| Process | `Procfile`: `gunicorn --config gunicorn.conf.py app:app` (`gthread`, 2 workers, 4 threads, 180s timeout) |
 
 Oryx runs each release from an extracted copy under `/tmp`. That copy is
 deleted on restart or redeploy. **`/home` is the persistent share.** Do not
@@ -49,64 +49,240 @@ release unless you set it.
 
 The live reviews file is still at the old default: `evals/reviews.sqlite3`
 next to `app.py`. On the current host that is usually inside the Oryx
-extract under `/tmp`. A restart deletes it. The new process copies a legacy
-file onto `/home/data/evaluation/reviews.sqlite3` only when that new file
-does not exist yet **and** the old file is still on disk (beside the app, or
-at `/home/site/wwwroot/evals/reviews.sqlite3`). The copy never moves or
-deletes the original.
+extract under `/tmp`. A restart deletes it. Paste this into the App Service
+SSH or Kudu Bash console **before** merging. It uses only the Python standard
+library. It prints every `reviews.sqlite3` under `/tmp`, `/home/site/wwwroot`,
+and `/home/data`, then copies the newest file that has at least one
+`evaluation_reviews` row. It refuses to overwrite
+`/home/data/evaluation/reviews.sqlite3` if that file already exists, and it
+never moves or deletes the source.
 
-Do this on the running app **before** merging the durable-path change. If the
-new code starts first and someone opens `/evaluation`, it creates an empty
-database at the new path, and a later copy will not overwrite that file.
-
-SSH or the Kudu Bash console (`https://ischooladvisingchatbot-dx4ynl.scm.azurewebsites.net`):
-
-```bash
-find /tmp /home/site/wwwroot /home/data -name 'reviews.sqlite3' -print 2>/dev/null
-mkdir -p /home/data/evaluation
-```
-
-Copy with SQLite's backup so a WAL sidecar is included. Do not `mv` or `rm`
-the original. If the `sqlite3` CLI is not installed, use the app's Python:
+If the new code starts first and someone opens `/evaluation`, the app creates
+an empty database at the durable path, and a later copy will not overwrite it.
+Run the snippet first. `OK` means both copies have the same row count as the
+source. `FAIL` with "no reviews.sqlite3" means a restart may already have
+wiped the old file; restore from an earlier download if you have one.
 
 ```bash
-python - <<'PY'
+python3 - <<'EOF'
+import os
 import sqlite3
+import sys
+import time
 from pathlib import Path
 
-source = Path("/path/from/find/reviews.sqlite3")  # replace
-destination = Path("/home/data/evaluation/reviews.sqlite3")
-destination.parent.mkdir(parents=True, exist_ok=True)
-offline = destination.with_name("reviews-backup-before-durable-path.sqlite3")
-source_conn = sqlite3.connect(source)
-try:
-    for target in (destination, offline):
+SEARCH_ROOTS = (
+    Path("/tmp"),
+    Path("/home/site/wwwroot"),
+    Path("/home/data"),
+)
+DESTINATION = Path("/home/data/evaluation/reviews.sqlite3")
+OFFLINE_COPY = Path("/home/data/evaluation/reviews-backup-before-durable-path.sqlite3")
+_TABLE = "evaluation_reviews"
+
+
+def _activity_mtime(path: Path) -> float:
+    """Newest mtime of the database and its WAL sidecars."""
+    latest = path.stat().st_mtime
+    for suffix in ("-wal", "-shm"):
+        sidecar = Path(str(path) + suffix)
+        try:
+            if sidecar.is_file():
+                latest = max(latest, sidecar.stat().st_mtime)
+        except OSError:
+            continue
+    return latest
+
+
+def _row_count(path: Path):
+    """Return (count, error). count is None when the table cannot be read."""
+    try:
+        connection = sqlite3.connect(path)
+    except sqlite3.Error as exc:
+        return None, str(exc)
+    try:
+        row = connection.execute(f"SELECT COUNT(*) FROM {_TABLE}").fetchone()
+    except sqlite3.Error as exc:
+        return None, str(exc)
+    finally:
+        connection.close()
+    return int(row[0]), None
+
+
+def _find_databases(search_roots):
+    found = []
+    seen = set()
+    for root in search_roots:
+        root = Path(root)
+        if not root.exists():
+            print(f"skip missing root: {root}")
+            continue
+
+        def onerror(err, root=root):
+            print(f"could not search {getattr(err, 'filename', root)}: {err}")
+
+        for dirpath, _dirnames, filenames in os.walk(root, onerror=onerror):
+            if "reviews.sqlite3" not in filenames:
+                continue
+            path = Path(dirpath) / "reviews.sqlite3"
+            try:
+                if not path.is_file():
+                    continue
+                key = path.resolve()
+            except OSError as exc:
+                print(f"could not read {path}: {exc}")
+                continue
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append(path)
+    return found
+
+
+def _describe(path: Path):
+    try:
+        size = path.stat().st_size
+        mtime = _activity_mtime(path)
+    except OSError as exc:
+        print(f"  {path}  unreadable ({exc})")
+        return None
+    rows, error = _row_count(path)
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(mtime))
+    if rows is None:
+        print(f"  {path}  size={size}  mtime={stamp}  rows=unavailable ({error})")
+    else:
+        print(f"  {path}  size={size}  mtime={stamp}  rows={rows}")
+    return {"path": path, "size": size, "mtime": mtime, "rows": rows}
+
+
+def _backup(source: Path, target: Path) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    source_conn = sqlite3.connect(source)
+    try:
         target_conn = sqlite3.connect(target)
         try:
             source_conn.backup(target_conn)
         finally:
             target_conn.close()
-finally:
-    source_conn.close()
-print("copied", destination)
-print("offline copy", offline)
-PY
+    finally:
+        source_conn.close()
+
+
+def _download_url() -> str:
+    app_name = os.environ.get("WEBSITE_SITE_NAME", "").strip() or "<app>"
+    return (
+        f"https://{app_name}.scm.azurewebsites.net/api/vfs/data/evaluation/"
+        "reviews-backup-before-durable-path.sqlite3"
+    )
+
+
+def backup_reviews(search_roots, destination, offline_copy) -> int:
+    """Copy the newest non-empty reviews database. Never move or delete it."""
+    destination = Path(destination)
+    offline_copy = Path(offline_copy)
+    print("reviews.sqlite3 candidates:")
+    described = []
+    for path in _find_databases(search_roots):
+        item = _describe(path)
+        if item is not None:
+            described.append(item)
+    if not described:
+        print("(none)")
+
+    if destination.exists():
+        rows, error = _row_count(destination)
+        detail = f"rows={rows}" if error is None else f"rows=unavailable ({error})"
+        print(
+            f"FAIL: {destination} already exists ({detail}). "
+            "Refusing to overwrite it. Nothing was copied."
+        )
+        return 1
+
+    selectable = [
+        item
+        for item in described
+        if item["size"] > 0 and isinstance(item["rows"], int) and item["rows"] > 0
+    ]
+    if not selectable:
+        if described:
+            print(
+                "FAIL: found reviews.sqlite3 files, but none contain "
+                f"{_TABLE} rows. Nothing was copied."
+            )
+        else:
+            roots = ", ".join(str(Path(root)) for root in search_roots)
+            print(
+                f"FAIL: no reviews.sqlite3 file was found under {roots}. "
+                "The old default may already have been wiped by a restart. "
+                "Nothing was copied."
+            )
+        return 1
+
+    chosen = max(
+        selectable,
+        key=lambda item: (item["mtime"], item["rows"], str(item["path"])),
+    )
+    source = chosen["path"]
+    print(f"Selected: {source} (rows={chosen['rows']})")
+
+    created = []
+    try:
+        _backup(source, destination)
+        created.append(destination)
+        _backup(source, offline_copy)
+        created.append(offline_copy)
+        source_rows, source_error = _row_count(source)
+        dest_rows, dest_error = _row_count(destination)
+        offline_rows, offline_error = _row_count(offline_copy)
+        if (
+            not source.exists()
+            or source_error
+            or dest_error
+            or offline_error
+            or source_rows != dest_rows
+            or source_rows != offline_rows
+            or source_rows != chosen["rows"]
+        ):
+            raise RuntimeError(
+                "row counts do not match "
+                f"(source={source_rows}, destination={dest_rows}, "
+                f"offline={offline_rows})"
+            )
+    except Exception as exc:
+        for path in created:
+            try:
+                path.unlink()
+            except OSError:
+                pass
+        print(f"FAIL: {exc}. Source was left in place. Incomplete copies were removed.")
+        return 1
+
+    print(
+        f"OK: copied {chosen['rows']} rows from {source} to {destination} "
+        f"and {offline_copy}. Source was left in place."
+    )
+    print(f"Download: {_download_url()}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(backup_reviews(SEARCH_ROOTS, DESTINATION, OFFLINE_COPY))
+EOF
 ```
 
-Confirm the copy has rows, then download the offline copy from Kudu:
+Download the offline copy while signed in to Kudu (this URL is not public):
 
-```bash
-sqlite3 /home/data/evaluation/reviews.sqlite3 \
-  "SELECT COUNT(*) FROM evaluation_reviews;"
-```
+https://ischooladvisingchatbot-dx4ynl.scm.azurewebsites.net/api/vfs/data/evaluation/reviews-backup-before-durable-path.sqlite3
 
-The copy runs the first time the evaluation store opens (a visit to
-`/evaluation` or an evaluation API call), not during process import. The log
-stream then contains `Copied reviews database from ...` if a legacy file was
-still on disk. `no legacy database was found` means the durable file was
-missing and nothing was copied. Restore the backup before that first
-evaluation request; opening the workspace creates an empty database, and a
-later copy will not overwrite it.
+The pattern is `https://<app>.scm.azurewebsites.net/api/vfs/data/evaluation/reviews-backup-before-durable-path.sqlite3`.
+On this Linux app the Kudu VFS root is `/home`, so that path is
+`/home/data/evaluation/reviews-backup-before-durable-path.sqlite3`. The snippet
+also prints the URL when `WEBSITE_SITE_NAME` is set.
+
+The app's own copy, if the durable file is still missing, runs the first time
+the evaluation store opens. The log line `Copied reviews database from ...`
+means it found a legacy file. `no legacy database was found` means nothing was
+copied. Restore the Kudu download before that first `/evaluation` request.
 
 ## Required App Service settings
 
@@ -114,7 +290,7 @@ Portal: the app → **Settings → Configuration**, and **Settings → Authentic
 
 | Setting | What to confirm |
 | --- | --- |
-| Authentication (Easy Auth) | Enabled, so the platform supplies `X-MS-CLIENT-PRINCIPAL-NAME` and strips a client-supplied value. `WEBSITE_AUTH_ENABLED` should be true. Keep `EVAL_ACCESS_TOKEN` set until this is confirmed. |
+| Authentication (Easy Auth) | Enabled. The app reads `X-MS-CLIENT-PRINCIPAL-NAME` only when `WEBSITE_AUTH_ENABLED` is true; otherwise that header is ignored. Keep `EVAL_ACCESS_TOKEN` set until Easy Auth is confirmed. |
 | HTTPS Only | On (Configuration → General settings, or TLS/SSL settings). |
 | `SESSION_SECRET_KEY` | A long random value, stable across restarts. Not the `.env.example` placeholder. An unset key is a new random value every process start, which logs reviewers out. |
 | `SESSION_COOKIE_SECURE` | `true` |
@@ -206,18 +382,34 @@ metrics, which App Service records without that package:
 The GitHub Actions log is still the place to see a failed index rebuild. The
 alert above is for 5xx responses after deploy.
 
-## Settings landing in other changes
+## Process and chat limits
 
-Do not guess these names. Confirm them in the pull requests that change the
-process model and the chat client, then set the values those PRs document:
+`gunicorn.conf.py` is what the Procfile and the container image load. Leave
+the variables unset to keep these defaults. A value outside the range falls
+back inside it.
 
-- Gunicorn worker class, thread count, request timeout, and graceful timeout.
-  Today the `Procfile` is `gunicorn --bind 0.0.0.0:${PORT:-8000} app:app`
-  (one sync worker, Gunicorn's 30-second default timeout).
-- Chat LLM request timeout, retry count, and `max_tokens`.
+| Setting | Default | Range |
+| --- | --- | --- |
+| `GUNICORN_WORKERS` | 2 | 1–4 |
+| `GUNICORN_THREADS` | 4 | 1–8 |
+| `GUNICORN_TIMEOUT` | 180 seconds | 30–230 |
+| `GUNICORN_GRACEFUL_TIMEOUT` | 210 seconds | at least the worker timeout, and at most 300 |
 
-`/healthz` stays the liveness path after those changes. `/api/status` loads
-the RAG stack and is not a health check.
+The worker class is `gthread`. It is not an environment variable. Two workers
+keep a cold Chroma load from freezing `/healthz`. The 180-second timeout sits
+above the chat client's retry budget and under App Service's front-end cutoff.
+
+Chat completions use the limits in `src/llm_providers.py`:
+
+| Setting | Default | Range |
+| --- | --- | --- |
+| `LLM_TEMPERATURE` | 0.2 | 0–2 |
+| `LLM_REQUEST_TIMEOUT` | 45 seconds | 1–120 |
+| `LLM_MAX_RETRIES` | 2 | 0–5 |
+| `LLM_MAX_TOKENS` | 1024 | 64–4096 |
+
+`/healthz` stays the platform health check and the deploy probe. `/api/status`
+loads the RAG stack and is not a health check. `/readyz` is the index receipt.
 
 ## What a deploy does
 

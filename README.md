@@ -424,11 +424,12 @@ unset unless you intentionally pin `/home/data/evaluation/reviews.sqlite3`.
 with the release.
 
 The access token is exchanged for a signed, HTTP-only session and is never
-stored in browser storage. The workspace recognizes Azure App Service Easy
-Auth/Entra user headers. Turn Easy Auth on in the portal so the platform, not
-the browser, supplies `X-MS-CLIENT-PRINCIPAL-NAME`. Keep `EVAL_ACCESS_TOKEN`
-set until that is confirmed. SQLite is appropriate for one App Service
-instance; use a managed database before scaling the app horizontally.
+stored in browser storage. The app reads `X-MS-CLIENT-PRINCIPAL-NAME` only
+when `WEBSITE_AUTH_ENABLED` is true. Turn Easy Auth on in the portal so the
+platform sets that variable and strips a client-supplied header. Keep
+`EVAL_ACCESS_TOKEN` set until that is confirmed. SQLite is appropriate for
+one App Service instance; use a managed database before scaling the app
+horizontally.
 
 ---
 
@@ -449,9 +450,12 @@ and push), a budget alert and Azure OpenAI quota, and Application Insights.
 Staging needs a second App Service app or a plan that supports slots (Standard
 or higher).
 
-Gunicorn worker, timeout, and chat-model `max_tokens` / timeout settings are
-being chosen separately. Confirm those names before adding them in the portal,
-and keep the platform health check on `/healthz`.
+Gunicorn loads `gunicorn.conf.py` (`gthread`, `GUNICORN_WORKERS=2`,
+`GUNICORN_THREADS=4`, `GUNICORN_TIMEOUT=180`,
+`GUNICORN_GRACEFUL_TIMEOUT=210`). Chat calls use `LLM_TEMPERATURE=0.2`,
+`LLM_REQUEST_TIMEOUT=45`, `LLM_MAX_RETRIES=2`, and `LLM_MAX_TOKENS=1024`.
+Leave those unset to keep the defaults. The platform health check stays on
+`/healthz`.
 
 ---
 
