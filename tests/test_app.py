@@ -29,7 +29,7 @@ class FakeChatbot:
     def get_available_providers():
         return ["fake"]
 
-    def chat(self, message):
+    def chat(self, message, history=None):
         return {
             "user_message": message,
             "response": f"Echo: {message}",
@@ -52,7 +52,7 @@ def test_health_probe_does_not_initialize_chatbot(monkeypatch):
     assert app_module.chatbot is None
 
 
-def test_chat_history_isolated_per_session(monkeypatch):
+def test_chat_history_isolated_per_session(monkeypatch, ready_chat_index):
     monkeypatch.setattr(app_module, "chatbot", FakeChatbot())
     first_client = app_module.app.test_client()
     second_client = app_module.app.test_client()

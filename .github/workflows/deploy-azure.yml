@@ -85,6 +85,10 @@ jobs:
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: deploy-package.zip
 
+      # /healthz is liveness only. It stays 200 while the index receipt is
+      # still missing or stale. The rebuild below uses the admin load-docs
+      # route. Student chat refuses questions until the receipt matches, so
+      # this wait must not depend on that route.
       - name: Wait for the deployed app
         run: |
           for attempt in {1..60}; do

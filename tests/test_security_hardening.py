@@ -16,7 +16,7 @@ def _fresh_rate_limiter(monkeypatch):
 
 
 class FakeChatbot:
-    def chat(self, message):
+    def chat(self, message, history=None):
         return {
             "user_message": message,
             "response": "ok",
@@ -305,7 +305,9 @@ def test_security_headers_and_healthz_stay_lightweight(monkeypatch):
     assert client.get("/healthz").get_json()["status"] == "ok"
 
 
-def test_http_localhost_session_is_not_secure_and_still_round_trips(monkeypatch):
+def test_http_localhost_session_is_not_secure_and_still_round_trips(
+    monkeypatch, ready_chat_index
+):
     monkeypatch.delenv("SESSION_COOKIE_SECURE", raising=False)
     monkeypatch.delenv("WEBSITE_SITE_NAME", raising=False)
     monkeypatch.delenv("TRUSTED_PROXY_COUNT", raising=False)
@@ -434,7 +436,7 @@ def _post_chat(client, forwarded_for, remote_addr):
     )
 
 
-def test_rate_limit_ignores_a_spoofed_forwarded_for(monkeypatch):
+def test_rate_limit_ignores_a_spoofed_forwarded_for(monkeypatch, ready_chat_index):
     monkeypatch.delenv("WEBSITE_SITE_NAME", raising=False)
     monkeypatch.delenv("WEBSITE_INSTANCE_ID", raising=False)
     monkeypatch.delenv("TRUSTED_PROXY_COUNT", raising=False)
@@ -447,7 +449,9 @@ def test_rate_limit_ignores_a_spoofed_forwarded_for(monkeypatch):
     assert _post_chat(client, "203.0.113.11", "198.51.100.5").status_code == 200
 
 
-def test_rate_limit_keys_on_the_proxy_appended_client_ip(monkeypatch):
+def test_rate_limit_keys_on_the_proxy_appended_client_ip(
+    monkeypatch, ready_chat_index
+):
     monkeypatch.setenv("WEBSITE_SITE_NAME", "ischooladvisingchatbot")
     monkeypatch.delenv("TRUSTED_PROXY_COUNT", raising=False)
     monkeypatch.setenv("CHAT_RATE_LIMIT", "1")
