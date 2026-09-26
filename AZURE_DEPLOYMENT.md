@@ -340,20 +340,29 @@ route **before** it rebuilds the index, and the App Service health check path
 must stay `/healthz`.
 
 `GET /readyz` reads `index_build.json` under the vector-store path and
-compares its `commit` to `deployment_version.txt`. It returns 200 when they
-match and 503 when the receipt is missing, unreadable, or names another
-commit. It does not load Chroma. A missing receipt is expected from the moment
-the new zip is serving until the workflow's rebuild finishes. Do not point the
-platform health check at `/readyz`, or the instance will be marked unhealthy
-before the index exists and the rebuild may never run.
+compares its `commit` to `deployment_version.txt`. It also compares
+`embedding_provider`, `embedding_model`, and `embedding_dimension` with the
+embedder this process will use. It returns 200 when the commit matches and
+the embedder matches (a receipt from before those fields existed still counts
+as the hashing index). It returns 503 when the receipt is missing, unreadable,
+names another commit (`mismatch`), or was built with a different embedder
+(`stale`). It does not load Chroma or call Azure. A missing receipt is
+expected from the moment the new zip is serving until the workflow's rebuild
+finishes. Do not point the platform health check at `/readyz`, or the instance
+will be marked unhealthy before the index exists and the rebuild may never run.
 
 `POST /api/chat` calls the same `assess_index_readiness` helper before it
-loads the chatbot. A missing, unreadable, or mismatched receipt returns
-HTTP 503 and a short student-facing message, and does not call the model.
+loads the chatbot. A missing, unreadable, mismatched, or embedding-stale
+receipt returns HTTP 503 and a short student-facing message, and does not
+call the model. Switching `EMBEDDING_PROVIDER` or
+`AZURE_OPENAI_EMBEDDING_DEPLOYMENT` without a rebuild is stale on purpose:
+the old vectors are a different shape, and search would otherwise return
+empty or unrelated chunks.
+
 `/healthz` does not perform this check. The deploy workflow waits for
 `/healthz`, then rebuilds the index through `/api/load-docs`, not through
 `/api/chat`. Chat answers again once that rebuild writes a receipt for the
-running commit.
+running commit and the embedder that built it.
 
 ## Rollback
 
@@ -369,11 +378,20 @@ The workflow deploys that commit, waits for `/healthz`, and rebuilds the
 index for the reverted SHA. **Run workflow** (`workflow_dispatch`) redeploys
 whatever `main` is now; it does not restore an older package by itself.
 
-A failed index rebuild leaves the previous `index_build.json` in place on
-purpose. `/readyz` then reports a commit mismatch until a rebuild for the
-running commit succeeds. The site can still be serving the new code against
-the previous corpus. Watch the Actions log; a red job can mean the new code
-is already live.
+A failed index rebuild leaves the previous `index_build.json` and the previous
+Chroma collection in place. Embeddings are written to a staging collection and
+renamed over the live collection only after every batch succeeds. `/readyz`
+then reports a commit mismatch (or stays stale if the embedder changed) until
+a rebuild for the running commit succeeds. Watch the Actions log; a red job
+can mean the new code is already live while chat is still refusing the old
+receipt.
+
+Hosted embedding calls are batched to about 800 tokens and retried on HTTP 429.
+The advising corpus is about 19,500 tokens after chunking, so a 1000
+token-per-minute deployment takes about 20 minutes and can outlast the
+deploy script's 20-minute wait. Use at least 10000 tokens per minute on
+`text-embedding-3-small` before setting `EMBEDDING_PROVIDER=azure_openai`.
+100000 tokens per minute finishes the quota portion in well under a minute.
 
 ## Staging
 

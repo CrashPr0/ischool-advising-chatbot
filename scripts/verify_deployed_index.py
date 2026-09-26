@@ -139,12 +139,23 @@ def readiness_failure(stats: dict | None, commit: str) -> str | None:
 
 def describe_index(stats: dict) -> str:
     scan = stats.get("scan") if isinstance(stats.get("scan"), dict) else {}
-    build = stats.get("index_build") if isinstance(stats.get("index_build"), dict) else {}
+    build = (
+        stats.get("index_build") if isinstance(stats.get("index_build"), dict) else {}
+    )
+    provider = str(build.get("embedding_provider") or "").strip()
+    embedding = ""
+    if provider:
+        model = str(build.get("embedding_model") or "unknown")
+        dimension = build.get("embedding_dimension")
+        embedding = f", embeddings {provider}/{model}"
+        if dimension:
+            embedding += f" ({dimension}d)"
     return (
         "Azure advising corpus: "
         f"{_as_int(scan.get('total_files'))} source files, "
         f"{_as_int(stats.get('vector_store_chunks'))} chunks, "
         f"built for {build.get('commit')}"
+        f"{embedding}"
     )
 
 
@@ -172,9 +183,7 @@ def _raise_if_blocking(result: HttpResult, kind: str) -> None:
         )
     if kind == "hard":
         detail = (result.body or "").strip().replace("\n", " ")[:300]
-        raise RebuildFailed(
-            f"Index request failed with HTTP {result.status}: {detail}"
-        )
+        raise RebuildFailed(f"Index request failed with HTTP {result.status}: {detail}")
 
 
 def run_verification(
@@ -202,7 +211,9 @@ def run_verification(
         kind = response_kind(result)
         _raise_if_blocking(result, kind)
         if kind == "rate_limited":
-            delay = result.retry_after if result.retry_after is not None else poll_seconds
+            delay = (
+                result.retry_after if result.retry_after is not None else poll_seconds
+            )
             delay = max(1, min(delay, 600))
             remaining = deadline - monotonic()
             log(
@@ -291,9 +302,7 @@ def run_verification(
             break
         sleep(min(poll_seconds, remaining))
 
-    raise RebuildFailed(
-        f"Document index rebuild for {commit} did not complete in time"
-    )
+    raise RebuildFailed(f"Document index rebuild for {commit} did not complete in time")
 
 
 def _confirm_existing_receipt(
@@ -319,7 +328,9 @@ def _confirm_existing_receipt(
                 return
             raise RebuildFailed(reason)
         last_error = result.transport_error or f"HTTP {result.status}"
-        log(f"Retrying index verification after a transient error ({attempt}/{attempts})")
+        log(
+            f"Retrying index verification after a transient error ({attempt}/{attempts})"
+        )
         if attempt < attempts:
             sleep(poll_seconds)
     raise RebuildFailed(

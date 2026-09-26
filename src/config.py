@@ -128,6 +128,21 @@ class Config:
         "zhipuai": "zhipu",
     }
 
+    # Offline hashing width, and the default widths of the hosted models this
+    # app can select. A custom Azure deployment name has no known width; the
+    # receipt then stores the width of the vectors that were actually stored.
+    _EMBEDDING_DIMENSIONS = {
+        "hashing": 2048,
+        "all-MiniLM-L6-v2": 384,
+        "text-embedding-3-small": 1536,
+        "text-embedding-3-large": 3072,
+        "text-embedding-ada-002": 1536,
+    }
+    LOCAL_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+    # langchain-openai 1.6.6 OpenAIEmbeddings default. Passed explicitly so the
+    # receipt names the same model the client sends.
+    OPENAI_EMBEDDING_MODEL = "text-embedding-ada-002"
+
     @staticmethod
     def _configured_secret(value: str | None) -> bool:
         """Return false for empty or copied-template credential values."""
@@ -135,6 +150,55 @@ class Config:
         return bool(normalized) and not normalized.startswith(
             ("replace_with_", "your_", "change_me", "changeme")
         )
+
+    @classmethod
+    def _azure_embeddings_configured(cls) -> bool:
+        """True when an Azure embedding deployment can be called."""
+        return bool(
+            cls._configured_secret(cls.AZURE_OPENAI_API_KEY)
+            and str(cls.AZURE_OPENAI_ENDPOINT or "").strip()
+            and str(cls.AZURE_OPENAI_EMBEDDING_DEPLOYMENT or "").strip()
+        )
+
+    @classmethod
+    def resolved_embedding(cls) -> dict:
+        """Describe the embedder this process will use, without constructing it.
+
+        ``auto`` matches document indexing: Azure when the embedding deployment
+        is configured, then OpenAI, then the local MiniLM model. A missing
+        credential still names the requested provider so ``/readyz`` can see a
+        mismatch before the first API call. ``AZURE_OPENAI_API_VERSION`` is
+        not part of this identity; it has a default and is sent at call time.
+        """
+        requested = (cls.EMBEDDING_PROVIDER or "hashing").strip().lower()
+        azure_ready = cls._azure_embeddings_configured()
+        openai_ready = cls._configured_secret(cls.OPENAI_API_KEY)
+
+        if requested == "hashing":
+            provider, model = "hashing", "hashing"
+        elif requested == "local":
+            provider, model = "local", cls.LOCAL_EMBEDDING_MODEL
+        elif requested == "azure_openai" or (requested == "auto" and azure_ready):
+            provider = "azure_openai"
+            model = str(cls.AZURE_OPENAI_EMBEDDING_DEPLOYMENT or "").strip()
+        elif requested == "openai" or (requested == "auto" and openai_ready):
+            provider = "openai"
+            model = cls.OPENAI_EMBEDDING_MODEL
+        elif requested == "auto":
+            provider, model = "local", cls.LOCAL_EMBEDDING_MODEL
+        else:
+            provider, model = requested, ""
+
+        identity = {
+            "embedding_provider": provider,
+            "embedding_model": model,
+        }
+        dimension = cls._EMBEDDING_DIMENSIONS.get(model)
+        if provider == "hashing":
+            dimension = cls._EMBEDDING_DIMENSIONS["hashing"]
+        if dimension is not None:
+            identity["embedding_dimension"] = dimension
+        return identity
 
     @classmethod
     def normalize_provider(cls, provider: str) -> str:
