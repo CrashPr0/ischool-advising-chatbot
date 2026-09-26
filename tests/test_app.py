@@ -1,6 +1,7 @@
 """Small API contract tests that do not call an external model."""
 
 import json
+import os
 import sys
 import time
 
@@ -86,26 +87,50 @@ def test_document_admin_routes_fail_closed_without_token(monkeypatch):
     assert status_response.status_code == 503
 
 
-def test_document_rebuild_can_run_outside_request_lifecycle(monkeypatch):
-    class FakeProcessor:
-        @staticmethod
-        def scan_source_files():
-            return {"total_files": 20}
-
-        @staticmethod
-        def vector_store_count():
-            return 189
-
-    class FakeIndexingChatbot:
-        doc_processor = FakeProcessor()
-
-        @staticmethod
-        def process_documents():
-            return None
-
+def _isolate_index_job(monkeypatch, tmp_path, commit="deploy-sha"):
+    """Point index job files at a temp dir and reset the in-process rate limit."""
     monkeypatch.setenv("DOCS_LOAD_TOKEN", "test-docs-token")
-    monkeypatch.setattr(app_module, "get_chatbot", lambda: FakeIndexingChatbot())
+    monkeypatch.setattr(app_module, "_rate_limiter", app_module._FixedWindowRateLimiter())
+    monkeypatch.setattr(app_module, "_index_state_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(app_module, "_deployment_version", lambda: commit)
+    monkeypatch.setattr(app_module, "_DOCS_INDEX_START_DELAY_SECONDS", 0.0)
     monkeypatch.setattr(app_module, "_docs_job_state", {"status": "idle"})
+
+
+class FakeProcessor:
+    docs_path = "/tmp/advising_docs"
+
+    @staticmethod
+    def scan_source_files():
+        return {"total_files": 20, "txt_files": 20, "pdf_files": 0, "roots": []}
+
+    @staticmethod
+    def vector_store_count():
+        return 189
+
+
+class FakeIndexingChatbot:
+    doc_processor = FakeProcessor()
+
+    @staticmethod
+    def process_documents():
+        return None
+
+
+def _wait_for_job(client, headers, expected, deadline_seconds=2):
+    status = None
+    deadline = time.monotonic() + deadline_seconds
+    while time.monotonic() < deadline:
+        status = client.get("/api/load-docs/status", headers=headers).get_json()
+        if status["status"] == expected:
+            return status
+        time.sleep(0.01)
+    return status
+
+
+def test_document_rebuild_can_run_outside_request_lifecycle(monkeypatch, tmp_path):
+    _isolate_index_job(monkeypatch, tmp_path)
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: FakeIndexingChatbot())
     client = app_module.app.test_client()
     headers = {"X-Admin-Token": "test-docs-token"}
 
@@ -113,16 +138,136 @@ def test_document_rebuild_can_run_outside_request_lifecycle(monkeypatch):
 
     assert started.status_code == 202
     assert started.get_json()["status"] in {"queued", "running", "succeeded"}
-    deadline = time.monotonic() + 2
-    status = None
-    while time.monotonic() < deadline:
-        status = client.get("/api/load-docs/status", headers=headers).get_json()
-        if status["status"] == "succeeded":
-            break
-        time.sleep(0.01)
+    assert started.get_json()["commit"] == "deploy-sha"
+    status = _wait_for_job(client, headers, "succeeded")
     assert status["status"] == "succeeded"
     assert status["source_files"] == 20
     assert status["vector_store_chunks"] == 189
+
+    stats = client.get("/api/docs-stats", headers=headers)
+    assert stats.status_code == 200
+    body = stats.get_json()
+    assert body["vector_store_chunks"] == 189
+    assert body["index_build"]["commit"] == "deploy-sha"
+    assert body["index_build"]["vector_store_chunks"] == 189
+    assert body["index_build"]["source_files"] == 20
+
+
+def test_docs_stats_exposes_a_stale_index_receipt(monkeypatch, tmp_path):
+    """A non-empty collection is not proof unless its receipt names the commit."""
+    _isolate_index_job(monkeypatch, tmp_path, commit="new-sha")
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: FakeIndexingChatbot())
+    (tmp_path / "index_build.json").write_text(
+        json.dumps(
+            {
+                "commit": "old-sha",
+                "source_files": 20,
+                "vector_store_chunks": 189,
+            }
+        ),
+        encoding="utf-8",
+    )
+    client = app_module.app.test_client()
+    headers = {"X-Admin-Token": "test-docs-token"}
+
+    body = client.get("/api/docs-stats", headers=headers).get_json()
+
+    assert body["vector_store_chunks"] == 189
+    assert body["scan"]["total_files"] == 20
+    assert body["index_build"]["commit"] == "old-sha"
+
+
+def test_index_job_status_is_shared_across_worker_memory(monkeypatch, tmp_path):
+    _isolate_index_job(monkeypatch, tmp_path)
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: FakeIndexingChatbot())
+    client = app_module.app.test_client()
+    headers = {"X-Admin-Token": "test-docs-token"}
+
+    assert client.post("/api/load-docs?async=true", headers=headers).status_code == 202
+    assert _wait_for_job(client, headers, "succeeded")["status"] == "succeeded"
+
+    app_module._docs_job_state.clear()
+    app_module._docs_job_state.update({"status": "idle"})
+
+    status = client.get("/api/load-docs/status", headers=headers).get_json()
+    assert status["status"] == "succeeded"
+    assert status["commit"] == "deploy-sha"
+    assert status["vector_store_chunks"] == 189
+
+
+def test_failed_rebuild_keeps_the_previous_receipt(monkeypatch, tmp_path):
+    class FailingChatbot(FakeIndexingChatbot):
+        @staticmethod
+        def process_documents():
+            raise RuntimeError("disk full")
+
+    _isolate_index_job(monkeypatch, tmp_path, commit="new-sha")
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: FailingChatbot())
+    (tmp_path / "index_build.json").write_text(
+        json.dumps({"commit": "old-sha", "source_files": 20, "vector_store_chunks": 189}),
+        encoding="utf-8",
+    )
+    client = app_module.app.test_client()
+    headers = {"X-Admin-Token": "test-docs-token"}
+
+    assert client.post("/api/load-docs?async=true", headers=headers).status_code == 202
+    status = _wait_for_job(client, headers, "failed")
+
+    assert status["status"] == "failed"
+    assert status["commit"] == "new-sha"
+    assert "error" in status
+    receipt = client.get("/api/docs-stats", headers=headers).get_json()["index_build"]
+    assert receipt["commit"] == "old-sha"
+
+
+def test_dead_worker_does_not_block_a_new_rebuild(monkeypatch, tmp_path):
+    _isolate_index_job(monkeypatch, tmp_path)
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: FakeIndexingChatbot())
+    (tmp_path / "index_job.json").write_text(
+        json.dumps(
+            {
+                "job_id": "stale-job",
+                "status": "running",
+                "commit": "deploy-sha",
+                "pid": 2147483646,
+                "created_at": time.time(),
+            }
+        ),
+        encoding="utf-8",
+    )
+    client = app_module.app.test_client()
+    headers = {"X-Admin-Token": "test-docs-token"}
+
+    assert app_module._pid_alive(2147483646) is False
+    started = client.post("/api/load-docs?async=true", headers=headers)
+
+    assert started.status_code == 202
+    assert started.get_json()["job_id"] != "stale-job"
+    assert _wait_for_job(client, headers, "succeeded")["status"] == "succeeded"
+
+
+def test_live_worker_rejects_a_second_rebuild(monkeypatch, tmp_path):
+    _isolate_index_job(monkeypatch, tmp_path)
+    (tmp_path / "index_job.json").write_text(
+        json.dumps(
+            {
+                "job_id": "live-job",
+                "status": "running",
+                "commit": "deploy-sha",
+                "pid": os.getpid(),
+                "created_at": time.time(),
+            }
+        ),
+        encoding="utf-8",
+    )
+    client = app_module.app.test_client()
+    headers = {"X-Admin-Token": "test-docs-token"}
+
+    rejected = client.post("/api/load-docs?async=true", headers=headers)
+
+    assert rejected.status_code == 409
+    assert rejected.get_json()["job_id"] == "live-job"
+    assert rejected.get_json()["status"] == "running"
 
 
 def test_evaluation_email_allowlist_is_case_insensitive(monkeypatch):

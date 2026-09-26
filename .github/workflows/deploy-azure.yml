@@ -3,6 +3,25 @@ name: Deploy to Azure App Service
 on:
   push:
     branches: [main]
+    # Documentation-only pushes do not change the running app or the advising
+    # corpus (text and PDF under data/advising_docs). Skip the full deploy so
+    # those commits do not spend the shared Actions minutes. A push that also
+    # changes application code still deploys. Use the workflow_dispatch button
+    # when a docs-only change must be published anyway.
+    paths-ignore:
+      - "docs/**"
+      - "deliverables/**"
+      - "**/*.md"
+      - "**/*.markdown"
+  workflow_dispatch:
+
+# Serialize production publishes. A second push waits until the in-progress
+# deploy finishes, so two runs cannot upload different commits or rebuild the
+# index at the same time. In-progress work is not cancelled: abandoning a zip
+# deploy halfway can leave App Service on a partial release.
+concurrency:
+  group: azure-app-service-production
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -12,10 +31,10 @@ jobs:
       DOCS_LOAD_TOKEN: ${{ secrets.DOCS_LOAD_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -62,68 +81,11 @@ jobs:
           exit 1
 
       # Source snapshots are committed, but the derived Chroma database is
-      # intentionally not. Rebuild it on Azure with the same embedding provider
-      # used at query time, then prove the deployed collection is non-empty.
+      # intentionally not. Rebuild it on Azure, then require the receipt written
+      # by that rebuild to name this commit. A previous collection left on
+      # persistent storage is not proof.
       - name: Rebuild production advising index
-        run: |
-          test -n "$DOCS_LOAD_TOKEN" || {
-            echo "Repository secret DOCS_LOAD_TOKEN is required" >&2
-            exit 1
-          }
-          # The smallest App Service tier can briefly starve the HTTP worker
-          # while local embeddings are being computed. A timeout here does not
-          # mean the accepted background job stopped, so continue to polling.
-          curl --fail --silent --show-error \
-            --max-time 30 \
-            --request POST \
-            --header "X-Admin-Token: $DOCS_LOAD_TOKEN" \
-            "$APP_URL/api/load-docs?async=true" \
-            --output docs-job.json || {
-              result=$?
-              if [ "$result" -ne 28 ]; then
-                exit "$result"
-              fi
-              echo "Rebuild request is still running; waiting for status"
-            }
-          # App Service may route the next request to a different Gunicorn
-          # worker, so verify the shared persistent collection rather than a
-          # process-local job flag.
-          for attempt in {1..80}; do
-            if ! curl --fail --silent --show-error \
-              --max-time 30 \
-              --header "X-Admin-Token: $DOCS_LOAD_TOKEN" \
-              "$APP_URL/api/docs-stats" \
-              --output docs-stats.json; then
-              echo "Index worker is busy; retrying verification ($attempt/80)"
-              sleep 15
-              continue
-            fi
-            source_count="$(jq --raw-output '.scan.total_files // 0' docs-stats.json)"
-            chunk_count="$(jq --raw-output '.vector_store_chunks // 0' docs-stats.json)"
-            if [ "$source_count" -gt 0 ] && [ "$chunk_count" -gt 0 ]; then
-              exit 0
-            fi
-            echo "Index is not ready; retrying verification ($attempt/80)"
-            sleep 15
-          done
-          echo "Document index rebuild did not complete in time" >&2
-          exit 1
+        run: python scripts/verify_deployed_index.py
 
       - name: Verify production advising index
-        run: |
-          curl --fail --silent --show-error \
-            --max-time 60 \
-            --header "X-Admin-Token: $DOCS_LOAD_TOKEN" \
-            "$APP_URL/api/docs-stats" \
-            --output docs-stats.json
-          python - <<'PY'
-          import json
-
-          with open("docs-stats.json", encoding="utf-8") as handle:
-              stats = json.load(handle)
-          chunk_count = stats.get("vector_store_chunks") or 0
-          source_count = stats.get("scan", {}).get("total_files") or 0
-          print(f"Azure advising corpus: {source_count} source files, {chunk_count} chunks")
-          if source_count < 1 or chunk_count < 1:
-              raise SystemExit("Azure advising index is empty")
-          PY
+        run: python scripts/verify_deployed_index.py --verify-only
