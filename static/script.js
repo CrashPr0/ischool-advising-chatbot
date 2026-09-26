@@ -355,13 +355,16 @@ async function loadVoiceConfig() {
     });
     if (response.ok) {
       voiceConfig = normalizeVoiceConfig(await response.json());
+      setServiceStatus("ready");
     } else {
       voiceConfig = normalizeVoiceConfig(DEFAULT_VOICE_CONFIG);
+      setServiceStatus("error");
     }
   } catch (error) {
     // Older deployments do not have the optional route. Browser defaults are
     // safe and preserve voice functionality while the app is upgraded.
     voiceConfig = normalizeVoiceConfig(DEFAULT_VOICE_CONFIG);
+    setServiceStatus("unavailable");
   }
   initializeVoiceControls();
 }
@@ -386,10 +389,14 @@ topicButtons.forEach((btn) => {
     const samples = JSON.parse(btn.dataset.samples || "[]");
     showSampleChips(activeTopic, samples);
 
-    const hint = btn.dataset.hint;
-    if (hint) {
-      sendMessage(hint, true);
-    }
+    // Selecting a topic only focuses the chips. The hint is not a question the
+    // student asked, so it must not spend a completion. Sample chips below
+    // call sendMessage and show the answer.
+    addMessage(
+      `Got it! I'm now focused on ${activeTopic}. Choose a sample question below or type your own!`,
+      "bot-message",
+      "ISDA Bot"
+    );
   });
 });
 
@@ -534,13 +541,11 @@ function updateMeta(info = {}) {
 }
 
 // ── SEND MESSAGE ──
-async function sendMessage(prefilledMessage = null, silent = false) {
+async function sendMessage(prefilledMessage = null) {
   const message = (prefilledMessage || userInput.value).trim();
   if (!message) return;
 
-  if (!silent) {
-    addMessage(message, "user-message", "You");
-  }
+  addMessage(message, "user-message", "You");
 
   userInput.value = "";
   showTypingIndicator();
@@ -562,54 +567,46 @@ async function sendMessage(prefilledMessage = null, silent = false) {
       return;
     }
 
-    if (!silent) {
-      const responseText =
-        data.response || "I couldn't find an answer for that question.";
-      addMessage(responseText, "bot-message", "ISDA Bot");
-      updateMeta({
-        source: data.source,
-        confidence: data.confidence,
-        retrieved_docs: data.retrieved_docs
-      });
-      speakResponse(responseText);
-    } else {
-      addMessage(
-        `Got it! I'm now focused on ${activeTopic}. Choose a sample question below or type your own!`,
-        "bot-message",
-        "ISDA Bot"
-      );
-    }
-
+    const responseText =
+      data.response || "I couldn't find an answer for that question.";
+    addMessage(responseText, "bot-message", "ISDA Bot");
+    updateMeta({
+      source: data.source,
+      confidence: data.confidence,
+      retrieved_docs: data.retrieved_docs
+    });
+    speakResponse(responseText);
   } catch (error) {
     removeTypingIndicator();
-    if (!silent) {
-      addMessage(
-        "Sorry, I couldn't connect to the chatbot backend right now.",
-        "bot-message",
-        "ISDA Bot"
-      );
-    }
+    addMessage(
+      "Sorry, I couldn't connect to the chatbot backend right now.",
+      "bot-message",
+      "ISDA Bot"
+    );
     console.error("Chat error:", error);
   }
 }
 
 // ── STATUS ──
-async function loadStatus() {
-  try {
-    const response = await fetch(apiUrl("/api/status"));
-    const data = await response.json();
-
-    if (data.status === "ready") {
-     statusText.textContent = "Ready to help";
-providerText.textContent = "Advising support is available.";
-    } else {
-      statusText.textContent = "Status: error";
-      providerText.textContent = data.error || "Could not load status.";
-    }
-  } catch (error) {
-    statusText.textContent = "Status: unavailable";
-    providerText.textContent = "Could not connect to backend status endpoint.";
+// /api/status builds the full RAG stack (Chroma plus the chat model) inside
+// the request. Page load must not do that. /api/voice-config is already
+// fetched below, is under /api so the static docs page can call it cross-origin,
+// and does not open the index. The index loads on the first real question.
+function setServiceStatus(state, detail) {
+  if (!statusText || !providerText) return;
+  if (state === "ready") {
+    statusText.textContent = "Ready to help";
+    providerText.textContent = "Advising support is available.";
+    return;
   }
+  if (state === "error") {
+    statusText.textContent = "Status: error";
+    providerText.textContent = detail || "Could not load status.";
+    return;
+  }
+  statusText.textContent = "Status: unavailable";
+  providerText.textContent =
+    detail || "Could not connect to backend status endpoint.";
 }
 
 // ── CLEAR ──
@@ -685,5 +682,4 @@ if (voiceLanguageSelect) {
   });
 }
 
-loadStatus();
 loadVoiceConfig();

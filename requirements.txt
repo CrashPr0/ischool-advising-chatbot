@@ -1,44 +1,59 @@
+# Direct dependencies are pinned here. Transitive versions are locked in
+# constraints.txt. The -c line is inside this file so Azure Oryx's
+# `pip install -r requirements.txt` applies the lock without a custom build
+# command.
+-c constraints.txt
+
+# python-dotenv 1.0.0 is PYSEC-2026-2270, fixed in 1.2.2. 1.2.3 is the current
+# patched release. This app only calls load_dotenv(); it does not call set_key().
+python-dotenv==1.2.3
+
 # Core Dependencies
-python-dotenv==1.0.0
-langchain>=0.1.0
-langchain-community>=0.0.10
-langchain-core>=0.1.0
-langchain-text-splitters>=0.3.0
+langchain==1.4.2
+langchain-community==0.4.2
+langchain-core==1.6.5
+langchain-text-splitters==1.1.2
 
 # Web Framework
-Flask>=3.0.0
-flask-cors>=4.0.0
-Werkzeug>=3.0.0
-gunicorn>=21.2.0
+Flask==3.1.3
+flask-cors==6.0.5
+Werkzeug==3.1.8
+gunicorn==26.2.0
 
 # LLM Providers
-openai>=1.0.0
-anthropic>=0.7.0
-langchain-anthropic>=0.1.0
+openai==3.19.2
+anthropic==1.8.0
+langchain-anthropic==1.7.4
 # Also powers OpenAI-compatible endpoints (DeepSeek, Qwen/DashScope, Zhipu,
 # and self-hosted gateways) through ChatOpenAI(base_url=...).
-langchain-openai>=0.1.0
+langchain-openai==1.6.6
 
 # Vector stores and embeddings
-chromadb>=1.5.8
-langchain-chroma>=0.1.0
+# chromadb 1.5.9 is the newest release and still has no patched build for
+# PYSEC-2026-311 / CVE-2026-45829, PYSEC-2026-3813, PYSEC-2026-3814, or
+# PYSEC-2026-3815. This app uses embedded Chroma, not Chroma's HTTP server,
+# so those bugs are not reachable from the chat UI. Keep this pin until an
+# advisory lists a fix version. The CI audit reports these and does not fail
+# the build while they remain unfixed.
+chromadb==1.5.9
+langchain-chroma==1.1.0
 # Chroma can use the stdlib sqlite3 on macOS; the replacement package has no
 # reliable macOS wheel, so keep it for Linux deployments that need it.
-pysqlite3-binary>=0.5.2; platform_system == "Linux"
+pysqlite3-binary==0.5.4.post2; platform_system == "Linux"
 
 # Document processing
-pypdf>=3.17.0
-PyYAML>=6.0.0
-trafilatura>=1.6.0
-beautifulsoup4>=4.12.0
+pypdf==6.19.0
+PyYAML==6.0.3
+trafilatura==2.2.0
+beautifulsoup4==4.15.0
 # Local Hugging Face embeddings are intentionally kept out of the Azure web
 # package because PyTorch makes App Service extraction exceed its startup
 # deadline. Install requirements-local.txt when local embeddings are needed.
 
 # Utilities
-requests>=2.31.0
+requests==2.34.2
 
 # Testing
-pytest>=7.4.0
-black>=23.0.0
-flake8>=6.0.0
+pytest==9.1.1
+black==26.5.1
+flake8==7.4.1

@@ -129,7 +129,10 @@ class TestLLMFactory:
 
         assert llm.kwargs == {
             "model": "deepseek-test",
-            "temperature": 0.7,
+            "temperature": 0.2,
+            "timeout": 45.0,
+            "max_retries": 2,
+            "max_tokens": 1024,
             "api_key": "test-key",
             "base_url": "https://api.example.test",
         }
