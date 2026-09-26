@@ -11,13 +11,18 @@ There is no `deploy.yml`. The workflow runs tests, builds a zip of that
 commit, deploys it, waits until `/healthz` reports the new commit, then
 rebuilds the advising index and checks the receipt.
 
+Portal changes that are not in git are recorded in
+[`docs/ops-log.md`](docs/ops-log.md). Secret values are never written there.
+
 | | |
 | --- | --- |
 | App name | `ischooladvisingchatbot-dx4ynl` |
 | URL | `https://ischooladvisingchatbot-dx4ynl.azurewebsites.net` |
 | Plan | Linux, Basic B1 |
 | Build | Oryx (`SCM_DO_BUILD_DURING_DEPLOYMENT=true`) |
-| Process | `Procfile`: `gunicorn --config gunicorn.conf.py app:app` (`gthread`, 2 workers, 4 threads, 180s timeout) |
+| Process | Procfile, Dockerfile, and the portal startup command: `gunicorn --config gunicorn.conf.py app:app` (`gthread`, 2 workers, 4 threads, 180s timeout, bind `$PORT`) |
+| Health check | `/healthz` (liveness). `/readyz` is the index receipt, not the platform probe. |
+| HTTPS Only | Enabled. HTTP 301-redirects to HTTPS. |
 
 Oryx runs each release from an extracted copy under `/tmp`. That copy is
 deleted on restart or redeploy. **`/home` is the persistent share.** Do not
@@ -36,32 +41,35 @@ With the variables unset, App Service uses:
 Local development, with the same variables unset, keeps using `./data/chroma`
 and `evals/reviews.sqlite3` beside the app.
 
-An explicit `VECTOR_STORE_PATH` or `EVAL_DB_PATH` overrides the default. If
-App Service still has `VECTOR_STORE_PATH=/tmp/chroma` (or `./data/chroma`)
-from an older guide, remove it or set `/home/data/chroma`. The next deploy
-rebuilds the index in the path the app is actually using. The workflow's
-rebuild and verify steps call the app; they do not hard-code a directory.
+An explicit `VECTOR_STORE_PATH` or `EVAL_DB_PATH` overrides those defaults.
+Leave `VECTOR_STORE_PATH` unset on this App Service so the index stays at
+`/home/data/chroma`. `EVAL_DB_PATH` may be unset or set to
+`/home/data/evaluation/reviews.sqlite3`; both select that file. Do not set
+either variable to `/tmp/chroma`, `./data/chroma`, or a path under
+`/home/site/wwwroot` (zip deploy replaces wwwroot). The workflow's rebuild
+and verify steps call the app; they do not hard-code a directory.
 
 `EVAL_RESULTS_PATH` stays the `evals/results/latest.json` shipped in the
 release unless you set it.
 
-## Back up the reviews database before the path change
+## Reviews database backup
 
-The live reviews file is still at the old default: `evals/reviews.sqlite3`
-next to `app.py`. On the current host that is usually inside the Oryx
-extract under `/tmp`. A restart deletes it. Paste this into the App Service
-SSH or Kudu Bash console **before** merging. It uses only the Python standard
-library. It prints every `reviews.sqlite3` under `/tmp`, `/home/site/wwwroot`,
-and `/home/data`, then copies the newest file that has at least one
-`evaluation_reviews` row. It refuses to overwrite
+The live reviews file is `/home/data/evaluation/reviews.sqlite3`. The copy
+taken before PR #7 merged is recorded in [`docs/ops-log.md`](docs/ops-log.md)
+(`/home/data/evaluation/reviews-backup-20260926.sqlite3`, 16 rows). The
+snippet below is the earlier migration helper. It uses only the Python
+standard library. It prints every `reviews.sqlite3` under `/tmp`,
+`/home/site/wwwroot`, and `/home/data` — those roots are places a leftover
+file might still be sitting, not paths to configure — then copies the newest
+file that has at least one `evaluation_reviews` row. It refuses to overwrite
 `/home/data/evaluation/reviews.sqlite3` if that file already exists, and it
 never moves or deletes the source.
 
-If the new code starts first and someone opens `/evaluation`, the app creates
-an empty database at the durable path, and a later copy will not overwrite it.
-Run the snippet first. `OK` means both copies have the same row count as the
-source. `FAIL` with "no reviews.sqlite3" means a restart may already have
-wiped the old file; restore from an earlier download if you have one.
+Because the durable file already exists, pasting this into Kudu SSH on
+production stops with FAIL and copies nothing. `OK` means both copies have
+the same row count as the source. Opening `/evaluation` against a missing
+durable file creates an empty database, and a later copy will not overwrite
+it.
 
 ```bash
 python3 - <<'EOF'
@@ -279,10 +287,14 @@ On this Linux app the Kudu VFS root is `/home`, so that path is
 `/home/data/evaluation/reviews-backup-before-durable-path.sqlite3`. The snippet
 also prints the URL when `WEBSITE_SITE_NAME` is set.
 
-The app's own copy, if the durable file is still missing, runs the first time
-the evaluation store opens. The log line `Copied reviews database from ...`
+The app's own copy runs only when the durable file is still missing, the first
+time the evaluation store opens. The log line `Copied reviews database from ...`
 means it found a legacy file. `no legacy database was found` means nothing was
-copied. Restore the Kudu download before that first `/evaluation` request.
+copied. On the current app that file is already at
+`/home/data/evaluation/reviews.sqlite3`. The download URL above belongs to this
+helper, which writes it only when the durable file does not exist yet. The
+backup that was actually taken is the 2026-09-26 file in
+[`docs/ops-log.md`](docs/ops-log.md).
 
 ## Required App Service settings
 
@@ -290,17 +302,30 @@ Portal: the app → **Settings → Configuration**, and **Settings → Authentic
 
 | Setting | What to confirm |
 | --- | --- |
-| Authentication (Easy Auth) | Enabled. The app reads `X-MS-CLIENT-PRINCIPAL-NAME` only when `WEBSITE_AUTH_ENABLED` is true; otherwise that header is ignored. Keep `EVAL_ACCESS_TOKEN` set until Easy Auth is confirmed. |
-| HTTPS Only | On (Configuration → General settings, or TLS/SSL settings). |
+| Authentication (Easy Auth) | The app reads `X-MS-CLIENT-PRINCIPAL-NAME` only when the platform sets `WEBSITE_AUTH_ENABLED`. Otherwise that header is ignored. |
+| HTTPS Only | Enabled. HTTP 301-redirects to HTTPS. Required for the Secure session cookie (`SESSION_COOKIE_SECURE=true`). |
 | `SESSION_SECRET_KEY` | A long random value, stable across restarts. Not the `.env.example` placeholder. An unset key is a new random value every process start, which logs reviewers out. |
 | `SESSION_COOKIE_SECURE` | `true` |
 | `DOCS_LOAD_TOKEN` | A long random value. The same value must be the GitHub Actions secret `DOCS_LOAD_TOKEN`. Placeholder values disable index rebuilds. |
-| `EVAL_ACCESS_TOKEN` | A long random shared secret for `/evaluation`. |
+| `EVAL_ACCESS_TOKEN` | Read by the app for `/evaluation`. Not set in production today. With it unset, sign-in uses `EVAL_ALLOWED_REVIEWERS` or Easy Auth. A public deploy with none of those three returns 503. |
 | `SCM_DO_BUILD_DURING_DEPLOYMENT` | `true`, or Oryx never installs `requirements.txt` and Gunicorn fails with `No module named 'flask_cors'`. |
 | Azure OpenAI (or the chosen provider) | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, and `DEFAULT_LLM_PROVIDER`. `EMBEDDING_PROVIDER` stays `hashing` unless you intentionally pay for hosted embeddings. |
 
-Leave `VECTOR_STORE_PATH` and `EVAL_DB_PATH` unset so the `/home/data` defaults
-apply. Do not set `VECTOR_STORE_PATH=/tmp/chroma`.
+Leave `VECTOR_STORE_PATH` unset so `/home/data/chroma` applies. Do not set
+`VECTOR_STORE_PATH=/tmp/chroma` or `/home/site/wwwroot/data/chroma`.
+`EVAL_DB_PATH` may be unset or set to `/home/data/evaluation/reviews.sqlite3`.
+
+[`docs/ops-log.md`](docs/ops-log.md) lists the app setting names present after
+the latest out-of-band change. The app reads `EVAL_ACCESS_TOKEN` when it is
+set. It is not set in production today. A non-local sign-in then requires
+`EVAL_ALLOWED_REVIEWERS` (that name is set) or Easy Auth
+(`WEBSITE_AUTH_ENABLED`, which the platform sets only when Authentication is
+on). Localhost can open the workspace without either. These app settings are
+platform switches the Python code does not read, so they are not in
+`.env.example`: `PYTHONUNBUFFERED`, `SCM_DO_BUILD_DURING_DEPLOYMENT`,
+`WEBSITE_HTTPLOGGING_RETENTION_DAYS`, and `WEBSITES_PORT`. Gunicorn binds to
+`PORT` (default 8000 in `gunicorn.conf.py`). `WEBSITES_PORT` has to be that
+same port. `SCM_DO_BUILD_DURING_DEPLOYMENT` must stay `true`.
 
 GitHub repository secrets used by the workflow:
 
@@ -457,8 +482,10 @@ change, the reviews copy line.
   check at `/api/chat` or `/readyz`.
 - **Answers fall back to "not enough information" while `/healthz` is green**
   — the index path is empty or ephemeral. Confirm `VECTOR_STORE_PATH` is unset
-  or `/home/data/chroma`, then rerun the workflow.
+  (the app then uses `/home/data/chroma`) and is not `/tmp/chroma` or a path
+  under `/home/site/wwwroot`, then rerun the workflow.
 - **Evaluation workspace has no previous reviews** — the durable file was
-  created empty. Restore `/home/data/evaluation/reviews-backup-before-durable-path.sqlite3`
+  created empty. The backup recorded in `docs/ops-log.md` is
+  `/home/data/evaluation/reviews-backup-20260926.sqlite3`. Restore a backup
   only after stopping traffic to `/evaluation`, and only if you are replacing
   an empty file you just confirmed is empty. Do not delete the backup.
