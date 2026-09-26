@@ -1,21 +1,257 @@
 """RAG-enhanced chatbot with knowledge base and document retrieval."""
+
 import logging
 import os
 import re
+import time
 from typing import List, Optional, Dict
 from langchain_core.prompts import PromptTemplate
+
 try:
-    from .llm_providers import LLMFactory
+    from .config import Config
+    from .llm_providers import LLMFactory, REASONING_RETRY
     from .knowledge_base import get_knowledge_base
-    from .document_processor import DocumentProcessor
+    from .document_processor import (
+        DocumentProcessor,
+        _is_rate_limit,
+        chat_request_metrics,
+    )
 except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
-    from llm_providers import LLMFactory
+    from config import Config
+    from llm_providers import LLMFactory, REASONING_RETRY
     from knowledge_base import get_knowledge_base
-    from document_processor import DocumentProcessor
+    from document_processor import (
+        DocumentProcessor,
+        _is_rate_limit,
+        chat_request_metrics,
+    )
 
 
 logger = logging.getLogger(__name__)
+
+# Latency replies. Search for these names. They are HTTP 200 chat payloads,
+# not the generic apology in ``_ERROR_RESPONSE`` and not the crisis/distress
+# safety templates.
+#
+# BUSY_RESPONSE: primary deployment returned 429, timed out, or returned 5xx,
+# and AZURE_OPENAI_FALLBACK_DEPLOYMENT is unset or that deployment also failed.
+# FILTERED_RESPONSE: Azure content filter (openai BadRequestError code
+# ``content_filter`` / ResponsibleAIPolicyViolation).
+_ADVISING_URL = "https://ischoolapps.sjsu.edu/advising/index.php"
+BUSY_RESPONSE = (
+    "The advising assistant is busy right now. Please try again in about a minute."
+)
+BUSY_RESPONSE_ZH = "咨询助手现在比较忙。请大约一分钟后再试。"
+FILTERED_RESPONSE = (
+    "I can't answer that wording because it was blocked by a safety filter. "
+    "Please rephrase your question about the ISDA program. "
+    "For help from a person, contact the iSchool advising team: "
+    f"{_ADVISING_URL}"
+)
+FILTERED_RESPONSE_ZH = (
+    "这句话被安全过滤器拦截了，我无法按原样回答。"
+    "请换一种说法来提问 ISDA 项目的问题。"
+    f"如需人工帮助，请联系 iSchool 咨询团队：{_ADVISING_URL}"
+)
+_ERROR_RESPONSE = (
+    "I’m sorry, but I couldn’t generate a response right now. "
+    "Please try again or contact the iSchool advising team."
+)
+_TRUE_ENV = {"1", "true", "yes", "on"}
+
+
+class _Busy(Exception):
+    """The chat model is rate-limited or unavailable. Reply with BUSY_RESPONSE."""
+
+
+class _Filtered(Exception):
+    """Azure content filter blocked this question. Reply with FILTERED_RESPONSE."""
+
+    def __init__(self, category: str = ""):
+        super().__init__(category or "content_filter")
+        self.category = category or ""
+
+
+def _chat_debug_timings_enabled() -> bool:
+    """True only when CHAT_DEBUG_TIMINGS explicitly asks for timings in JSON."""
+    return os.getenv("CHAT_DEBUG_TIMINGS", "").strip().lower() in _TRUE_ENV
+
+
+def _deployment_label() -> str:
+    """Name the deployment this process will call, without raising."""
+    try:
+        provider = Config.normalize_provider(Config.DEFAULT_LLM_PROVIDER)
+    except Exception:
+        return "-"
+    if provider == "azure_openai":
+        name = str(Config.AZURE_OPENAI_DEPLOYMENT or "").strip()
+    elif provider == "openai":
+        name = str(Config.OPENAI_MODEL or "").strip()
+    elif provider == "anthropic":
+        name = str(Config.ANTHROPIC_MODEL or "").strip()
+    elif provider == "huggingface":
+        name = str(Config.HUGGINGFACE_MODEL or "").strip()
+    else:
+        name = provider
+    return name or "-"
+
+
+def _new_request_metrics() -> dict:
+    return {
+        "retrieval_ms": 0.0,
+        "embedding_ms": 0.0,
+        "llm_ms": 0.0,
+        "total_ms": 0.0,
+        "llm_attempts": 0,
+        "rate_limit_count": 0,
+        "deployment": _deployment_label(),
+        "error_type": "",
+        "error_message": "",
+        "filter_category": "",
+    }
+
+
+def _timings_payload(metrics: dict) -> dict:
+    """JSON timings. ``retrieval_ms`` includes the embedding call."""
+    return {
+        "retrieval_ms": round(float(metrics.get("retrieval_ms", 0.0)), 1),
+        "embedding_ms": round(float(metrics.get("embedding_ms", 0.0)), 1),
+        "llm_ms": round(float(metrics.get("llm_ms", 0.0)), 1),
+        "total_ms": round(float(metrics.get("total_ms", 0.0)), 1),
+        "llm_attempts": int(metrics.get("llm_attempts", 0)),
+        "rate_limit_count": int(metrics.get("rate_limit_count", 0)),
+        "deployment": str(metrics.get("deployment") or "-"),
+    }
+
+
+def _short_error_message(exc: BaseException) -> str:
+    text = " ".join(str(exc).split()).replace('"', "'")
+    if len(text) > 160:
+        text = text[:157] + "..."
+    return text or type(exc).__name__
+
+
+def _iter_exceptions(exc: BaseException):
+    seen: set[int] = set()
+    stack = [exc]
+    while stack and len(seen) < 8:
+        current = stack.pop()
+        if not isinstance(current, BaseException) or id(current) in seen:
+            continue
+        seen.add(id(current))
+        yield current
+        cause = getattr(current, "__cause__", None)
+        context = getattr(current, "__context__", None)
+        if isinstance(cause, BaseException):
+            stack.append(cause)
+        if isinstance(context, BaseException) and context is not cause:
+            stack.append(context)
+
+
+def _error_dict(exc: BaseException) -> dict:
+    body = getattr(exc, "body", None)
+    if not isinstance(body, dict):
+        return {}
+    error = body.get("error")
+    if isinstance(error, dict):
+        return error
+    return body
+
+
+def _is_content_filter(exc: BaseException) -> bool:
+    """True for Azure content-filter 400s, not for other bad requests."""
+    for current in _iter_exceptions(exc):
+        if str(getattr(current, "code", "") or "") == "content_filter":
+            return True
+        error = _error_dict(current)
+        if str(error.get("code", "") or "") == "content_filter":
+            return True
+        inner = error.get("innererror") or error.get("inner_error") or {}
+        if isinstance(inner, dict) and (
+            str(inner.get("code", "") or "") == "ResponsibleAIPolicyViolation"
+        ):
+            return True
+        text = str(current)
+        if "ResponsibleAIPolicyViolation" in text or "content_filter" in text:
+            return True
+    return False
+
+
+def _filter_category(exc: BaseException) -> str:
+    """Comma-separated filter categories that Azure marked filtered or detected."""
+    found: List[str] = []
+    for current in _iter_exceptions(exc):
+        inner = _error_dict(current).get("innererror") or _error_dict(current).get(
+            "inner_error"
+        )
+        if not isinstance(inner, dict):
+            continue
+        result = inner.get("content_filter_result") or {}
+        if not isinstance(result, dict):
+            continue
+        for name, info in result.items():
+            if not isinstance(info, dict):
+                continue
+            if info.get("filtered") or info.get("detected"):
+                label = str(name).strip()
+                if label and label not in found:
+                    found.append(label)
+    return ",".join(found)
+
+
+def _status_code(exc: BaseException) -> Optional[int]:
+    for current in _iter_exceptions(exc):
+        code = getattr(current, "status_code", None)
+        if isinstance(code, int):
+            return code
+        response = getattr(current, "response", None)
+        code = getattr(response, "status_code", None)
+        if isinstance(code, int):
+            return code
+    return None
+
+
+def _is_timeout(exc: BaseException) -> bool:
+    for current in _iter_exceptions(exc):
+        if "timeout" in type(current).__name__.lower():
+            return True
+    return False
+
+
+def _is_transient_llm_failure(exc: BaseException) -> bool:
+    """429, timeout, or 5xx. Content-filter 400s are not retried on the fallback."""
+    if _is_content_filter(exc):
+        return False
+    if _is_rate_limit(exc) or _is_timeout(exc):
+        return True
+    code = _status_code(exc)
+    return code is not None and 500 <= code <= 599
+
+
+def _needs_reasoning_retry(exc: BaseException) -> bool:
+    """True when a fallback deployment rejected temperature or max_tokens."""
+    text = " ".join(str(current).lower() for current in _iter_exceptions(exc))
+    if "temperature" in text and (
+        "not supported" in text or "unsupported" in text or "only the default" in text
+    ):
+        return True
+    return "max_tokens" in text and "max_completion_tokens" in text
+
+
+def _message_text(llm_response) -> str:
+    if hasattr(llm_response, "content"):
+        return str(llm_response.content)
+    return str(llm_response)
+
+
+def _note_llm_rate_limit(exc: BaseException, metrics: dict) -> None:
+    if _is_rate_limit(exc):
+        metrics["rate_limit_count"] = int(metrics.get("rate_limit_count", 0)) + 1
+
+
+def _fallback_deployment() -> str:
+    return os.getenv("AZURE_OPENAI_FALLBACK_DEPLOYMENT", "").strip()
 
 
 def _bounded_env_int(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -31,13 +267,13 @@ def _bounded_env_int(name: str, default: int, minimum: int, maximum: int) -> int
 class RAGAdvisingChatbot:
     """
     Retrieval Augmented Generation (RAG) chatbot for iSchool advising.
-    
+
     Combines:
     1. Hardcoded knowledge base for common questions
     2. Document retrieval for context
     3. LLM for complex questions
     """
-    
+
     SYSTEM_PROMPT = """You are the ISDA Advising Support Chatbot for San José State University's \
 BS in Information Science and Data Analytics program.
 
@@ -56,11 +292,13 @@ https://ischoolapps.sjsu.edu/advising/index.php.
 6. Do not access or reference personal student records.
 7. Follow the response-language instruction exactly. Never infer the response
    language from retrieved documents, URLs, model defaults, or prior requests."""
-    
-    def __init__(self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None):
+
+    def __init__(
+        self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None
+    ):
         """
         Initialize the RAG chatbot.
-        
+
         Args:
             llm_provider: LLM provider to use (openai, anthropic, huggingface)
             docs_path: Path to advising documents directory
@@ -74,14 +312,14 @@ https://ischoolapps.sjsu.edu/advising/index.php.
         # visitor's messages to another. This list remains only for backwards
         # compatibility with direct CLI callers that explicitly request it.
         self.conversation_history: List[dict] = []
-        
+
         # Try to load or create vector store
         print("Initializing RAG system...")
         if not self.doc_processor.load_vector_store():
             print("No existing vector store found. To use document retrieval:")
             print("1. Place .txt or .pdf files in ./data/advising_docs/")
             print("2. Or call chatbot.process_documents()")
-        
+
         # Create the prompt template
         self.prompt_template = PromptTemplate(
             input_variables=["context", "language_instruction", "question"],
@@ -93,34 +331,34 @@ Response Language: {{language_instruction}}
 
 Student Question: {{question}}
 
-Assistant Response:"""
+Assistant Response:""",
         )
-        
+
         # Create the chain using the pipe operator (modern Langchain API)
         self.chain = self.prompt_template | self.llm
-    
+
     def process_documents(self, docs_path: Optional[str] = None) -> None:
         """
         Load and process advising documents.
-        
+
         Args:
             docs_path: Optional path to documents directory
         """
         if docs_path:
             self.doc_processor.docs_path = docs_path
-        
+
         print(f"Processing documents from {self.doc_processor.docs_path}...")
         self.doc_processor.process_and_index()
-    
+
     def chat(self, user_message: str, history: Optional[List[dict]] = None) -> Dict:
         """
         Send a message and get a response using RAG.
-        
+
         The response chain:
         1. Check knowledge base for hardcoded answers
         2. If not found, retrieve relevant documents
         3. Use LLM with document context to generate response
-        
+
         Args:
             user_message: The student's question
             history: Optional prior turns. ``None`` leaves retrieval and the
@@ -129,7 +367,7 @@ Assistant Response:"""
                 (``user_message`` / ``response``). Follow-ups such as
                 "what about the prerequisites?" retrieve with the previous
                 student question and the model sees those turns as context.
-            
+
         Returns:
             Dict with response metadata
         """
@@ -145,21 +383,38 @@ Assistant Response:"""
         response_data = {
             "user_message": user_message,
             "response": None,
-            "source": None,  # "knowledge_base", "rag", or "llm"
+            "source": None,  # "knowledge_base", "rag", "llm", "busy", "filtered", or "error"
             "retrieved_docs": [],
-            "confidence": None
+            "confidence": None,
         }
-        
+        metrics = _new_request_metrics()
+        token = chat_request_metrics.set(metrics)
+        started = time.perf_counter()
+        try:
+            return self._chat_with_metrics(
+                user_message, history, response_data, metrics, started
+            )
+        finally:
+            chat_request_metrics.reset(token)
+
+    def _chat_with_metrics(
+        self,
+        user_message: str,
+        history: Optional[List[dict]],
+        response_data: dict,
+        metrics: dict,
+        started: float,
+    ) -> Dict:
         # Step 1: Check knowledge base first
         kb_answer = self.knowledge_base.find_answer(user_message)
-        
+
         if kb_answer:
             response_data["response"] = kb_answer["answer"]
             response_data["source"] = "knowledge_base"
             response_data["confidence"] = kb_answer["confidence"]
-            
+
             print(f"[Knowledge Base Hit] Matched: {kb_answer['matched_question']}")
-        
+
         else:
             # Step 2: Retrieve relevant documents. A short follow-up has no
             # terms of its own, so the previous student question is included
@@ -168,17 +423,19 @@ Assistant Response:"""
             prior_turns = _session_turns(history)
             retrieval_query = _retrieval_query_with_history(user_message, prior_turns)
             top_k = _bounded_env_int("RAG_TOP_K", 5, 1, 20)
+            retrieval_started = time.perf_counter()
             retrieved_docs = self.doc_processor.retrieve_relevant_docs(
                 retrieval_query, k=top_k
             )
+            metrics["retrieval_ms"] = (time.perf_counter() - retrieval_started) * 1000.0
             response_data["retrieved_docs"] = [
                 {
                     "content": doc.page_content,
-                    "source": doc.metadata.get("source", "unknown")
+                    "source": doc.metadata.get("source", "unknown"),
                 }
                 for doc in retrieved_docs
             ]
-            
+
             # Step 3: Build context from retrieved documents
             context = _prior_turns_context(prior_turns) + self._build_context(
                 user_message, retrieved_docs
@@ -188,47 +445,154 @@ Assistant Response:"""
                 response_data["response"] = self._missing_context_response(user_message)
                 response_data["source"] = "fallback"
                 response_data["confidence"] = 0.2
-                if history is not None:
-                    history.append(response_data)
-                return response_data
-            
-            # Step 4: Generate response with LLM
+                return self._finalize(response_data, history, metrics, started)
+
+            # Step 4: Generate response with LLM. 429 / timeout / 5xx try the
+            # optional fallback deployment immediately. Content-filter errors
+            # do not.
+            payload = {
+                "context": context,
+                "language_instruction": self._response_language_instruction(
+                    user_message
+                ),
+                "question": user_message,
+            }
+            llm_started = time.perf_counter()
             try:
-                llm_response = self.chain.invoke(
-                    {
-                        "context": context,
-                        "language_instruction": self._response_language_instruction(
-                            user_message
-                        ),
-                        "question": user_message,
-                    }
-                )
-                response_text = (
-                    llm_response.content
-                    if hasattr(llm_response, "content")
-                    else str(llm_response)
-                )
+                response_text = self._generate(payload, metrics)
                 response_limit = _bounded_env_int(
                     "RAG_RESPONSE_MAX_CHARS", 12_000, 500, 50_000
                 )
                 response_data["response"] = str(response_text)[:response_limit]
                 response_data["source"] = "rag" if retrieved_docs else "llm"
                 response_data["confidence"] = 0.7 if retrieved_docs else 0.5
-            except Exception:
+            except _Filtered as filtered:
+                metrics["filter_category"] = filtered.category
+                response_data["response"] = self._filtered_text(user_message)
+                response_data["source"] = "filtered"
+            except _Busy:
+                response_data["response"] = self._busy_text(user_message)
+                response_data["source"] = "busy"
+            except Exception as exc:
                 logger.exception("Error generating chatbot response")
-                response_data["response"] = (
-                    "I’m sorry, but I couldn’t generate a response right now. "
-                    "Please try again or contact the iSchool advising team."
-                )
+                metrics["error_type"] = type(exc).__name__
+                metrics["error_message"] = _short_error_message(exc)
+                response_data["response"] = _ERROR_RESPONSE
                 response_data["source"] = "error"
+            finally:
+                metrics["llm_ms"] = (time.perf_counter() - llm_started) * 1000.0
 
+        return self._finalize(response_data, history, metrics, started)
+
+    def _finalize(
+        self,
+        response_data: dict,
+        history: Optional[List[dict]],
+        metrics: dict,
+        started: float,
+    ) -> Dict:
+        """Log one timings line, then return. History does not store timings."""
+        metrics["total_ms"] = (time.perf_counter() - started) * 1000.0
+        self._log_chat_request(response_data, metrics)
         # Append only to the list the caller passed in. The web route passes
         # a snapshot copy and writes the session store itself, so this append
         # cannot change what the next request will see.
         if history is not None:
-            history.append(response_data)
-        
+            history.append(
+                {key: value for key, value in response_data.items() if key != "timings"}
+            )
+        if _chat_debug_timings_enabled():
+            response_data["timings"] = _timings_payload(metrics)
         return response_data
+
+    def _log_chat_request(self, response_data: dict, metrics: dict) -> None:
+        """One INFO line per request. ``retrieval_ms`` includes embedding."""
+        source = response_data.get("source") or "-"
+        deployment = str(metrics.get("deployment") or "-").replace(" ", "_")
+        message = (
+            "chat_request "
+            f"source={source} "
+            f"retrieval_ms={float(metrics.get('retrieval_ms', 0.0)):.1f} "
+            f"embedding_ms={float(metrics.get('embedding_ms', 0.0)):.1f} "
+            f"llm_ms={float(metrics.get('llm_ms', 0.0)):.1f} "
+            f"total_ms={float(metrics.get('total_ms', 0.0)):.1f} "
+            f"llm_attempts={int(metrics.get('llm_attempts', 0))} "
+            f"rate_limit_count={int(metrics.get('rate_limit_count', 0))} "
+            f"deployment={deployment}"
+        )
+        if source == "error":
+            error_type = metrics.get("error_type") or "Exception"
+            error_message = metrics.get("error_message") or error_type
+            message += f' error_type={error_type} error_message="{error_message}"'
+        category = str(metrics.get("filter_category") or "").strip().replace(" ", "_")
+        if source == "filtered" and category:
+            message += f" filter_category={category}"
+        logger.info(message)
+
+    def _generate(self, payload: dict, metrics: dict) -> str:
+        """Call the primary model, then an optional Azure fallback deployment."""
+        metrics["llm_attempts"] = int(metrics.get("llm_attempts", 0)) + 1
+        try:
+            return _message_text(self.chain.invoke(payload))
+        except Exception as exc:
+            _note_llm_rate_limit(exc, metrics)
+            if _is_content_filter(exc):
+                raise _Filtered(_filter_category(exc)) from exc
+            if not _is_transient_llm_failure(exc):
+                raise
+            fallback = _fallback_deployment()
+            primary = str(metrics.get("deployment") or "")
+            if not fallback or fallback == primary:
+                raise _Busy() from exc
+            return self._generate_fallback(payload, fallback, metrics)
+
+    def _generate_fallback(self, payload: dict, deployment: str, metrics: dict) -> str:
+        metrics["deployment"] = deployment
+        try:
+            chain = self.prompt_template | LLMFactory.create_llm(
+                "azure_openai", model=deployment
+            )
+        except Exception as exc:
+            raise _Busy() from exc
+        metrics["llm_attempts"] = int(metrics.get("llm_attempts", 0)) + 1
+        try:
+            return _message_text(chain.invoke(payload))
+        except Exception as exc:
+            _note_llm_rate_limit(exc, metrics)
+            if _is_content_filter(exc):
+                raise _Filtered(_filter_category(exc)) from exc
+            if _needs_reasoning_retry(exc):
+                return self._generate_reasoning_fallback(payload, deployment, metrics)
+            raise _Busy() from exc
+
+    def _generate_reasoning_fallback(
+        self, payload: dict, deployment: str, metrics: dict
+    ) -> str:
+        """Retry the fallback once without temperature, using max_completion_tokens."""
+        try:
+            chain = self.prompt_template | LLMFactory.create_llm(
+                "azure_openai", model=deployment, temperature=REASONING_RETRY
+            )
+        except Exception as exc:
+            raise _Busy() from exc
+        metrics["llm_attempts"] = int(metrics.get("llm_attempts", 0)) + 1
+        try:
+            return _message_text(chain.invoke(payload))
+        except Exception as exc:
+            _note_llm_rate_limit(exc, metrics)
+            if _is_content_filter(exc):
+                raise _Filtered(_filter_category(exc)) from exc
+            raise _Busy() from exc
+
+    def _busy_text(self, user_message: str) -> str:
+        if "Simplified Chinese" in self._response_language_instruction(user_message):
+            return BUSY_RESPONSE_ZH
+        return BUSY_RESPONSE
+
+    def _filtered_text(self, user_message: str) -> str:
+        if "Simplified Chinese" in self._response_language_instruction(user_message):
+            return FILTERED_RESPONSE_ZH
+        return FILTERED_RESPONSE
 
     @staticmethod
     def _response_language_instruction(user_message: str) -> str:
@@ -251,7 +615,7 @@ Assistant Response:"""
             "documents to answer that question. Please contact the iSchool "
             f"advising team or visit {advising_url} for help."
         )
-    
+
     def _build_context(self, query: str, documents: List) -> str:
         """Build context string from retrieved document chunks."""
         if not documents:
@@ -270,19 +634,19 @@ Assistant Response:"""
 
         context_parts.append("--- End of documents ---")
         return "\n".join(context_parts)
-    
+
     def get_history(self) -> List[dict]:
         """Get explicitly recorded direct-caller history (normally empty)."""
         return self.conversation_history
-    
+
     def clear_history(self) -> None:
         """Clear the conversation history."""
         self.conversation_history = []
-    
+
     def get_knowledge_base_questions(self) -> List[str]:
         """Get all available hardcoded questions."""
         return self.knowledge_base.get_all_questions()
-    
+
     @staticmethod
     def get_available_providers() -> List[str]:
         """Get available LLM providers."""
@@ -325,8 +689,10 @@ def _message_needs_prior_question(message: str) -> bool:
     if _FOLLOW_UP_PREFIX_RE.match(text):
         return True
     tokens = re.findall(r"[a-z0-9]+", text.casefold())
-    return bool(tokens) and len(tokens) <= 12 and any(
-        token in _FOLLOW_UP_ANAPHORA for token in tokens
+    return (
+        bool(tokens)
+        and len(tokens) <= 12
+        and any(token in _FOLLOW_UP_ANAPHORA for token in tokens)
     )
 
 

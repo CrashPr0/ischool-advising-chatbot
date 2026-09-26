@@ -42,6 +42,74 @@ def _history(client):
     return client.get("/api/history").get_json()["history"]
 
 
+def test_chat_timings_json_is_off_unless_the_env_flag_is_set(
+    monkeypatch, ready_chat_index
+):
+    class _TimingsBot:
+        def chat(self, message, history=None):
+            return {
+                "user_message": message,
+                "response": "ok",
+                "source": "rag",
+                "confidence": 0.7,
+                "retrieved_docs": [],
+                "timings": {
+                    "retrieval_ms": 3.0,
+                    "embedding_ms": 1.5,
+                    "llm_ms": 12.0,
+                    "total_ms": 16.0,
+                    "llm_attempts": 1,
+                    "rate_limit_count": 0,
+                    "deployment": "advising",
+                },
+            }
+
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: _TimingsBot())
+    monkeypatch.delenv("CHAT_DEBUG_TIMINGS", raising=False)
+    client = app_module.app.test_client()
+    hidden = client.post("/api/chat", json={"message": "What courses are required?"})
+    assert hidden.status_code == 200
+    assert "timings" not in hidden.get_json()
+
+    monkeypatch.setenv("CHAT_DEBUG_TIMINGS", "false")
+    still_hidden = client.post(
+        "/api/chat", json={"message": "What courses are required?"}
+    )
+    assert "timings" not in still_hidden.get_json()
+
+    monkeypatch.setenv("CHAT_DEBUG_TIMINGS", "true")
+    shown = client.post("/api/chat", json={"message": "What courses are required?"})
+    assert shown.status_code == 200
+    body = shown.get_json()
+    assert body["source"] == "rag"
+    assert body["timings"]["embedding_ms"] == 1.5
+    assert body["timings"]["deployment"] == "advising"
+
+
+def test_busy_reply_is_http_200(monkeypatch, ready_chat_index):
+    class _BusyBot:
+        def chat(self, message, history=None):
+            return {
+                "user_message": message,
+                "response": (
+                    "The advising assistant is busy right now. "
+                    "Please try again in about a minute."
+                ),
+                "source": "busy",
+                "confidence": None,
+                "retrieved_docs": [],
+            }
+
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: _BusyBot())
+    response = app_module.app.test_client().post(
+        "/api/chat", json={"message": "What courses are required?"}
+    )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["source"] == "busy"
+    assert "busy right now" in body["response"]
+
+
 def test_chat_passes_prior_turns_and_skips_crisis(monkeypatch, ready_chat_index):
     assert ready_chat_index["commit"] == "test-release"
     bot = RecordingChatbot()

@@ -156,6 +156,67 @@ def test_batches_stay_under_the_token_budget_and_retry_429():
     assert _retry_delay_seconds(_RateLimit(None), 4.0) == 4.0
 
 
+def test_query_embedding_caps_attempts_and_does_not_sleep_out_retry_after():
+    sleeps = []
+    inner = _Inner(failures=5, retry_after="30")
+    embeddings = DescribedEmbeddings(inner, _identity(), sleep=sleeps.append)
+    with pytest.raises(_RateLimit):
+        embeddings.embed_query("ISDA scholarships")
+    assert len(inner.calls) == 2
+    assert sleeps == [2.0]
+
+    recovering = _Inner(failures=1, retry_after="30")
+    sleeps.clear()
+    recovered = DescribedEmbeddings(recovering, _identity(), sleep=sleeps.append)
+    vector = recovered.embed_query("ISDA scholarships")
+    assert vector == [float(len("ISDA scholarships")), 0.0]
+    assert len(recovering.calls) == 2
+    assert sleeps == [2.0]
+
+
+def test_query_embedding_records_request_metrics():
+    from src.document_processor import chat_request_metrics
+
+    bucket = {"embedding_ms": 0.0, "rate_limit_count": 0}
+    token = chat_request_metrics.set(bucket)
+    try:
+        inner = _Inner(failures=1, retry_after="1")
+        embeddings = DescribedEmbeddings(
+            inner, _identity(), sleep=lambda _seconds: None
+        )
+        embeddings.embed_query("hi")
+    finally:
+        chat_request_metrics.reset(token)
+    assert bucket["rate_limit_count"] == 1
+    assert bucket["embedding_ms"] >= 0.0
+
+
+def test_query_embedding_does_not_retry_a_non_rate_limit():
+    class Boom:
+        def embed_documents(self, texts):
+            raise RuntimeError("disk full")
+
+        def embed_query(self, text):
+            raise AssertionError("inner embed_query should not run")
+
+    embeddings = DescribedEmbeddings(Boom(), _identity(), sleep=lambda _seconds: None)
+    with pytest.raises(RuntimeError, match="disk full"):
+        embeddings.embed_query("only")
+
+
+def test_query_embedder_uses_a_short_timeout_and_index_client_does_not(monkeypatch):
+    _azure_config(monkeypatch)
+    embeddings = _create_embeddings()
+    assert embeddings.inner.max_retries == 0
+    assert embeddings.inner.request_timeout is None
+    query = embeddings._query_embedder()
+    assert query is not embeddings.inner
+    assert query.max_retries == 0
+    assert query.request_timeout == 8.0
+    assert query.client._client.timeout == 8.0
+    assert query.client._client.max_retries == 0
+
+
 def test_non_rate_limit_errors_are_not_retried():
     class Boom:
         def embed_documents(self, texts):

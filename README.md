@@ -476,8 +476,10 @@ and the bind to `$PORT` (default 8000). HTTPS Only is enabled, so HTTP
 301-redirects to HTTPS and the session cookie can be marked Secure.
 
 Chat calls use `LLM_TEMPERATURE=0.2`, `LLM_REQUEST_TIMEOUT=45`,
-`LLM_MAX_RETRIES=2`, and `LLM_MAX_TOKENS=1024`. Leave those unset to keep the
-defaults.
+`LLM_MAX_RETRIES=0`, and `LLM_MAX_TOKENS=512`. Leave those unset to keep the
+defaults. `AZURE_OPENAI_FALLBACK_DEPLOYMENT` is an optional second Azure
+deployment for 429, timeout, and 5xx. `CHAT_DEBUG_TIMINGS=true` adds a
+timings object to `/api/chat`.
 
 The runbook in `AZURE_DEPLOYMENT.md` covers portal settings, the reviews
 backup, rollback (`git revert` and push), a budget alert, and Azure OpenAI

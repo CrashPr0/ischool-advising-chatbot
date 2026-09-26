@@ -131,8 +131,8 @@ class TestLLMFactory:
             "model": "deepseek-test",
             "temperature": 0.2,
             "timeout": 45.0,
-            "max_retries": 2,
-            "max_tokens": 1024,
+            "max_retries": 0,
+            "max_tokens": 512,
             "api_key": "test-key",
             "base_url": "https://api.example.test",
         }

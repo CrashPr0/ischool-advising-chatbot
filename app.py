@@ -460,6 +460,9 @@ def get_chatbot():
                     # importing them while Gunicorn boots can exceed Azure App
                     # Service's startup-probe deadline and make lightweight
                     # routes such as /healthz and /evaluation unavailable.
+                    # gunicorn.conf post_worker_init builds this singleton in
+                    # a background thread only after the worker can already
+                    # serve /healthz. Do not call get_chatbot during boot.
                     if _rag_chatbot_class is None:
                         from rag_chatbot import RAGAdvisingChatbot
 
@@ -818,6 +821,16 @@ def _index_readiness_report() -> dict:
     )
 
 
+def _chat_debug_timings_enabled() -> bool:
+    """Include a timings object on /api/chat only when explicitly enabled."""
+    return os.getenv("CHAT_DEBUG_TIMINGS", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def _advising_index_refusal():
     """Return a 503 response when chat must not call the model yet."""
     report = _index_readiness_report()
@@ -899,6 +912,9 @@ def chat():
         # older chatbot builds keep the previous JSON shape.
         if "safety_tier" in result:
             payload["safety_tier"] = result["safety_tier"]
+        # Off unless CHAT_DEBUG_TIMINGS=true. The server still logs timings.
+        if _chat_debug_timings_enabled() and isinstance(result.get("timings"), dict):
+            payload["timings"] = result["timings"]
         return jsonify(payload)
 
     except ValueError as e:

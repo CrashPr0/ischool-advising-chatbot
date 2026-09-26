@@ -292,11 +292,20 @@ def _clamp_k(k: int) -> int:
     return max(1, min(value, 20))
 
 
-def _collection_records(vector_store) -> list[tuple[str, str, dict]]:
-    """Read chunk id, text, and metadata from the open Chroma collection."""
+def _collection_cache_key(vector_store, collection_id: Optional[str]) -> Optional[str]:
+    """Return the live collection id, which changes when a staging swap publishes."""
+    if collection_id is not None and str(collection_id).strip():
+        return str(collection_id).strip()
     collection = getattr(vector_store, "_collection", None)
-    if collection is None:
-        return []
+    value = getattr(collection, "id", None) if collection is not None else None
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _read_collection_records(collection) -> list[tuple[str, str, dict]]:
+    """Read chunk id, text, and metadata from one Chroma collection."""
     payload = collection.get(include=["documents", "metadatas"])
     ids = payload.get("ids") or []
     documents = payload.get("documents") or []
@@ -306,6 +315,58 @@ def _collection_records(vector_store) -> list[tuple[str, str, dict]]:
         if isinstance(content, str) and content.strip():
             records.append((str(doc_id), content, dict(metadata or {})))
     return records
+
+
+def _collection_records(
+    vector_store, collection_id: Optional[str] = None
+) -> list[tuple[str, str, dict]]:
+    """Return chunk rows, reusing them until the collection id changes.
+
+    Chat calls this for every question. The advising index is a couple of
+    hundred chunks; fetching them on every request dominated nothing next to
+    a 429, but it is needless local work and it races a staging rename.
+    The cache lives on the open store and is keyed by the collection id the
+    processor snapshotted under the index lock. A successful swap publishes
+    a new id, so the next request reads the new chunks.
+    """
+    collection = getattr(vector_store, "_collection", None)
+    if collection is None:
+        return []
+    cache_key = _collection_cache_key(vector_store, collection_id)
+    cached = getattr(vector_store, "_collection_records_cache", None)
+    if (
+        cache_key
+        and isinstance(cached, tuple)
+        and len(cached) == 2
+        and cached[0] == cache_key
+        and isinstance(cached[1], list)
+    ):
+        return cached[1]
+    records = _read_collection_records(collection)
+    if cache_key:
+        try:
+            setattr(vector_store, "_collection_records_cache", (cache_key, records))
+        except (AttributeError, TypeError):
+            pass
+    return records
+
+
+def prime_collection_records(vector_store, collection_id: Optional[str] = None) -> None:
+    """Load chunk text once for this collection id while the index lock is held."""
+    _collection_records(vector_store, collection_id)
+
+
+def _documents_for_ids(doc_ids, by_id, limit: int) -> list[Document]:
+    documents: list[Document] = []
+    for doc_id in doc_ids:
+        row = by_id.get(doc_id)
+        if row is None:
+            continue
+        content, metadata = row
+        documents.append(Document(page_content=content, metadata=metadata))
+        if len(documents) >= limit:
+            break
+    return documents
 
 
 def _bm25_for(vector_store, records: Sequence[tuple[str, str, dict]]) -> BM25Index:
@@ -343,17 +404,21 @@ def _vector_ids(
     return chosen
 
 
-def hybrid_retrieve(vector_store, query: str, k: int = 3) -> list[Document]:
+def hybrid_retrieve(
+    vector_store, query: str, k: int = 3, collection_id: Optional[str] = None
+) -> list[Document]:
     """Return the fused top-k chunks for one query.
 
     Falls back to vector search if the lexical index cannot be read, so a
-    hybrid failure does not turn into an empty answer.
+    hybrid failure does not turn into an empty answer. If the query
+    embedding itself fails (429, timeout), return the BM25 ranking instead
+    of failing the request.
     """
     k = _clamp_k(k)
     if vector_store is None or not isinstance(query, str) or not query.strip():
         return []
     try:
-        records = _collection_records(vector_store)
+        records = _collection_records(vector_store, collection_id)
         if not records:
             return list(vector_store.similarity_search(query, k=k))
         pool = min(len(records), max(k, CANDIDATE_POOL))
@@ -365,7 +430,11 @@ def hybrid_retrieve(vector_store, query: str, k: int = 3) -> list[Document]:
         for doc_id, content, metadata in records:
             by_content.setdefault(content, []).append(doc_id)
             by_id[doc_id] = (content, metadata)
-        vector_ids = _vector_ids(vector_store, query, pool, by_content)
+        try:
+            vector_ids = _vector_ids(vector_store, query, pool, by_content)
+        except Exception as error:
+            print(f"Query embedding failed; using BM25 only: {error}")
+            return _documents_for_ids(bm25_ids, by_id, k)
         fused = reciprocal_rank_fusion(
             [vector_ids, bm25_ids],
             rrf_ks=[VECTOR_RRF_K, LEXICAL_RRF_K],
