@@ -296,6 +296,8 @@ black .
 flake8 .
 ```
 
+Pull requests targeting `main` run that test command and the dependency audit in [`.github/workflows/pr-tests.yml`](.github/workflows/pr-tests.yml). The same workflow can be started with **Run workflow**. It uses Python 3.11 and `pip install -r requirements.txt` (that file applies `constraints.txt`), then `python -m pytest tests/ -q` and `scripts/check_pip_audit.py`. Those steps are copied from the Azure deploy workflow so a pull request cannot publish, and the job uses dummy `APP_URL` and `DOCS_LOAD_TOKEN` values instead of repository secrets. Enable a branch protection rule on `main` that requires the **pytest and pip-audit** check before merging. Until that rule exists, a broken test can still land and fail only after merge, which is what happened with PR #5.
+
 ## Azure GPT-4o mini vs. GPT-5.6 Luna benchmark
 
 The repository includes a repeatable RAG A/B test. Each advising question is
