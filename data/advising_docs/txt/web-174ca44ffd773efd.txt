@@ -1,0 +1,9 @@
+ISDA 150 - Topics in Information Science and Data Analytics
+1-3 unit(s)
+Prerequisite(s): ISDA 110.
+Grading: Letter graded.
+Note(s): Topics and prerequisites will vary by semester; may be taken a maximum of 3 times with different topics.
+Current and emerging issues, practices, and technologies relevant to Information and Data Science professionals. Topics, which differ each semester, may include open source intelligence, XR technologies, or sports analytics
+Repeatable for up to 9 units when content changes.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203201
+Retrieved: 2026-09-26

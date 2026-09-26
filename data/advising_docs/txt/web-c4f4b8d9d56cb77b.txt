@@ -1,0 +1,7 @@
+ISDA 131 - Information Architecture
+3 unit(s)
+Prerequisite(s): ISDA 130.
+Grading: Letter Graded.
+Project based course developing user-centered knowledge structures for web environments. Core topics are problems addressed by effective IA; designing for findability; user research; best practices; methods for organizing, labeling, and structuring navigation systems; creating client documents and deliverables.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202917
+Retrieved: 2026-09-26

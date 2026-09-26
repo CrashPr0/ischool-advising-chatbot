@@ -1,0 +1,6 @@
+ISDA 81 - Ethics of AI
+3 unit(s)
+Grading: Letter Graded
+Provides a comprehensive introduction to the ethics of artificial intelligence based in established methods of applied ethics. Topics include: AI ethics frameworks; algorithmic bias and due process, AI and transparency, accountability; explainable AI (XAI) and records, automation and knowledge work (including information professions); AI and data privacy; legal liability and whistleblowing, generative AI and intellectual property; anthropomorphic AI; AI Governance and global issues.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203442
+Retrieved: 2026-09-26

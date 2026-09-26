@@ -1,0 +1,7 @@
+ISDA 20D - Computer Operating Systems
+1 unit(s)
+Grading: Letter Graded.
+Note(s): Should be taken before major work begins.
+Overview of the design and implementation of computer operating systems (OS) with emphasis on the three major subsystems: process management (processes, threads, CPU scheduling, synchronization, and deadlock), memory management (segmentation, paging, swapping), and file systems; and distributed systems.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202924
+Retrieved: 2026-09-26

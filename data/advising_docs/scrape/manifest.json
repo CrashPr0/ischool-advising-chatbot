@@ -2,6 +2,351 @@
   "schema_version": 1,
   "documents": [
     {
+      "doc_id": "web-32073f1d302c4a9e",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202908",
+      "title": "ISDA 101 - Online Learning: Tools and Strategies for Success",
+      "content_sha256": "39ba369b16c9f2875a636c68bacc7148c50cfae721a820e90db8f866d8826334",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-058539361f7fc05d",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202909",
+      "title": "ISDA 100 - Technical Writing for Information",
+      "content_sha256": "f0124b2f5397744e96d0dfc696dc925c6c00cb752df594a137d7990c4a59c667",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-ef93a023ce8f5230",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202910",
+      "title": "ISDA 110 - Technology, Culture, and Society",
+      "content_sha256": "62724b9c70ebd258cabb166d0eb84353882909ad592068c181d82425790c25c8",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-ced8dbbfb90d99cd",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202911",
+      "title": "ISDA 111 - Information and Data Science",
+      "content_sha256": "34657eab8cc7eb63e52885d0e8bc5ab90450da204722ed24100c3d5ad39fa015",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-2e00422c3a4881e7",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202912",
+      "title": "ISDA 120 - Information Security",
+      "content_sha256": "e698e4d932c979a8573cb401e6df0bf26b2373ce81821bc91437d9c3338e1926",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-5daa86ba5106c7f8",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202913",
+      "title": "ISDA 121 - Human Centered Cybersecurity",
+      "content_sha256": "7de5df04951e2d0342ab5ec192ad970c98b5390e785cdceba675c3623360bd10",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-70e588329a4be8f9",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202914",
+      "title": "ISDA 122 - Privacy, Security, Ethics",
+      "content_sha256": "c4e7935d50dd4349b81f4ac94b7cb922b4d7aa35a00503d1eb45ff7d4d7faaa6",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-e6e10b474af229e9",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202915",
+      "title": "ISDA 123 - Information Assurance",
+      "content_sha256": "378101faf9dc971c48fd696c35ef919e01fce628a1d089edf1be2b4b921c4b5d",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-738942f518a4c620",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202916",
+      "title": "ISDA 130 - User Centered Interface Architecture",
+      "content_sha256": "17f487f618b3789acd02f2c200c11521fe70594640f24ab2e8884cce1845657c",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-c4f4b8d9d56cb77b",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202917",
+      "title": "ISDA 131 - Information Architecture",
+      "content_sha256": "4091af665b0bf317ad40f7356cdaa257239bf29990c297e7aee77f1db4b9191b",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-da6d8365541328bd",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202918",
+      "title": "ISDA 140 - Big Data Analytics and Management",
+      "content_sha256": "4c3b2a887c91c651304fe615ffa03156a2445139e6dda86447957b2d2edd169a",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-8141a4b1c62fa553",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202919",
+      "title": "ISDA 141 - Information Visualization",
+      "content_sha256": "8f812fa24b1046f103bc32017c08a8fb0dc89d242ed7c70ec379765918ce9854",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-6c474f569799d96d",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202920",
+      "title": "ISDA 170 - The Emerging Future: Technology Issues and Trends",
+      "content_sha256": "aecb7e8224dfc2c89f5e57d64335536f5fbeecd0f1d320102f18ec9546c72207",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-c2b9114f9ec8417a",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202921",
+      "title": "ISDA 20A - Query Languages",
+      "content_sha256": "a51ff5213a81faf3cf18ef064036bc9fe1eba853f157a7ecd34e9e4ac3206751",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-29c58912250c31b7",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202922",
+      "title": "ISDA 20B - Python Programming",
+      "content_sha256": "e93eaeb5d0945a689ce9bbafde1c50f4cdf4f3fee46c114d8975f438d9517329",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-dbed69c1a5eb7b24",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202923",
+      "title": "ISDA 20C - Web Development",
+      "content_sha256": "4fffe3af439eea987122881c1463cc975edcfe4344c97ee719fe5945f9d6609f",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-2b1366cfd3b81782",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202924",
+      "title": "ISDA 20D - Computer Operating Systems",
+      "content_sha256": "9277e5374feff542e94db29de9c0029be685caff4112e61206a05058a56d903d",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-174ca44ffd773efd",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203201",
+      "title": "ISDA 150 - Topics in Information Science and Data Analytics",
+      "content_sha256": "10936e34343e779f9e9f7a81ffd4762305894fa5d49c3191e1f22ba0e94759e3",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-a21a302dbec77319",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203314",
+      "title": "ISDA 160 - User Experience (UX) Research and Design",
+      "content_sha256": "4ae2f16a0060a3de71d07acda243beaf67d6f8f349f9316ad83c88f233e9d991",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-f846c7840135b956",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203440",
+      "title": "ISDA 181 - AI and Knowledge Management",
+      "content_sha256": "7d3d4e20666d718d6fda3d022686ac777a6a8121f5aaed79b448420d1bd04c8c",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-4ad04652f72c91c6",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203441",
+      "title": "ISDA 180 - Responsible Human-AI Interaction",
+      "content_sha256": "39e210f150bc3baacb471a90fb29d5256967c62582a495f744d442afa0af1076",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-b9d1bc604aa598b5",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203442",
+      "title": "ISDA 81 - Ethics of AI",
+      "content_sha256": "c7d6840e3d17b76af432b0c14c779aae8172439067f95c43d2e6e64d5d32e057",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-0b0b3e38006b62b9",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203443",
+      "title": "ISDA 80 - Introduction to Human-Centered Artificial Intelligence",
+      "content_sha256": "373f8e62ea231701b64ddda16654495d1bff75748d5570961aa03cc970b34875",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
       "doc_id": "web-2fc4c82a38a1e267",
       "source_url": "https://ischool.sjsu.edu/bachelor-science-information-science-and-data-analytics",
       "title": "BS in Information Science & Data Analytics - San José State University",

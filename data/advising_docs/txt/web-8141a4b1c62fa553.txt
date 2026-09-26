@@ -1,0 +1,7 @@
+ISDA 141 - Information Visualization
+3 unit(s)
+Prerequisite(s): ISDA 140
+Grading: Letter Graded.
+Background of information visualization; perceptual and design principles of information visualization; data analysis methods and hands-on applications of visualization techniques as applied to structured and unstructured data; interaction and interface design issues; social visualization and visual analytics.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202919
+Retrieved: 2026-09-26
