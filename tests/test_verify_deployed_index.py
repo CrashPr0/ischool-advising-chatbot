@@ -1,16 +1,13 @@
 """Deploy-time index checks must not treat a stale collection as success."""
 
-import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
-_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "verify_deployed_index.py"
-_SPEC = importlib.util.spec_from_file_location("verify_deployed_index", _SCRIPT)
-verify = importlib.util.module_from_spec(_SPEC)
-assert _SPEC is not None and _SPEC.loader is not None
-_SPEC.loader.exec_module(verify)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import verify_deployed_index as verify
 
 
 class Clock:
