@@ -223,14 +223,21 @@ def _benchmark_payload():
     }
 
 
-def _save_both(client, csrf, comment, rating):
+def _save_both(client, csrf, comment, accuracy):
+    """Save both candidates using the four 1–5 dimension scores."""
     for candidate in ("A", "B"):
         response = client.put(
             f"/api/evaluation/reviews/q1/{candidate}",
-            json={"rating": rating, "comment": comment},
+            json={
+                "accuracy": accuracy,
+                "tone": 4,
+                "succinctness": 4,
+                "edge_cases": 3,
+                "comment": comment,
+            },
             headers={"X-Evaluation-CSRF": csrf},
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.get_json()
 
 
 def test_csv_export_omits_other_reviewers_comments(monkeypatch, tmp_path):
@@ -256,8 +263,8 @@ def test_csv_export_omits_other_reviewers_comments(monkeypatch, tmp_path):
     )
     assert alpha_login.status_code == 200
     assert beta_login.status_code == 200
-    _save_both(alpha, alpha_login.get_json()["csrf"], "Alpha kept this comment private.", 6)
-    _save_both(beta, beta_login.get_json()["csrf"], "Beta kept this comment private.", 4)
+    _save_both(alpha, alpha_login.get_json()["csrf"], "Alpha kept this comment private.", 5)
+    _save_both(beta, beta_login.get_json()["csrf"], "Beta kept this comment private.", 3)
 
     assert stranger.get("/api/evaluation/export.csv").status_code == 401
     alpha_export = alpha.get("/api/evaluation/export.csv")
