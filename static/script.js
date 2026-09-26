@@ -6,7 +6,6 @@ const statusText = document.getElementById("status-text");
 const providerText = document.getElementById("provider-text");
 
 const sourceBadge = document.getElementById("source-badge");
-const confidenceBadge = document.getElementById("confidence-badge");
 const docsBadge = document.getElementById("docs-badge");
 
 const topicButtons = document.querySelectorAll(".topic-btn");
@@ -309,13 +308,17 @@ function stopVoiceInput() {
 }
 
 function initializeVoiceControls() {
- if (!voiceConfig.enabled || voiceConfig.mode === "disabled") {
-  voiceTools.classList.add("hidden");
-  voiceListenButton.disabled = true;
-  voiceListenButton.title = "Voice input is disabled for this deployment";
-  setVoiceStatus("Type your question to get started. Voice input is disabled.");
-  return;
-}
+  // The GitHub Pages copy has none of the voice elements. Stop before
+  // touching them. When the elements exist, a deployment that turns voice
+  // off still disables the composer microphone.
+  if (!voiceTools) return;
+  if (!voiceConfig.enabled || voiceConfig.mode === "disabled") {
+    voiceTools.classList.add("hidden");
+    voiceListenButton.disabled = true;
+    voiceListenButton.title = "Voice input is disabled for this deployment";
+    setVoiceStatus("Type your question to get started. Voice input is disabled.");
+    return;
+  }
 
   populateVoiceLanguages();
   const sttSupported = Boolean(getSpeechRecognitionConstructor());
@@ -525,13 +528,6 @@ function updateMeta(info = {}) {
     sourceBadge.classList.add("hidden");
   }
 
-  if (info.confidence !== undefined && info.confidence !== null) {
-    confidenceBadge.textContent = `Confidence: ${Number(info.confidence).toFixed(2)}`;
-    confidenceBadge.classList.remove("hidden");
-  } else {
-    confidenceBadge.classList.add("hidden");
-  }
-
   if (info.retrieved_docs !== undefined && info.retrieved_docs !== null) {
     docsBadge.textContent = `Retrieved Docs: ${info.retrieved_docs}`;
     docsBadge.classList.remove("hidden");
@@ -572,7 +568,6 @@ async function sendMessage(prefilledMessage = null) {
     addMessage(responseText, "bot-message", "ISDA Bot");
     updateMeta({
       source: data.source,
-      confidence: data.confidence,
       retrieved_docs: data.retrieved_docs
     });
     speakResponse(responseText);
@@ -641,9 +636,9 @@ clearButton.addEventListener("click", async () => {
     b.setAttribute("aria-pressed", "false");
   });
 
-  activeBanner.classList.add("hidden");
-  sampleChipsArea.classList.add("hidden");
-  sampleChipsContainer.innerHTML = "";
+  activeBanner?.classList.add("hidden");
+  sampleChipsArea?.classList.add("hidden");
+  if (sampleChipsContainer) sampleChipsContainer.innerHTML = "";
   activeTopic = null;
   updateMeta({});
 

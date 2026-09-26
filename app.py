@@ -795,9 +795,56 @@ def export_evaluation_reviews():
         return jsonify({"error": "Unable to export evaluation reviews"}), 500
 
 
+# Shown to students when this release has no matching index receipt.
+# Internal status (missing, unreadable, mismatch) stays in the log.
+_INDEX_NOT_READY_MESSAGE = (
+    "The advising materials are still updating after a new release. "
+    "Please try again in a few minutes."
+)
+
+
+def _index_readiness_report() -> dict:
+    """Compare the on-disk index receipt with this release.
+
+    Same inputs as ``/readyz``. The check only reads ``index_build.json``.
+    It does not open Chroma or call a model, so ``/healthz`` can stay up
+    while a deploy is still rebuilding the index.
+    """
+    from config import Config
+    from durable_storage import assess_index_readiness
+
+    return assess_index_readiness(
+        Config.VECTOR_STORE_PATH,
+        version_file=os.path.join(_BASE_DIR, "deployment_version.txt"),
+    )
+
+
+def _advising_index_refusal():
+    """Return a 503 response when chat must not call the model yet."""
+    report = _index_readiness_report()
+    if report.get("ready"):
+        return None
+    logger.info(
+        "Chat refused because the advising index is %s (expected %s, receipt %s)",
+        report.get("status"),
+        report.get("expected_commit"),
+        report.get("receipt_commit"),
+    )
+    return jsonify({"error": _INDEX_NOT_READY_MESSAGE}), 503
+
+
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    """Handle chat requests."""
+    """Answer one student message for the current browser session.
+
+    Earlier turns from the session store are passed into ``chat`` so a
+    follow-up can use them. The new turn is stored only when the reply is
+    not marked ``safety_tier`` ``crisis`` (that field arrives with the
+    safety layer). A missing or stale index receipt returns 503 and does
+    not load the model. ``/healthz`` does not use this check: the deploy
+    workflow waits for liveness, then rebuilds the index through the admin
+    load-docs route rather than through this one.
+    """
     session_id = _session_id()
     allowed, retry_after = _rate_limiter.allow(
         f"chat:{_client_key()}",
@@ -827,19 +874,32 @@ def chat():
                 413,
             )
 
-        # Get response from chatbot
-        chatbot_instance = get_chatbot()
-        result = chatbot_instance.chat(user_message)
-        _history_store.append(session_id, result)
+        # Validate the message before the index check so a bad request stays
+        # a 400. The index check itself must run before get_chatbot(): that
+        # call constructs the model client.
+        refusal = _advising_index_refusal()
+        if refusal is not None:
+            return refusal
 
-        return jsonify(
-            {
-                "response": result["response"],
-                "source": result["source"],
-                "confidence": result["confidence"],
-                "retrieved_docs": len(result["retrieved_docs"]),
-            }
-        )
+        # Snapshot is a copy. chat() may append onto that copy; the session
+        # store is updated here so a crisis reply can be left out of history.
+        chatbot_instance = get_chatbot()
+        prior_turns = _history_store.snapshot(session_id)
+        result = chatbot_instance.chat(user_message, history=prior_turns)
+        if result.get("safety_tier") != "crisis":
+            _history_store.append(session_id, result)
+
+        payload = {
+            "response": result["response"],
+            "source": result["source"],
+            "confidence": result["confidence"],
+            "retrieved_docs": len(result["retrieved_docs"]),
+        }
+        # Absent until the safety layer adds it. Include it only then so
+        # older chatbot builds keep the previous JSON shape.
+        if "safety_tier" in result:
+            payload["safety_tier"] = result["safety_tier"]
+        return jsonify(payload)
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -1023,13 +1083,7 @@ def readyz():
     platform health probe must keep using /healthz. This route stays not-ready
     until the post-deploy rebuild writes an index_build.json for this commit.
     """
-    from config import Config
-    from durable_storage import assess_index_readiness
-
-    report = assess_index_readiness(
-        Config.VECTOR_STORE_PATH,
-        version_file=os.path.join(_BASE_DIR, "deployment_version.txt"),
-    )
+    report = _index_readiness_report()
     return jsonify(report), (200 if report["ready"] else 503)
 
 

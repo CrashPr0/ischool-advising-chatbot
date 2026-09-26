@@ -171,7 +171,7 @@ Open `http://localhost:5000`.
 - `GET /api/status`
 - `GET /healthz` (liveness probe; does not require provider credentials or an index)
 - `GET /readyz` (index receipt; 503 until `index_build.json` matches `deployment_version.txt`. Deploy probes and the Azure health check must keep using `/healthz`)
-- `POST /api/chat` `{ "message": "..." }`
+- `POST /api/chat` `{ "message": "..." }` (503 with a short message when the index receipt is missing or does not match this release; the model is not called. `/healthz` stays up so a deploy can rebuild the index)
 - `GET /api/history`
 - `POST /api/clear-history`
 - `POST /api/load-docs` (admin `X-Admin-Token` or `Authorization: Bearer ...` required)
@@ -180,9 +180,12 @@ Open `http://localhost:5000`.
 - `GET /api/voice-config`
 
 Chat history is isolated per browser session, bounded, and held in worker
-memory. It is cleared on restart; multi-worker deployments should use a shared
-session store (such as Redis) if durable history is required. Document index
-rebuilds are disabled unless `DOCS_LOAD_TOKEN` is configured.
+memory. Each `/api/chat` request passes that session's earlier turns into
+the answer, so a follow-up can refer to the previous question. A reply
+whose `safety_tier` is `crisis` is returned to the browser and is not
+stored. History is cleared on restart; multi-worker deployments should use
+a shared session store (such as Redis) if durable history is required.
+Document index rebuilds are disabled unless `DOCS_LOAD_TOKEN` is configured.
 
 ### Browser voice mode
 

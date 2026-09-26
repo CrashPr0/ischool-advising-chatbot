@@ -322,9 +322,13 @@ the new zip is serving until the workflow's rebuild finishes. Do not point the
 platform health check at `/readyz`, or the instance will be marked unhealthy
 before the index exists and the rebuild may never run.
 
-Chat does not yet refuse answers when `/readyz` is not ready. The signal is
-the route above. A later change can call `assess_index_readiness` in
-`src/durable_storage.py` from the chat path before retrieval.
+`POST /api/chat` calls the same `assess_index_readiness` helper before it
+loads the chatbot. A missing, unreadable, or mismatched receipt returns
+HTTP 503 and a short student-facing message, and does not call the model.
+`/healthz` does not perform this check. The deploy workflow waits for
+`/healthz`, then rebuilds the index through `/api/load-docs`, not through
+`/api/chat`. Chat answers again once that rebuild writes a receipt for the
+running commit.
 
 ## Rollback
 
@@ -447,6 +451,10 @@ change, the reviews copy line.
 - **Actions is red after `/healthz` succeeded** — the index rebuild failed or
   the receipt still names an older commit. `/readyz` reports the reason
   (`missing` or `mismatch`) without loading Chroma.
+- **Chat returns 503 while `/healthz` is green** — the index receipt is
+  missing or still names the previous commit. That window is normal until
+  "Rebuild production advising index" finishes. Do not point the health
+  check at `/api/chat` or `/readyz`.
 - **Answers fall back to "not enough information" while `/healthz` is green**
   — the index path is empty or ephemeral. Confirm `VECTOR_STORE_PATH` is unset
   or `/home/data/chroma`, then rerun the workflow.
