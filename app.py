@@ -138,9 +138,7 @@ def _resolve_session_secret() -> str:
     else:
         # An ephemeral development key prevents accidentally running with a
         # known default, while the warning makes the restart trade-off visible.
-        logger.warning(
-            "SESSION_SECRET_KEY is not set; using an ephemeral session key"
-        )
+        logger.warning("SESSION_SECRET_KEY is not set; using an ephemeral session key")
     return secrets.token_hex(32)
 
 
@@ -816,6 +814,7 @@ def _index_readiness_report() -> dict:
     return assess_index_readiness(
         Config.VECTOR_STORE_PATH,
         version_file=os.path.join(_BASE_DIR, "deployment_version.txt"),
+        expected_embedding=Config.resolved_embedding(),
     )
 
 
@@ -825,10 +824,11 @@ def _advising_index_refusal():
     if report.get("ready"):
         return None
     logger.info(
-        "Chat refused because the advising index is %s (expected %s, receipt %s)",
+        "Chat refused because the advising index is %s (expected %s, receipt %s): %s",
         report.get("status"),
         report.get("expected_commit"),
         report.get("receipt_commit"),
+        report.get("detail"),
     )
     return jsonify({"error": _INDEX_NOT_READY_MESSAGE}), 503
 
@@ -1044,6 +1044,27 @@ def _effective_job_state() -> dict:
     return job
 
 
+def _embedding_receipt_fields(processor) -> dict:
+    """Provider, model, and dimension for the embedder that just built the index."""
+    from config import Config
+
+    identity = dict(Config.resolved_embedding())
+    embeddings = getattr(processor, "embeddings", None)
+    if embeddings is not None:
+        provider = getattr(embeddings, "embedding_provider", None)
+        model = getattr(embeddings, "embedding_model", None)
+        if provider:
+            identity["embedding_provider"] = str(provider)
+        if model:
+            identity["embedding_model"] = str(model)
+        measured = getattr(embeddings, "measured_dimension", None)
+        if measured:
+            identity["embedding_dimension"] = int(measured)
+    if not identity.get("embedding_dimension"):
+        identity.pop("embedding_dimension", None)
+    return identity
+
+
 def _write_index_receipt(processor, commit: str, job_id: str | None) -> dict:
     """Persist proof that this commit finished building the collection."""
     scan = processor.scan_source_files()
@@ -1057,6 +1078,10 @@ def _write_index_receipt(processor, commit: str, job_id: str | None) -> dict:
         "vector_store_chunks": chunk_count,
         "completed_at": time.time(),
     }
+    receipt.update(_embedding_receipt_fields(processor))
+    collection_id = getattr(processor, "active_collection_id", None)
+    if collection_id:
+        receipt["collection_id"] = str(collection_id)
     if job_id:
         receipt["job_id"] = job_id
     _atomic_write_json(_index_build_path(), receipt)
@@ -1081,7 +1106,8 @@ def readyz():
 
     This does not import Chroma or call a model. The deploy workflow and any
     platform health probe must keep using /healthz. This route stays not-ready
-    until the post-deploy rebuild writes an index_build.json for this commit.
+    until the post-deploy rebuild writes an index_build.json for this commit
+    and for the embedding provider, model, and dimension now configured.
     """
     report = _index_readiness_report()
     return jsonify(report), (200 if report["ready"] else 503)

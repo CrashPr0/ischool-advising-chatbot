@@ -172,8 +172,8 @@ Open `http://localhost:5000`.
 
 - `GET /api/status`
 - `GET /healthz` (liveness probe; does not require provider credentials or an index)
-- `GET /readyz` (index receipt; 503 until `index_build.json` matches `deployment_version.txt`. Deploy probes and the Azure health check must keep using `/healthz`)
-- `POST /api/chat` `{ "message": "..." }` (503 with a short message when the index receipt is missing or does not match this release; the model is not called. `/healthz` stays up so a deploy can rebuild the index)
+- `GET /readyz` (index receipt; 503 until `index_build.json` matches `deployment_version.txt` and the embedding provider, model, and dimension. Deploy probes and the Azure health check must keep using `/healthz`)
+- `POST /api/chat` `{ "message": "..." }` (503 with a short message when the index receipt is missing, is for another release, or was built with a different embedder; the model is not called. `/healthz` stays up so a deploy can rebuild the index)
 - `GET /api/history`
 - `POST /api/clear-history`
 - `POST /api/load-docs` (admin `X-Admin-Token` or `Authorization: Bearer ...` required)
@@ -465,8 +465,8 @@ Leave `VECTOR_STORE_PATH` unset so the index and `index_build.json` live at
 `/home/data/chroma`. Reviews live at `/home/data/evaluation/reviews.sqlite3`.
 `GET /healthz` is liveness and the platform health check. It does not open the
 index. `GET /readyz` is the index receipt: 200 when `index_build.json` matches
-this release, and 503 when the receipt is missing or stale. The portal health
-check stays on `/healthz`.
+this release and its embedding provider, model, and dimension, and 503 when
+the receipt is missing or stale. The portal health check stays on `/healthz`.
 
 The Procfile, the container image, and the Azure portal startup command are
 `gunicorn --config gunicorn.conf.py app:app`. That file is the single source

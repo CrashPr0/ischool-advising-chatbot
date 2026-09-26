@@ -283,17 +283,95 @@ def read_deployment_version(version_file: str) -> str:
     return version or "development"
 
 
+def receipt_collection_id(vector_store_path: str) -> str | None:
+    """Return the Chroma collection id recorded on a readable receipt."""
+    receipt_path = os.path.join(vector_store_path or "", INDEX_RECEIPT_FILENAME)
+    try:
+        with open(receipt_path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError, UnicodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    value = str(payload.get("collection_id") or "").strip()
+    return value or None
+
+
+def _optional_positive_int(value: object) -> int | None:
+    try:
+        number = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
+
+
+def embedding_receipt_mismatch(
+    payload: Mapping, expected: Mapping | None
+) -> str | None:
+    """Return why this receipt's embedder does not match the running process.
+
+    A receipt written before embedding metadata existed is treated as the
+    historical hashing index. Any other missing or different provider, model,
+    or dimension is stale: querying those vectors with a new embedder returns
+    empty or unrelated chunks.
+    """
+    if not expected:
+        return None
+    expected_provider = str(expected.get("embedding_provider") or "").strip()
+    if not expected_provider:
+        return None
+    receipt_provider = str(payload.get("embedding_provider") or "").strip()
+    if not receipt_provider:
+        if expected_provider == "hashing":
+            return None
+        return (
+            "index has no embedding provider recorded; "
+            f"this process uses {expected_provider}"
+        )
+    if receipt_provider != expected_provider:
+        return f"index embeddings are {receipt_provider}, not {expected_provider}"
+    receipt_model = str(payload.get("embedding_model") or "").strip()
+    expected_model = str(expected.get("embedding_model") or "").strip()
+    if receipt_model and expected_model and receipt_model != expected_model:
+        return f"index embedding model is {receipt_model}, not {expected_model}"
+    receipt_dimension = _optional_positive_int(payload.get("embedding_dimension"))
+    expected_dimension = _optional_positive_int(expected.get("embedding_dimension"))
+    if (
+        receipt_dimension
+        and expected_dimension
+        and receipt_dimension != expected_dimension
+    ):
+        return (
+            f"index embedding dimension is {receipt_dimension}, "
+            f"not {expected_dimension}"
+        )
+    return None
+
+
+def _attach_embedding_report(
+    report: dict, payload: Mapping, expected: Mapping | None
+) -> None:
+    for key in ("embedding_provider", "embedding_model", "embedding_dimension"):
+        if key in payload:
+            report[key] = payload.get(key)
+    if expected and expected.get("embedding_provider"):
+        report["expected_embedding_provider"] = expected.get("embedding_provider")
+
+
 def assess_index_readiness(
     vector_store_path: str,
     *,
     version_file: str | None = None,
     expected_commit: str | None = None,
+    expected_embedding: Mapping | None = None,
 ) -> dict:
-    """Compare ``index_build.json`` with the deployed commit.
+    """Compare ``index_build.json`` with the deployed commit and embedder.
 
     The result is a readiness signal. It only reads the receipt file. It does
-    not open Chroma. ``/healthz`` must stay independent of this check because
-    the deploy workflow waits for liveness before it rebuilds the index.
+    not open Chroma or call an embedding API. ``/healthz`` must stay
+    independent of this check because the deploy workflow waits for liveness
+    before it rebuilds the index. A commit match with a different embedding
+    provider, model, or dimension is ``stale``.
     """
     expected = (
         expected_commit
@@ -334,8 +412,17 @@ def assess_index_readiness(
         report["detail"] = f"index was built for {described}, not {expected}"
         return report
 
+    embedding_mismatch = embedding_receipt_mismatch(payload, expected_embedding)
+    if embedding_mismatch:
+        report["status"] = "stale"
+        report["receipt_commit"] = receipt_commit
+        report["detail"] = embedding_mismatch
+        _attach_embedding_report(report, payload, expected_embedding)
+        return report
+
     report["ready"] = True
     report["status"] = "ready"
     report["receipt_commit"] = receipt_commit
     report["detail"] = "index receipt matches this release"
+    _attach_embedding_report(report, payload, expected_embedding)
     return report
