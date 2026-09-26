@@ -148,9 +148,11 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "script.js?v=20260927-markdown" not in docs
     assert "filename='script.js', v='20260924-composer'" not in template
     assert "script.js?v=20260924-composer" not in docs
-    # The disclaimer paragraph is owned by the grounding change. Leave it.
-    assert "For individualized advising, please contact an advisor." in template
-    assert "Questions you submit are sent to an AI provider" not in template
+    # The disclaimer paragraph is owned by the grounding change.
+    assert "Questions you submit are sent to an AI provider (Azure OpenAI)" in template
+    assert "Do not paste a student ID" in template
+    assert "about one hour" in template
+    assert "Spartan Connect" in template
     markdown = (ROOT / "static" / "markdown.js").read_text(encoding="utf-8")
     assert "if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol))" in markdown
     assert "container.textContent = text" in script

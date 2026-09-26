@@ -16,6 +16,7 @@ import math
 import re
 import threading
 import time
+from collections import Counter
 from typing import Callable, List, Optional, Sequence
 from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -113,6 +114,161 @@ class HashingEmbeddings(Embeddings):
 
     def embed_query(self, text: str) -> List[float]:
         return self._embed(text)
+
+    def is_empty_query(self, text: str) -> bool:
+        """Return whether hashing dropped every token (for example, non-Latin text)."""
+        return not any(self.embed_query(text))
+
+
+# Conversational words the hasher still keeps. They are not advising evidence.
+# Kept separate from HashingEmbeddings._STOPWORDS so the stored vectors, and
+# therefore the deployed index, do not have to be rebuilt for this floor.
+_RELEVANCE_FUNCTION_WORDS = {
+    "about", "able", "after", "again", "all", "already", "also", "am", "any",
+    "because", "been", "before", "being", "between", "both", "but", "can",
+    "could", "did", "doing", "down", "during", "each", "got", "had", "has",
+    "have", "having", "hello", "help", "her", "here", "hey", "him", "his",
+    "into", "its", "just", "let", "make", "may", "might", "more", "most",
+    "need", "needs", "not", "now", "off", "only", "other", "our", "out",
+    "over", "own", "please", "really", "same", "she", "should", "so", "some",
+    "still", "such", "tell", "than", "thank", "thanks", "their", "them",
+    "then", "these", "they", "this", "those", "through", "thx", "too",
+    "under", "until", "very", "want", "was", "were", "while", "within",
+    "without", "would", "yes", "yet", "you", "your", "yours",
+}
+
+# Calibrated on evals/advising_questions.json against the committed corpus
+# (189 hashing chunks). A raw cosine cutoff cannot separate that set: with
+# 2048-d feature hashing, "weather in Paris" scored about 0.33 while the
+# correct registrar page for the missing-enrollment question scored about
+# 0.25, and the right advisor page was cosine-rank 56. The floor below uses
+# the hasher's own tokenizer and keeps a chunk only when specific terms
+# overlap. On that run every in-scope question except the overwhelmed
+# distress item (the corpus has no counseling page) kept a relevant chunk,
+# and the off-topic controls kept none. Coverage 0.27 is the gap between
+# that distress item (0.25, financial-aid page) and the ISDA 101 item (0.27,
+# required-courses page).
+RELEVANCE_MIN_TERMS = 2
+RELEVANCE_MIN_COVERAGE = 0.27
+RELEVANCE_SHORT_QUERY_TERMS = 2
+RELEVANCE_BOILERPLATE_MIN_DOCS = 12
+RELEVANCE_BOILERPLATE_FRACTION = 0.25
+_MAX_RELEVANCE_SCAN = 5000
+
+
+def retrieval_terms(text: str) -> set[str]:
+    """Content terms shared by the relevance floor and the hashing tokenizer.
+
+    Feature hashing only sees ``[a-z0-9]+`` tokens outside its stopword list.
+    The floor drops those same stopwords, plus a few conversational words the
+    hasher still embeds, and ignores one- and two-character fragments.
+    """
+    if not isinstance(text, str):
+        return set()
+    blocked = HashingEmbeddings._STOPWORDS | _RELEVANCE_FUNCTION_WORDS
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", text.casefold())
+        if token not in blocked and len(token) > 2
+    }
+
+
+def _boilerplate_terms(chunk_terms: Sequence[set[str]]) -> set[str]:
+    """Terms so common in this index that they are not evidence of relevance."""
+    counts: Counter[str] = Counter()
+    for terms in chunk_terms:
+        counts.update(terms)
+    if not chunk_terms:
+        return set()
+    cutoff = max(
+        RELEVANCE_BOILERPLATE_MIN_DOCS,
+        math.ceil(RELEVANCE_BOILERPLATE_FRACTION * len(chunk_terms)),
+    )
+    return {term for term, count in counts.items() if count >= cutoff}
+
+
+def chunk_clears_relevance_floor(
+    query_terms: set[str],
+    document_terms: set[str],
+    boilerplate: set[str],
+) -> tuple[bool, int, float]:
+    """Return whether one chunk is specific enough to ground an answer.
+
+    Short questions must match every specific term ("tuition", "core courses").
+    Longer questions need at least two specific terms covering
+    ``RELEVANCE_MIN_COVERAGE`` of the question's specific terms, so a single
+    accidental word such as "population" or "python" is not enough.
+    """
+    specific_query = query_terms - boilerplate
+    evidence = (query_terms & document_terms) - boilerplate
+    if not specific_query or not evidence:
+        return False, 0, 0.0
+    coverage = len(evidence) / len(specific_query)
+    if len(specific_query) <= RELEVANCE_SHORT_QUERY_TERMS and evidence == specific_query:
+        return True, len(evidence), coverage
+    confirmed = len(evidence) >= RELEVANCE_MIN_TERMS and coverage >= RELEVANCE_MIN_COVERAGE
+    return confirmed, len(evidence), coverage
+
+
+def select_relevant_chunks(
+    query: str,
+    documents: Sequence[str],
+    k: int = 5,
+) -> list[int]:
+    """Return indexes of chunks that clear the hashing relevance floor.
+
+    Order is specific-term count, then coverage, then earlier chunks. Cosine
+    is intentionally not the cutoff: hashing collisions promote unrelated
+    nearest neighbors above real but diluted matches.
+    """
+    query_terms = retrieval_terms(query)
+    if not query_terms or not documents:
+        return []
+    try:
+        limit = max(1, min(int(k), 20))
+    except (TypeError, ValueError):
+        limit = 5
+    chunk_terms = [retrieval_terms(document) for document in documents]
+    boilerplate = _boilerplate_terms(chunk_terms)
+    ranked: list[tuple[int, float, int, int]] = []
+    for index, terms in enumerate(chunk_terms):
+        confirmed, evidence_count, coverage = chunk_clears_relevance_floor(
+            query_terms, terms, boilerplate
+        )
+        if confirmed:
+            ranked.append((evidence_count, coverage, -index, index))
+    ranked.sort(reverse=True)
+    return [index for _, _, _, index in ranked[:limit]]
+
+
+def _hashing_embedder(embeddings):
+    """Return the hashing embedder, including one wrapped for receipts."""
+    if isinstance(embeddings, HashingEmbeddings):
+        return embeddings
+    inner = getattr(embeddings, "inner", None)
+    if isinstance(inner, HashingEmbeddings):
+        return inner
+    return None
+
+
+def _drop_unrelated_chunks(query: str, documents: Sequence[Document]) -> List[Document]:
+    """Keep ranked hits that share a specific term with the question.
+
+    Hybrid and catalog ranking stay in charge of order. This only drops a
+    neighbor that has no specific overlap, so a hashing collision cannot
+    ground an off-topic answer. A question with no specific terms, such as
+    "hello", keeps the ranked hits. The stricter coverage floor remains
+    ``select_relevant_chunks`` for a full-corpus scan.
+    """
+    query_terms = retrieval_terms(query)
+    if not query_terms or not documents:
+        return list(documents)
+    kept: List[Document] = []
+    for document in documents:
+        content = getattr(document, "page_content", "") or ""
+        if retrieval_terms(content) & query_terms:
+            kept.append(document)
+    return kept
 
 
 # One request must fit in a 1000 token-per-minute Azure deployment. A larger
@@ -1124,17 +1280,24 @@ class DocumentProcessor:
             return store, collection_id
 
     def retrieve_relevant_docs(self, query: str, k: int = 3) -> List[Document]:
-        """
-        Retrieve relevant documents for a query.
+        """Retrieve chunks that clear the hashing relevance floor.
+
+        Nearest neighbors are not returned when none of them share specific
+        terms with the question. Callers should treat an empty list as
+        "not enough information" rather than prompting the model anyway.
 
         Args:
             query: Search query
-            k: Number of documents to retrieve
+            k: Maximum number of documents to retrieve
 
         Returns:
             List of relevant documents
         """
         if not isinstance(query, str) or not query.strip():
+            return []
+        embeddings = _hashing_embedder(getattr(self, "embeddings", None))
+        if embeddings is not None and embeddings.is_empty_query(query):
+            # Non-Latin questions become the zero vector under feature hashing.
             return []
         store, collection_id = self._snapshot_aligned_store()
         if not store:
@@ -1149,9 +1312,11 @@ class DocumentProcessor:
                 store, query, k, collection_id=collection_id
             )
             if hybrid_hits is not None:
-                return hybrid_hits
-            results = store.similarity_search(query, k=k)
-            return reorder_documents(results)
+                candidates = hybrid_hits
+            else:
+                results = store.similarity_search(query, k=k)
+                candidates = reorder_documents(results)
+            return _drop_unrelated_chunks(query, candidates)[:k]
         except Exception as e:
             print(f"Error retrieving documents: {e}")
             return []

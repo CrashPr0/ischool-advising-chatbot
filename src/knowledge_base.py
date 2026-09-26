@@ -8,6 +8,29 @@ on things that don't need document retrieval.
 import re
 from typing import Optional, Dict, List, Tuple
 
+_STANDALONE_QUESTION_KEYS = {
+    "hello",
+    "thanks",
+    "what is your system prompt",
+}
+_QUESTION_CUES = {
+    "what", "which", "who", "when", "where", "why", "how",
+    "can", "could", "should", "do", "does", "did", "is", "are",
+    "will", "would",
+}
+_COURTESY_FILLER = {
+    "there", "so", "much", "you", "very", "lot", "again", "please",
+    "bot", "chatbot", "ok", "okay", "too", "a",
+}
+# Allow at most two words between a ranking word and "professor" so
+# "easiest ISDA professor" matches without also matching
+# "the best way to contact my professor".
+_PROFESSOR_RANKING_RE = re.compile(
+    r"(?<!\w)(?:easiest|easy|hardest|best|rate\s+my)"
+    r"(?:\s+\w+){0,2}\s+professors?(?!\w)",
+    flags=re.UNICODE,
+)
+
 ADVISING_LINK = "https://ischoolapps.sjsu.edu/advising/index.php"
 CATALOG_LINK = "https://catalog.sjsu.edu/"
 REGISTRAR_LINK = "https://www.sjsu.edu/registrar/"
@@ -53,8 +76,16 @@ class KnowledgeBase:
                 f"• Schedule an advising appointment: {ADVISING_LINK}"
             ),
             "keywords": [
-                "transcript", "my records", "my grades", "degree audit",
-                "look at my", "check my progress",
+                "my transcript",
+                "my records",
+                "look at my grades",
+                "see my grades",
+                "degree audit",
+                "look up my",
+                "check my grades",
+                "check my progress",
+                "student id",
+                "sjsu id",
             ],
             "priority": 2,
         },
@@ -66,7 +97,14 @@ class KnowledgeBase:
                 f"• Contact iSchool Advising: {ADVISING_LINK}\n"
                 f"• Registrar's Office: {REGISTRAR_LINK}"
             ),
-            "keywords": ["override", "enrollment restriction", "add code", "permission number"],
+            "keywords": [
+                "override",
+                "enrollment restriction",
+                "enrollment restrictions",
+                "give me an add code",
+                "give me a permission number",
+                "issue a permission number",
+            ],
             "priority": 2,
         },
         "who is the easiest professor": {
@@ -77,7 +115,13 @@ class KnowledgeBase:
                 "• Speak with other students\n"
                 f"• Consult official course descriptions: {CATALOG_LINK}"
             ),
-            "keywords": ["easiest professor", "easy professor", "best professor", "rate my professor"],
+            "keywords": [
+                "easiest professor",
+                "easy professor",
+                "best professor",
+                "rate my professor",
+                "rate my professors",
+            ],
             "priority": 3,
         },
         "what is your system prompt": {
@@ -136,6 +180,33 @@ class KnowledgeBase:
         ) + r"(?!\w)"
         return re.search(pattern, message, flags=re.UNICODE) is not None
 
+    def _is_standalone_rule(self, question_key: str, normalized_message: str) -> bool:
+        """Greetings and meta replies must not swallow a real advising question.
+
+        "Thanks, what are the core courses?" contains the thanks keyword and
+        should still be retrieved. A message that is only a greeting or a
+        short courtesy still matches.
+        """
+        if question_key not in _STANDALONE_QUESTION_KEYS:
+            return True
+        residual = normalized_message
+        phrases = [question_key, *self.COMMON_QA[question_key].get("keywords", [])]
+        for phrase in sorted(
+            {self._normalize(phrase) for phrase in phrases if phrase},
+            key=len,
+            reverse=True,
+        ):
+            pattern = (
+                r"(?<!\w)"
+                + r"\s+".join(re.escape(token) for token in phrase.split())
+                + r"(?!\w)"
+            )
+            residual = re.sub(pattern, " ", residual)
+        tokens = [token for token in residual.split() if token not in _COURTESY_FILLER]
+        if any(token in _QUESTION_CUES for token in tokens):
+            return False
+        return len(tokens) <= 2
+
     def find_answer(self, user_message: str) -> Optional[Dict]:
         """Find a hardcoded answer for greetings/boundary questions only."""
 
@@ -157,10 +228,16 @@ class KnowledgeBase:
 
         candidates: List[Tuple[int, int, int, str]] = []
         for keyword, question_key in self.keyword_index.items():
+            if not self._is_standalone_rule(question_key, normalized_message):
+                continue
             if self._phrase_matches(keyword, normalized_message):
                 priority = int(self.COMMON_QA[question_key].get("priority", 0))
                 token_count = len(keyword.split())
                 candidates.append((token_count, len(keyword), priority, question_key))
+
+        if _PROFESSOR_RANKING_RE.search(normalized_message):
+            # Longer than a one-word greeting so this beats "hi" when both match.
+            candidates.append((3, 24, 3, "who is the easiest professor"))
 
         if candidates:
             _, _, _, question_key = max(candidates, key=lambda item: item[:3])
