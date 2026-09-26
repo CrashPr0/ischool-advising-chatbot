@@ -1,0 +1,66 @@
+name: Pull request tests
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# This workflow only reads the repo. It has no Azure credentials and no
+# repository secrets, so a pull request cannot deploy.
+permissions:
+  contents: read
+
+# A newer push to the same PR replaces the run already in progress.
+# workflow_dispatch has no pull request number, so it falls back to the ref.
+concurrency:
+  group: pr-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest and pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Install, test, and audit match deploy-azure.yml. They are copied here
+      # on purpose: turning that deploy workflow into a reusable workflow would
+      # mix pull-request CI with production publish.
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            constraints.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          # Dummy values only. Tests that care about the token set or clear it
+          # themselves. Do not read DOCS_LOAD_TOKEN or any Azure secret here.
+          APP_URL: http://127.0.0.1:8000
+          DOCS_LOAD_TOKEN: test-docs-token
+        run: python -m pytest tests/ -q
+
+      # Report every advisory. Fail only when a patched release exists.
+      # chromadb 1.5.9 has no fix yet; those ids are printed and ignored.
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install pip-audit
+          set +e
+          python -m pip_audit \
+            --requirement requirements.txt \
+            --format json \
+            --progress-spinner off \
+            --output pip-audit.json
+          audit_status=$?
+          set -e
+          if [ "$audit_status" -gt 1 ]; then
+            echo "pip-audit could not complete (exit ${audit_status})" >&2
+            exit "$audit_status"
+          fi
+          python scripts/check_pip_audit.py pip-audit.json
