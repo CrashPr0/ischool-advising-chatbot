@@ -130,13 +130,15 @@ python -m src.build_index --docs ./data/advising_docs
 python -m src.build_index --docs ./data/advising_docs --clean
 ```
 
-The index persists to `Config.VECTOR_STORE_PATH`. With that variable unset,
-local development uses `./data/chroma`. On Azure App Service the same default
-is `/home/data/chroma`, which lives on the persistent `/home` share. Do not
-point production at `/tmp/chroma` or another path under the Oryx extract:
-those directories disappear on restart. An explicit `VECTOR_STORE_PATH` still
-overrides the default. The web rebuild endpoint is admin-only; use the CLI
-for scheduled or local indexing jobs.
+The index persists to `Config.VECTOR_STORE_PATH`. Leave that variable unset.
+Local development then uses `./data/chroma`. On Azure App Service the same
+default is `/home/data/chroma` on the persistent `/home` share. Do not set
+`VECTOR_STORE_PATH` to `/tmp/chroma`, `./data/chroma`, or
+`/home/site/wwwroot/data/chroma`: `/tmp` and the Oryx extract disappear on
+restart, and `/home/site/wwwroot` is replaced on every zip deploy. An explicit
+value still overrides the default, which is why the Azure setting stays unset.
+The web rebuild endpoint is admin-only; use the CLI for scheduled or local
+indexing jobs.
 
 The Azure deployment workflow rebuilds the production index from the committed
 source snapshots and fails if the deployed collection is empty. Configure the
@@ -288,7 +290,9 @@ the official documentation before deploying: [DeepSeek API](https://api-docs.dee
 [Alibaba Cloud Model Studio OpenAI compatibility](https://help.aliyun.com/en/model-studio/compatibility-of-openai-with-dashscope),
 and [Zhipu OpenAI compatibility](https://docs.bigmodel.cn/cn/guide/develop/openai/introduction).
 
-Important: **Never commit `.env`** (use `.env.example` as the template).
+Important: **Never commit `.env`**. `.env.example` lists every variable the
+application code reads, with the code default or a placeholder. Platform
+variables (`PORT`, `WEBSITE_*`, `GITHUB_*`) are left out on purpose.
 
 ---
 
@@ -410,29 +414,32 @@ per-reviewer randomized Candidate A/B comparison with:
 - aggregate model results and CSV audit export only after the run is complete.
 
 Reviews are stored in SQLite. Locally the file is `evals/reviews.sqlite3`
-beside the app (gitignored). On Azure App Service, when `EVAL_DB_PATH` is
-unset, the file is `/home/data/evaluation/reviews.sqlite3` on the persistent
-`/home` share. The first start copies a legacy database onto that path when
-the new file is missing and an older file is still on disk (beside the app,
-or under `/home/site/wwwroot/evals/`). The copy never moves or deletes the
-original. Because Oryx runs from `/tmp`, that legacy file is often already
-gone after a restart, so take the manual backup in `AZURE_DEPLOYMENT.md`
-before deploying the path change. Opening `/evaluation` against a missing
-durable file creates an empty database, and a later copy will not overwrite it.
+beside the app (gitignored). On Azure App Service the file is
+`/home/data/evaluation/reviews.sqlite3` on the persistent `/home` share. That
+is the default when `EVAL_DB_PATH` is unset; setting `EVAL_DB_PATH` to the
+same path is equivalent. Do not point it at `/tmp` or `/home/site/wwwroot`.
+The first start copies a legacy database onto the durable path when the new
+file is missing and an older file is still on disk (beside the app, or under
+`/home/site/wwwroot/evals/`, a leftover from older runs). The copy never moves
+or deletes the original. Opening `/evaluation` against a missing durable file
+creates an empty database, and a later copy will not overwrite it. The backup
+taken before that path became the live file is recorded in `docs/ops-log.md`.
 
-Localhost can use the workspace without a shared secret. For a deployed
-handoff, set `EVAL_ACCESS_TOKEN` to a long random value. Leave `EVAL_DB_PATH`
-unset unless you intentionally pin `/home/data/evaluation/reviews.sqlite3`.
+Localhost can use the workspace without a shared secret. On a public deploy,
+sign-in needs `EVAL_ACCESS_TOKEN`, `EVAL_ALLOWED_REVIEWERS`, or Easy Auth;
+otherwise the app returns 503. `EVAL_ACCESS_TOKEN` is not set on the current
+Azure app, and `EVAL_ALLOWED_REVIEWERS` is. See `docs/ops-log.md`. Leave
+`EVAL_DB_PATH` unset unless you intentionally pin
+`/home/data/evaluation/reviews.sqlite3`.
 `EVAL_RESULTS_PATH` still defaults to the `evals/results/latest.json` shipped
 with the release.
 
 The access token is exchanged for a signed, HTTP-only session and is never
 stored in browser storage. The app reads `X-MS-CLIENT-PRINCIPAL-NAME` only
 when `WEBSITE_AUTH_ENABLED` is true. Turn Easy Auth on in the portal so the
-platform sets that variable and strips a client-supplied header. Keep
-`EVAL_ACCESS_TOKEN` set until that is confirmed. SQLite is appropriate for
-one App Service instance; use a managed database before scaling the app
-horizontally.
+platform sets that variable and strips a client-supplied header. SQLite is
+appropriate for one App Service instance; use a managed database before
+scaling the app horizontally.
 
 ---
 
@@ -442,23 +449,32 @@ Production is the Linux App Service app `ischooladvisingchatbot-dx4ynl` on the
 Basic B1 plan (a paid tier, billed against student credits; B1 is not free and
 cannot use deployment slots). Every push to `main` that changes the app runs
 `.github/workflows/deploy-azure.yml`: tests, zip deploy, wait for `/healthz`,
-then rebuild the advising index. Oryx runs the release from `/tmp`. `/home` is
-the persistent share, so the index and reviews database default to
-`/home/data` there.
+then rebuild the advising index and check its receipt. Oryx runs the release
+from `/tmp`. `/home` is the persistent share.
 
-The runbook in `AZURE_DEPLOYMENT.md` covers the required portal settings
-(Easy Auth, HTTPS-only, `SESSION_SECRET_KEY`, `DOCS_LOAD_TOKEN`,
-`EVAL_ACCESS_TOKEN`), how to back up the reviews database, rollback (`git revert`
-and push), a budget alert and Azure OpenAI quota, and Application Insights.
-Staging needs a second App Service app or a plan that supports slots (Standard
-or higher).
+Leave `VECTOR_STORE_PATH` unset so the index and `index_build.json` live at
+`/home/data/chroma`. Reviews live at `/home/data/evaluation/reviews.sqlite3`.
+`GET /healthz` is liveness and the platform health check. It does not open the
+index. `GET /readyz` is the index receipt: 200 when `index_build.json` matches
+this release, and 503 when the receipt is missing or stale. The portal health
+check stays on `/healthz`.
 
-Gunicorn loads `gunicorn.conf.py` (`gthread`, `GUNICORN_WORKERS=2`,
-`GUNICORN_THREADS=4`, `GUNICORN_TIMEOUT=180`,
-`GUNICORN_GRACEFUL_TIMEOUT=210`). Chat calls use `LLM_TEMPERATURE=0.2`,
-`LLM_REQUEST_TIMEOUT=45`, `LLM_MAX_RETRIES=2`, and `LLM_MAX_TOKENS=1024`.
-Leave those unset to keep the defaults. The platform health check stays on
-`/healthz`.
+The Procfile, the container image, and the Azure portal startup command are
+`gunicorn --config gunicorn.conf.py app:app`. That file is the single source
+of truth for the worker class (`gthread`), `GUNICORN_WORKERS=2`,
+`GUNICORN_THREADS=4`, `GUNICORN_TIMEOUT=180`, `GUNICORN_GRACEFUL_TIMEOUT=210`,
+and the bind to `$PORT` (default 8000). HTTPS Only is enabled, so HTTP
+301-redirects to HTTPS and the session cookie can be marked Secure.
+
+Chat calls use `LLM_TEMPERATURE=0.2`, `LLM_REQUEST_TIMEOUT=45`,
+`LLM_MAX_RETRIES=2`, and `LLM_MAX_TOKENS=1024`. Leave those unset to keep the
+defaults.
+
+The runbook in `AZURE_DEPLOYMENT.md` covers portal settings, the reviews
+backup, rollback (`git revert` and push), a budget alert, and Azure OpenAI
+quota. Changes made in the portal, outside git, are recorded in
+`docs/ops-log.md`. Staging needs a second App Service app or a plan that
+supports slots (Standard or higher).
 
 ---
 
@@ -474,6 +490,7 @@ Leave those unset to keep the defaults. The platform health check stays on
 ├── requirements.txt       # Lean production/Azure dependencies
 ├── requirements-local.txt # Optional local Hugging Face embedding stack
 ├── .env.example
+├── docs/ops-log.md        # Production changes made outside git
 └── README.md
 ```
 
