@@ -1,6 +1,7 @@
 """Flask web app for the iSchool Advising Chatbot."""
 
 import hmac
+import json
 import logging
 import os
 import re
@@ -9,6 +10,11 @@ import sys
 import threading
 import time
 from collections import OrderedDict
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Azure and CI are Linux
+    fcntl = None
 
 # Add src to path so imports work consistently on Azure App Service.
 # Oryx runs a release from an extracted directory under /tmp. Prefer the src
@@ -267,6 +273,8 @@ _rag_chatbot_class = None
 
 _docs_job_lock = threading.Lock()
 _docs_job_state = {"status": "idle"}
+# Flush the 202 before the rebuild thread competes for the GIL. Tests shorten this.
+_DOCS_INDEX_START_DELAY_SECONDS = 1.0
 
 _evaluation_store = None
 _evaluation_store_key = None
@@ -645,16 +653,148 @@ def status():
         return jsonify({"status": "error", "error": "Chatbot is unavailable"}), 500
 
 
-@app.route("/healthz", methods=["GET"])
-def healthz():
-    """Liveness probe that does not require an LLM key or vector index."""
+def _deployment_version() -> str:
+    """Return the commit SHA baked into this release, or a local placeholder."""
     version = "development"
     try:
-        with open(os.path.join(_BASE_DIR, "deployment_version.txt"), encoding="utf-8") as handle:
+        with open(
+            os.path.join(_BASE_DIR, "deployment_version.txt"), encoding="utf-8"
+        ) as handle:
             version = handle.read().strip() or version
     except OSError:
         pass
-    return jsonify({"status": "ok", "version": version})
+    return version
+
+
+def _index_state_dir() -> str:
+    """Directory shared by every Gunicorn worker for index job state."""
+    from config import Config
+
+    return Config.VECTOR_STORE_PATH
+
+
+def _job_path() -> str:
+    return os.path.join(_index_state_dir(), "index_job.json")
+
+
+def _index_build_path() -> str:
+    return os.path.join(_index_state_dir(), "index_build.json")
+
+
+def _read_json(path: str) -> dict | None:
+    try:
+        with open(path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError, UnicodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _atomic_write_json(path: str, payload: dict) -> None:
+    directory = os.path.dirname(path)
+    os.makedirs(directory, exist_ok=True)
+    temporary = f"{path}.tmp"
+    with open(temporary, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, sort_keys=True)
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
+def _pid_alive(pid: object) -> bool:
+    """Return whether a worker recorded in the shared job file still exists."""
+    try:
+        pid_int = int(pid)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
+    if pid_int <= 0:
+        return False
+    if os.path.isdir("/proc"):
+        return os.path.isdir(f"/proc/{pid_int}")
+    try:
+        os.kill(pid_int, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _job_is_current(job: dict) -> bool:
+    """A job blocks a new rebuild only while its worker is still alive."""
+    if job.get("status") not in {"queued", "running"}:
+        return False
+    if job.get("commit") != _deployment_version():
+        return False
+    return _pid_alive(job.get("pid"))
+
+
+def _remember_job(job: dict) -> None:
+    with _docs_job_lock:
+        _docs_job_state.clear()
+        _docs_job_state.update(job)
+
+
+def _mutate_job(mutator) -> dict:
+    """Update the shared job file under an exclusive lock.
+
+    ``mutator`` returns the replacement document, or None to leave the file
+    unchanged. Disk is the source of truth so every Gunicorn worker agrees.
+    """
+    path = _job_path()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(f"{path}.lock", "a+", encoding="utf-8") as lock_handle:
+        if fcntl is not None:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        try:
+            current = _read_json(path) or {"status": "idle"}
+            updated = mutator(dict(current))
+            if updated is not None:
+                _atomic_write_json(path, updated)
+                current = updated
+            _remember_job(current)
+            return dict(current)
+        finally:
+            if fcntl is not None:
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+
+
+def _effective_job_state() -> dict:
+    """Return the job workers should agree on, ignoring a dead worker's memory."""
+    job = _read_json(_job_path()) or {"status": "idle"}
+    if job.get("status") in {"queued", "running"} and not _job_is_current(job):
+        return {"status": "idle", "stale": True}
+    return job
+
+
+def _write_index_receipt(processor, commit: str, job_id: str | None) -> dict:
+    """Persist proof that this commit finished building the collection."""
+    scan = processor.scan_source_files()
+    chunk_count = int(processor.vector_store_count() or 0)
+    source_files = int(scan.get("total_files") or 0)
+    if source_files < 1 or chunk_count < 1:
+        raise RuntimeError("Document index rebuild produced an empty collection")
+    receipt = {
+        "commit": commit,
+        "source_files": source_files,
+        "vector_store_chunks": chunk_count,
+        "completed_at": time.time(),
+    }
+    if job_id:
+        receipt["job_id"] = job_id
+    _atomic_write_json(_index_build_path(), receipt)
+    logger.info(
+        "Document index rebuilt for %s (%s files, %s chunks)",
+        commit,
+        source_files,
+        chunk_count,
+    )
+    return receipt
+
+
+@app.route("/healthz", methods=["GET"])
+def healthz():
+    """Liveness probe that does not require an LLM key or vector index."""
+    return jsonify({"status": "ok", "version": _deployment_version()})
 
 
 @app.route("/api/docs-stats", methods=["GET"])
@@ -672,6 +812,7 @@ def docs_stats():
                 "docs_path": dp.docs_path,
                 "scan": scan,
                 "vector_store_chunks": dp.vector_store_count(),
+                "index_build": _read_json(_index_build_path()),
             }
         )
     except Exception:
@@ -680,43 +821,90 @@ def docs_stats():
 
 
 def _docs_job_snapshot() -> dict:
-    with _docs_job_lock:
-        return dict(_docs_job_state)
+    return _effective_job_state()
 
 
 def _run_docs_index_job(job_id: str) -> None:
     """Build the index outside the request lifecycle to avoid proxy timeouts."""
-    with _docs_job_lock:
-        _docs_job_state.update(
-            {"job_id": job_id, "status": "running", "started_at": time.time()}
+    started = _mutate_job(
+        lambda current: (
+            {**current, "status": "running", "started_at": time.time()}
+            if current.get("job_id") == job_id
+            else None
         )
+    )
+    if started.get("job_id") != job_id or started.get("status") != "running":
+        return
+    commit = str(started.get("commit") or _deployment_version())
     try:
         chatbot_instance = get_chatbot()
         chatbot_instance.process_documents()
-        processor = chatbot_instance.doc_processor
-        scan = processor.scan_source_files()
-        chunk_count = processor.vector_store_count() or 0
-        if scan.get("total_files", 0) < 1 or chunk_count < 1:
-            raise RuntimeError("Document index rebuild produced an empty collection")
-        with _docs_job_lock:
-            _docs_job_state.update(
-                {
-                    "status": "succeeded",
-                    "completed_at": time.time(),
-                    "source_files": scan["total_files"],
-                    "vector_store_chunks": chunk_count,
-                }
-            )
+        if (_read_json(_job_path()) or {}).get("job_id") != job_id:
+            return
+        receipt = _write_index_receipt(
+            chatbot_instance.doc_processor, commit=commit, job_id=job_id
+        )
     except Exception:
         logger.exception("Background document-index rebuild failed")
-        with _docs_job_lock:
-            _docs_job_state.update(
+        _mutate_job(
+            lambda current: (
                 {
+                    **current,
                     "status": "failed",
                     "completed_at": time.time(),
                     "error": "Document index rebuild failed",
                 }
+                if current.get("job_id") == job_id
+                else None
             )
+        )
+        return
+    _mutate_job(
+        lambda current: (
+            {
+                **current,
+                "status": "succeeded",
+                "completed_at": receipt["completed_at"],
+                "source_files": receipt["source_files"],
+                "vector_store_chunks": receipt["vector_store_chunks"],
+            }
+            if current.get("job_id") == job_id
+            else None
+        )
+    )
+
+
+def _begin_docs_job() -> tuple[dict, int]:
+    """Queue one rebuild for this release, or report the one already running."""
+    decision: dict = {}
+
+    def mutate(current: dict) -> dict | None:
+        if _job_is_current(current):
+            decision["existing"] = True
+            return None
+        job = {
+            "job_id": secrets.token_urlsafe(12),
+            "status": "queued",
+            "commit": _deployment_version(),
+            "pid": os.getpid(),
+            "created_at": time.time(),
+        }
+        decision["job"] = job
+        return job
+
+    current = _mutate_job(mutate)
+    if decision.get("existing"):
+        return current, 409
+    job = decision["job"]
+    timer = threading.Timer(
+        _DOCS_INDEX_START_DELAY_SECONDS,
+        _run_docs_index_job,
+        args=(job["job_id"],),
+    )
+    timer.name = f"docs-index-{job['job_id']}"
+    timer.daemon = True
+    timer.start()
+    return job, 202
 
 
 @app.route("/api/load-docs/status", methods=["GET"])
@@ -773,28 +961,22 @@ def load_docs():
         "on",
     }
     if async_requested:
-        with _docs_job_lock:
-            if _docs_job_state.get("status") in {"queued", "running"}:
-                return jsonify(dict(_docs_job_state)), 409
-            job_id = secrets.token_urlsafe(12)
-            _docs_job_state.clear()
-            _docs_job_state.update(
-                {"job_id": job_id, "status": "queued", "created_at": time.time()}
-            )
         # Give Gunicorn time to flush the 202 before the CPU-intensive rebuild
         # starts. On the smallest App Service tier an immediately-started
         # thread can win the GIL and make an accepted job look like a request
-        # timeout to the deploy workflow.
-        timer = threading.Timer(1.0, _run_docs_index_job, args=(job_id,))
-        timer.name = f"docs-index-{job_id}"
-        timer.daemon = True
-        timer.start()
-        return jsonify(_docs_job_snapshot()), 202
+        # timeout to the deploy workflow. Job state is written to the shared
+        # index directory first, so a different worker does not report idle.
+        job, status_code = _begin_docs_job()
+        return jsonify(job), status_code
 
     try:
         chatbot_instance = get_chatbot()
         chatbot_instance.process_documents()
-
+        _write_index_receipt(
+            chatbot_instance.doc_processor,
+            commit=_deployment_version(),
+            job_id=None,
+        )
         return jsonify({"success": True, "message": "Documents loaded successfully"})
     except Exception:
         logger.exception("Error loading documents")

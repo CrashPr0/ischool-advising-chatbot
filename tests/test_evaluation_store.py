@@ -32,6 +32,7 @@ def _write_results(path):
         "results": [
             {
                 "id": "q1",
+                "category": "degree requirements",
                 "question": "Which course should I take next?",
                 "review_focus": "Grounded, actionable advice.",
                 "sources": ["handbook.md"],
@@ -69,6 +70,7 @@ def test_workspace_stays_blind_until_both_candidates_are_reviewed(store):
     assert [item["key"] for item in initial["rubric"]["dimensions"]] == list(
         DIMENSION_KEYS
     )
+    assert initial["questions"][0]["category"] == "degree requirements"
     assert initial["questions"][0]["reveal"] is None
     assert initial["questions"][0]["needs_rescore"] is False
     assert initial["questions"][0]["candidates"]["A"]["error"] is None

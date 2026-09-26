@@ -102,6 +102,7 @@ def load_questions(path: Path) -> list[dict[str, str]]:
         questions.append(
             {
                 "id": question_id,
+                "category": str(item.get("category", "")).strip(),
                 "question": question,
                 "review_focus": str(item.get("review_focus", "")).strip(),
             }
@@ -648,6 +649,8 @@ def render_markdown(result: dict[str, Any]) -> str:
                 f"## {number}. {item['id']}",
                 "",
                 f"**Question:** {item['question']}",
+                "",
+                "**Category:** " f"{item.get('category') or 'Uncategorized'}",
                 "",
                 "**Review focus:** "
                 f"{item.get('review_focus') or 'General advising quality.'}",

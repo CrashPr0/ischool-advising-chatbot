@@ -114,6 +114,7 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.lnk
+.vs/
 
 # Linux
 *~
@@ -136,6 +137,11 @@ coverage.xml
 # ===========================
 logs/
 *.log
+# Portal log bundles. These have been committed before and can contain
+# request data; keep them out of the tree. They remain in git history until
+# the team decides to scrub it.
+azure-logs.zip
+webapp-logs.zip
 tmp/
 temp/
 *.tmp
