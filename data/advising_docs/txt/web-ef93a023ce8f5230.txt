@@ -1,0 +1,8 @@
+ISDA 110 - Technology, Culture, and Society
+3 unit(s)
+Corequisite(s): ISDA 101.
+Grading: Letter Graded.
+Note(s): Should be taken in the first semester of junior year.
+Navigating the social, political, legal and ethical issues in data processing and use. Topics: social and political factors that interact with data mining, visualization and analytics, explainable AI and FATE (Fairness, Accountability, Transparency, and Ethics).
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202910
+Retrieved: 2026-09-26

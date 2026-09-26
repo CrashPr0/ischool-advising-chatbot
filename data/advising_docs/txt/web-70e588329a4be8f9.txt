@@ -1,0 +1,7 @@
+ISDA 122 - Privacy, Security, Ethics
+2 unit(s)
+Prerequisite(s): ISDA 120 or ISDA 121.
+Grading: Letter Graded.
+Data ethics and security will be assessed in terms of privacy, data manipulation, data sharing and ownership, and conflict of interest. Through case studies students will explore real world situations involving interplay between data security, privacy, and ethics.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202914
+Retrieved: 2026-09-26

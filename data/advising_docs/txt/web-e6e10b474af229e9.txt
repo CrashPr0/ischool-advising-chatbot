@@ -1,0 +1,7 @@
+ISDA 123 - Information Assurance
+2 unit(s)
+Pre/Corequisite(s): ISDA 122
+Grading: Letter Graded.
+Focus on information assurance frameworks from both technical and social perspectives. Confidentiality, integrity, and availability, security policies, authentication, data protection and access control, risk management, threat and vulnerability assessment, common attack/defense methods, ethical issues.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202915
+Retrieved: 2026-09-26

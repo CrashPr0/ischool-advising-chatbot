@@ -1,0 +1,7 @@
+ISDA 130 - User Centered Interface Architecture
+3 unit(s)
+Prerequisite(s): ISDA 20C, ISDA 20D, and ISDA 111.
+Grading: Letter Graded.
+Focus on approaches to involve the user at different stages of interface design for web- and mobile- environments. Students learn, apply, and evaluate various user interface architectures, modes of interaction, and prototyping, testing, and evaluation techniques.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202916
+Retrieved: 2026-09-26

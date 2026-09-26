@@ -1,0 +1,7 @@
+ISDA 20B - Python Programming
+2 unit(s)
+Grading: Letter Graded.
+Note(s): Should be taken before major work begins.
+Hands-on introduction to Python focusing on solving a problem by developing flowcharts and algorithms, building a Python application using Python I/O (input/output), variables and data types, conditionals, and loops, Python packages and integrated development environment (IDE).
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202922
+Retrieved: 2026-09-26

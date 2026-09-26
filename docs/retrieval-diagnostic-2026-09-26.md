@@ -103,3 +103,33 @@ Published text: **Requires proficiency in Python programming. Prerequisite: ISDA
 **ISDA 111 and ISDA 120 are ranking failures, not missing text.** Their prerequisite sentences are in the required-courses pages. Hashing top-5 does not include them (ranks 11 and 9). Hybrid brings them into the top 5 (ranks 4 and 1). ISDA 140 was already inside the hashing top 5 (rank 4) and stays inside (rank 2).
 
 The hashing misses are the same shape: chunks that share "prerequisites" and "ISDA" outrank the chunk that actually contains the course code, because the embedder does not down-weight common tokens.
+
+## Follow-up (2026-09-26): catalog course snapshots
+
+Re-ran the same offline method after adding the 2026-2027 catalog course pages (`catalog.sjsu.edu`, catoid 23) for every current ISDA-prefixed course. `EMBEDDING_PROVIDER` stayed hashing. No OpenAI or Azure calls. The index is now **43 documents / 220 chunks**. Questions and target strings are unchanged. Hashing rank is over the full chunk list; hybrid rank is within the fused top 20 (`HYBRID_RETRIEVAL=true`).
+
+| Question | Hashing before | Hashing after | Hybrid before | Hybrid after |
+| --- | ---: | ---: | ---: | ---: |
+| Prerequisites for ISDA 150? | 16 (not in top 5) | 7 (not in top 5) | 1 (title only) | 1 (catalog prerequisite) |
+| Prerequisites for ISDA 111? | 11 (not in top 5) | 12 (not in top 5) | 4 | 3 |
+| Prerequisites for ISDA 120? | 9 (not in top 5) | 9 (not in top 5) | 1 | 1 |
+| Prerequisites for ISDA 140? | 4 | 4 | 2 | 2 |
+
+The ISDA 150 hybrid hit is now `web-174ca44ffd773efd.txt`, which contains the catalog sentence `Prerequisite(s): ISDA 110.` Hashing still leaves that chunk outside the top 5.
+
+The same target strings for ISDA 111, 120, and 140 still land on the iSchool required-courses chunks, not the new catalog pages. Those catalog sentences (`Prerequisite(s): …`) rank 8 / 33 / 20 with hashing and 8 / 12 / 8 with hybrid, all outside the top 5. The catalog label is `Prerequisite(s)`, so it does not share the token `prerequisites` with the question.
+
+### Requisite-token normalization (same day)
+
+BM25 now folds `prerequisite`, `prerequisites`, `Prerequisite(s)`, `prereq`, and `prereqs` into one token, and does the same for corequisite and pre/corequisite spellings. A trailing plural `s` is stripped from alphabetic tokens of length 5 or more. Tokens that contain a digit, including `isda20a`, `isda150`, and `isda20s`, are not stripped. Hashing embeddings are unchanged. Same questions, same target strings, same 43-document / 220-chunk index. No OpenAI or Azure calls.
+
+| Question | Hashing before | Hashing after | Hybrid before | Hybrid after |
+| --- | ---: | ---: | ---: | ---: |
+| Prerequisites for ISDA 150? | 7 (not in top 5) | 7 (not in top 5) | 1 (catalog prerequisite) | 1 (catalog prerequisite) |
+| Prerequisites for ISDA 111? | 12 (not in top 5) | 12 (not in top 5) | 3 | 7 (not in top 5) |
+| Prerequisites for ISDA 120? | 9 (not in top 5) | 9 (not in top 5) | 1 | 1 |
+| Prerequisites for ISDA 140? | 4 | 4 | 2 | 2 |
+
+"Before" is the catalog-snapshot run above. Hashing ranks did not move. Hybrid ISDA 150 stays on `web-174ca44ffd773efd.txt` (`Prerequisite(s): ISDA 110.`).
+
+Catalog-sentence hybrid ranks moved from 1 / 8 / 12 / 8 to 1 / 6 / 11 / 5. ISDA 140's catalog sentence (`Prerequisite(s): ISDA 111.`) is now inside the hybrid top 5. ISDA 111's catalog sentence is rank 6, and ISDA 120's is rank 11. The shared token is now common, so course-code matches decide the remaining order.
