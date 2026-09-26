@@ -219,6 +219,7 @@ class EvaluationStore:
             questions.append(
                 {
                     "id": question_id,
+                    "category": str(item.get("category", "")).strip(),
                     "question": str(item["question"]),
                     "review_focus": str(item.get("review_focus", "")),
                     "sources": [str(source) for source in item.get("sources", [])],

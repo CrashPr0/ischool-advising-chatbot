@@ -266,7 +266,9 @@ button { cursor: pointer; }
 .question-nav-item:hover { background: var(--slate-50); }
 .question-nav-item.active { color: var(--navy-900); background: var(--blue-100); }
 .question-nav-item__number { color: var(--slate-500); font-size: 0.74rem; font-weight: 800; }
+.question-nav-item__copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .question-nav-item__title { overflow: hidden; font-size: 0.83rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.question-nav-item__category { overflow: hidden; color: var(--slate-500); font-size: 0.68rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .question-nav-item__state { width: 9px; height: 9px; border: 2px solid var(--slate-300); border-radius: 50%; }
 .question-nav-item.complete .question-nav-item__state { border-color: var(--green-700); background: var(--green-700); }
 
@@ -284,7 +286,8 @@ button { cursor: pointer; }
 }
 
 .question-card { padding: 24px 26px; margin-bottom: 18px; }
-.question-card__meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--slate-500); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+.question-card__meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; color: var(--slate-500); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+.category-pill { padding: 5px 9px; border-radius: 999px; color: var(--blue-700); background: var(--blue-100); font-size: 0.72rem; font-weight: 800; letter-spacing: 0; text-transform: none; }
 .question-card h2 { margin: 14px 0; max-width: 980px; color: var(--navy-950); font-size: clamp(1.3rem, 2vw, 1.8rem); line-height: 1.25; }
 .status-pill { padding: 5px 9px; border-radius: 999px; color: var(--slate-700); background: var(--slate-100); font-size: 0.72rem; font-weight: 800; letter-spacing: 0; text-transform: none; }
 .status-pill.complete { color: var(--green-700); background: var(--green-100); }

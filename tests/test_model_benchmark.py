@@ -101,6 +101,7 @@ def test_benchmark_uses_one_shared_prompt_per_question(tmp_path):
     questions = [
         {
             "id": "full-class",
+            "category": "courses and registration",
             "question": "What if my class is full?",
             "review_focus": "Waitlist guidance",
         }
@@ -132,6 +133,7 @@ def test_benchmark_uses_one_shared_prompt_per_question(tmp_path):
     report = render_markdown(result)
     assert "Azure" in report
     assert "Luna" in report
+    assert "courses and registration" in report
     assert "Appropriate uncertainty" in report
 
 
@@ -164,17 +166,62 @@ def test_benchmark_defaults_compare_both_azure_deployments():
     assert args.max_attempts == 6
 
 
-def test_benchmark_question_set_matches_chat_presets():
-    project_root = Path(__file__).resolve().parents[1]
+REQUIRED_EVAL_CATEGORIES = {
+    "admissions",
+    "advising access",
+    "courses and registration",
+    "degree requirements",
+    "career",
+    "policies and deadlines",
+    "out-of-scope and sensitive-data",
+    "distress and academic failure",
+}
+STUDENT_FACING_EXCLUDED_CATEGORIES = {
+    "out-of-scope and sensitive-data",
+    "distress and academic failure",
+}
+
+
+def _chat_preset_questions(project_root: Path) -> list[str]:
     page = (project_root / "templates" / "index.html").read_text(encoding="utf-8")
     preset_questions = []
     for payload in re.findall(r"data-samples='([^']+)'", page):
         preset_questions.extend(json.loads(payload))
+    return preset_questions
 
+
+def test_curated_evaluation_set_is_independent_of_chat_presets():
+    """The review queue is a category prototype set, not the chat chip list.
+
+    Distress and sensitive-data prompts stay out of the student-facing chips.
+    Chat presets can change without forcing the benchmark to change with them.
+    """
+    project_root = Path(__file__).resolve().parents[1]
     benchmark = load_questions(project_root / "evals" / "advising_questions.json")
+    preset_questions = _chat_preset_questions(project_root)
 
-    assert len(preset_questions) == 24
-    assert [item["question"] for item in benchmark] == preset_questions
+    assert 12 <= len(benchmark) <= 20
+    assert len({item["id"] for item in benchmark}) == len(benchmark)
+    assert len({item["question"] for item in benchmark}) == len(benchmark)
+    assert {item["category"] for item in benchmark} == REQUIRED_EVAL_CATEGORIES
+    for item in benchmark:
+        assert item["category"]
+        assert len(item["review_focus"]) >= 80
+
+    distress = [
+        item
+        for item in benchmark
+        if item["category"] == "distress and academic failure"
+    ]
+    assert len(distress) >= 2
+    excluded = {
+        item["question"]
+        for item in benchmark
+        if item["category"] in STUDENT_FACING_EXCLUDED_CATEGORIES
+    }
+    assert excluded.isdisjoint(preset_questions)
+    assert [item["question"] for item in benchmark] != preset_questions
+    assert preset_questions
 
 
 def test_model_invocation_retries_transient_rate_limits(monkeypatch):
