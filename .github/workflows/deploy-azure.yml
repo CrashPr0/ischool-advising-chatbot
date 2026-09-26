@@ -44,6 +44,27 @@ jobs:
       - name: Run tests
         run: python -m pytest tests/ -q
 
+      # Report every advisory. Fail only when a patched release exists.
+      # chromadb 1.5.9 has no fix yet; those ids are printed and ignored.
+      # Installing pip-audit happens after the tests. The deploy zip is
+      # `git archive`, so this extra package is not what Azure installs.
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install pip-audit
+          set +e
+          python -m pip_audit \
+            --requirement requirements.txt \
+            --format json \
+            --progress-spinner off \
+            --output pip-audit.json
+          audit_status=$?
+          set -e
+          if [ "$audit_status" -gt 1 ]; then
+            echo "pip-audit could not complete (exit ${audit_status})" >&2
+            exit "$audit_status"
+          fi
+          python scripts/check_pip_audit.py pip-audit.json
+
       # Deploy the exact commit that passed CI. Building an explicit archive
       # prevents OneDeploy from retaining backend modules from an older release.
       - name: Create deployment package

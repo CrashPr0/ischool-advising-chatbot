@@ -1,7 +1,98 @@
 """LLM Provider abstraction for multi-provider support."""
 
-from typing import Optional
+import os
+from typing import Any, Optional
+
 from langchain_core.language_models import LLM
+
+# Student chat uses a low temperature and a hard output cap. Pass
+# temperature=None to omit those controls: the benchmark does this so reasoning
+# models can keep their own sampling defaults and are not cut off mid-answer.
+_ADVISING_TEMPERATURE = object()
+_DEFAULT_ADVISING_TEMPERATURE = 0.2
+_DEFAULT_REQUEST_TIMEOUT_SECONDS = 45.0
+_DEFAULT_MAX_RETRIES = 2
+_DEFAULT_MAX_TOKENS = 1024
+
+
+def _env_float(name: str, default: float, low: float, high: float) -> float:
+    """Read a float env var, falling back when it is missing or not a number."""
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        value = default
+    else:
+        try:
+            value = float(str(raw).strip())
+        except ValueError:
+            value = default
+    return float(min(high, max(low, value)))
+
+
+def _env_int(name: str, default: int, low: int, high: int) -> int:
+    """Read an int env var, falling back when it is missing or not an integer."""
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        value = default
+    else:
+        try:
+            value = int(str(raw).strip())
+        except ValueError:
+            value = default
+    return int(min(high, max(low, value)))
+
+
+def advising_temperature() -> float:
+    """Sampling temperature for factual advising answers."""
+    return _env_float("LLM_TEMPERATURE", _DEFAULT_ADVISING_TEMPERATURE, 0.0, 2.0)
+
+
+def chat_limit_kwargs() -> dict:
+    """HTTP timeout, retry bound, and completion cap for the chat client.
+
+    One attempt is capped at 45 seconds and at two retries, so a stuck Azure
+    call returns within about three attempts. That stays inside the Gunicorn
+    worker timeout. ``max_tokens`` stops a long completion from spending the
+    student quota before the reply is trimmed for display.
+    """
+    return {
+        "timeout": _env_float(
+            "LLM_REQUEST_TIMEOUT",
+            _DEFAULT_REQUEST_TIMEOUT_SECONDS,
+            1.0,
+            120.0,
+        ),
+        "max_retries": _env_int("LLM_MAX_RETRIES", _DEFAULT_MAX_RETRIES, 0, 5),
+        "max_tokens": _env_int("LLM_MAX_TOKENS", _DEFAULT_MAX_TOKENS, 64, 4096),
+    }
+
+
+def _resolve_temperature(temperature: Any) -> Optional[float]:
+    """Return a sampling temperature, or None when the caller wants it omitted."""
+    if temperature is None:
+        return None
+    if temperature is _ADVISING_TEMPERATURE:
+        return advising_temperature()
+    return float(temperature)
+
+
+def _apply_chat_controls(kwargs: dict, temperature: Any) -> dict:
+    """Attach chat spend controls unless this is the benchmark path.
+
+    ``temperature=None`` is the benchmark contract: omit temperature so a
+    reasoning model can use its own default, and omit the chat timeout and
+    token cap so those longer runs are not cut off.
+    """
+    if temperature is None:
+        return kwargs
+    kwargs["temperature"] = _resolve_temperature(temperature)
+    kwargs.update(chat_limit_kwargs())
+    return kwargs
+
+
+def _model_field_names(llm_cls: Any) -> set:
+    fields = getattr(llm_cls, "model_fields", None) or {}
+    return set(fields)
+
 
 try:
     from .config import Config, LLMProvider
@@ -60,7 +151,7 @@ class LLMFactory:
         provider: Optional[str] = None,
         *,
         model: Optional[str] = None,
-        temperature: Optional[float] = 0.7,
+        temperature: Any = _ADVISING_TEMPERATURE,
     ) -> LLM:
         """
         Create an LLM instance for the specified provider.
@@ -71,9 +162,11 @@ class LLMFactory:
                      Defaults to config value
             model: Optional model or Azure deployment override. This is useful
                    for repeatable model evaluations without mutating Config.
-            temperature: Sampling temperature. Pass None to let the provider
-                         use its model-specific default (needed by some
-                         reasoning models).
+            temperature: Sampling temperature for advising answers. The default
+                         is low (0.2, or ``LLM_TEMPERATURE``) because answers
+                         are factual. Pass None to omit temperature and the
+                         chat timeout/token cap so benchmark reasoning models
+                         can use their own defaults.
 
         Returns:
             LLM instance
@@ -103,7 +196,7 @@ class LLMFactory:
 
     @staticmethod
     def _create_openai(
-        model: Optional[str] = None, temperature: Optional[float] = 0.7
+        model: Optional[str] = None, temperature: Any = _ADVISING_TEMPERATURE
     ) -> LLM:
         """Create OpenAI LLM."""
         if not Config._configured_secret(Config.OPENAI_API_KEY):
@@ -117,13 +210,11 @@ class LLMFactory:
             "model": model or Config.OPENAI_MODEL,
             "api_key": Config.OPENAI_API_KEY,
         }
-        if temperature is not None:
-            kwargs["temperature"] = temperature
-        return ChatOpenAI(**kwargs)
+        return ChatOpenAI(**_apply_chat_controls(kwargs, temperature))
 
     @staticmethod
     def _create_azure_openai(
-        deployment: Optional[str] = None, temperature: Optional[float] = 0.7
+        deployment: Optional[str] = None, temperature: Any = _ADVISING_TEMPERATURE
     ) -> LLM:
         """Create Azure OpenAI LLM."""
         if not Config._configured_secret(Config.AZURE_OPENAI_API_KEY):
@@ -143,13 +234,11 @@ class LLMFactory:
             api_key=Config.AZURE_OPENAI_API_KEY,
             api_version=Config.AZURE_OPENAI_API_VERSION,
         )
-        if temperature is not None:
-            kwargs["temperature"] = temperature
-        return AzureChatOpenAI(**kwargs)
+        return AzureChatOpenAI(**_apply_chat_controls(kwargs, temperature))
 
     @staticmethod
     def _create_anthropic(
-        model: Optional[str] = None, temperature: Optional[float] = 0.7
+        model: Optional[str] = None, temperature: Any = _ADVISING_TEMPERATURE
     ) -> LLM:
         """Create Anthropic Claude LLM."""
         if not Config._configured_secret(Config.ANTHROPIC_API_KEY):
@@ -161,13 +250,11 @@ class LLMFactory:
             "model": model or Config.ANTHROPIC_MODEL,
             "api_key": Config.ANTHROPIC_API_KEY,
         }
-        if temperature is not None:
-            kwargs["temperature"] = temperature
-        return ChatAnthropic(**kwargs)
+        return ChatAnthropic(**_apply_chat_controls(kwargs, temperature))
 
     @staticmethod
     def _create_huggingface(
-        model: Optional[str] = None, temperature: Optional[float] = 0.7
+        model: Optional[str] = None, temperature: Any = _ADVISING_TEMPERATURE
     ) -> LLM:
         """Create HuggingFace LLM."""
         if not Config._configured_secret(Config.HUGGINGFACE_API_KEY):
@@ -178,20 +265,19 @@ class LLMFactory:
                 "pip install langchain-huggingface"
             )
 
-        kwargs = dict(
-            repo_id=model or Config.HUGGINGFACE_MODEL,
-            huggingfacehub_api_token=Config.HUGGINGFACE_API_KEY,
-            max_new_tokens=512,
+        return HuggingFaceEndpoint(
+            **_huggingface_kwargs(
+                repo_id=model or Config.HUGGINGFACE_MODEL,
+                api_token=Config.HUGGINGFACE_API_KEY,
+                temperature=temperature,
+            )
         )
-        if temperature is not None:
-            kwargs["temperature"] = temperature
-        return HuggingFaceEndpoint(**kwargs)
 
     @staticmethod
     def _create_openai_compatible(
         provider: str,
         model: Optional[str] = None,
-        temperature: Optional[float] = 0.7,
+        temperature: Any = _ADVISING_TEMPERATURE,
     ) -> LLM:
         """Create a ChatOpenAI client for an OpenAI-compatible endpoint.
 
@@ -223,9 +309,7 @@ class LLMFactory:
             api_key=settings["api_key"],
             base_url=settings["base_url"],
         )
-        if temperature is not None:
-            kwargs["temperature"] = temperature
-        return ChatOpenAI(**kwargs)
+        return ChatOpenAI(**_apply_chat_controls(kwargs, temperature))
 
     @staticmethod
     def get_available_providers() -> list:
@@ -237,3 +321,42 @@ class LLMFactory:
                 available.append(provider.value)
 
         return available
+
+
+def _huggingface_kwargs(*, repo_id: str, api_token: str, temperature: Any) -> dict:
+    """Build Hugging Face kwargs for whichever wrapper is installed.
+
+    The production image uses the community wrapper, which only accepts
+    generation settings inside ``model_kwargs``. The optional
+    ``langchain-huggingface`` class accepts ``max_new_tokens``,
+    ``temperature``, and ``timeout`` as real fields and rejects them inside
+    ``model_kwargs``. The chat token cap is applied as ``max_new_tokens``.
+    """
+    fields = _model_field_names(HuggingFaceEndpoint)
+    resolved = _resolve_temperature(temperature)
+    if temperature is None:
+        token_cap = 512
+        limits: dict = {}
+    else:
+        limits = chat_limit_kwargs()
+        token_cap = limits["max_tokens"]
+
+    kwargs: dict = {
+        "repo_id": repo_id,
+        "huggingfacehub_api_token": api_token,
+    }
+    generation: dict = {}
+    if "max_new_tokens" in fields:
+        kwargs["max_new_tokens"] = token_cap
+    else:
+        generation["max_new_tokens"] = token_cap
+    if resolved is not None:
+        if "temperature" in fields:
+            kwargs["temperature"] = resolved
+        else:
+            generation["temperature"] = resolved
+    if limits and "timeout" in fields:
+        kwargs["timeout"] = int(limits["timeout"])
+    if generation:
+        kwargs["model_kwargs"] = generation
+    return kwargs
