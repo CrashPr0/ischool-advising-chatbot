@@ -247,6 +247,15 @@ The app bounds request size, chat input, and request rates through
 `RAG_RESPONSE_MAX_CHARS`; history retention is controlled by
 `MAX_HISTORY_MESSAGES` and `CHAT_SESSION_TTL_SECONDS`.
 
+### Hybrid retrieval
+
+`HYBRID_RETRIEVAL` defaults to off. Leave it unset on Azure so chat keeps
+vector-only search over the hashing index. Set `HYBRID_RETRIEVAL=true` to fuse
+that vector ranking with local BM25 scores using reciprocal rank fusion.
+Course codes are normalized on the lexical side, so `ISDA 150` and `ISDA150`
+hit the same chunks. Fusion does not call an embedding or chat API. Rebuild
+the index only when documents change; the flag is read on each query.
+
 ### Chinese models and other OpenAI-compatible services
 
 The app uses the existing `langchain-openai` dependency and passes a provider's

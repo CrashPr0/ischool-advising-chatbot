@@ -475,6 +475,11 @@ class DocumentProcessor:
 
             try:
                 k = max(1, min(int(k), 20))
+                # None keeps vector-only search. That is the production path
+                # when HYBRID_RETRIEVAL is unset or false.
+                hybrid_hits = _optional_hybrid_retrieve(self.vector_store, query, k)
+                if hybrid_hits is not None:
+                    return hybrid_hits
                 results = self.vector_store.similarity_search(query, k=k)
                 return results
             except Exception as e:
@@ -577,3 +582,23 @@ Contact the iSchool Advising Office:
         with open(sample_file, "w", encoding="utf-8") as f:
             f.write(sample_content)
         print(f"Created sample document: {sample_file}")
+
+
+def _optional_hybrid_retrieve(vector_store, query: str, k: int):
+    """Return fused hits when hybrid retrieval is on, otherwise None.
+
+    The import stays inside the helper so the vector-only path does not
+    require this module at process start. A missing helper leaves retrieval
+    on similarity_search.
+    """
+    try:
+        try:
+            from .hybrid_retrieval import hybrid_retrieval_enabled, hybrid_retrieve
+        except ImportError:  # pragma: no cover - src/ on sys.path
+            from hybrid_retrieval import hybrid_retrieval_enabled, hybrid_retrieve
+    except Exception as error:
+        print(f"Hybrid retrieval unavailable: {error}")
+        return None
+    if not hybrid_retrieval_enabled():
+        return None
+    return hybrid_retrieve(vector_store, query, k)
