@@ -1,0 +1,7 @@
+ISDA 140 - Big Data Analytics and Management
+3 unit(s)
+Prerequisite(s): ISDA 111.
+Grading: Letter Graded.
+Big data technologies and trends including large-scale databases, map-reduce paradigm, big data mining, and big data platforms. Focus is on hands-on learning with tools such as Splunk and Scala/Hadoop using as applied to real-world data sets.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202918
+Retrieved: 2026-09-26

@@ -1,0 +1,7 @@
+ISDA 180 - Responsible Human-AI Interaction
+3 unit(s)
+Prerequisite(s): Fundamental knowledge of Python (e.g., ISDA 20B, ISDA 111 in BS ISDA).
+Grading: Letter Graded
+Course covers the emerging field of responsible human-AI Interaction (HAII), which seeks to evaluate, design, and create AI systems that are user-centered, ethical, transparent, and beneficial for humans. Students will gain theoretical knowledge and practical experience in the fundamental aspects of human perception, cognition, and learning related to the design, implementation, and evaluation of AI interfaces.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203441
+Retrieved: 2026-09-26

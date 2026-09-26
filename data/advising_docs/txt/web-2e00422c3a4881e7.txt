@@ -1,0 +1,7 @@
+ISDA 120 - Information Security
+3 unit(s)
+Prerequisite(s): ISDA 20C, ISDA 20D, and ISDA 111.
+Grading: Letter Graded.
+Compliance and operational security, psychological approaches to social engineering attacks, Web application attacks, penetration testing, data loss prevention, cloud computing security, application programming development security, firewalls and intrusion detection systems.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202912
+Retrieved: 2026-09-26

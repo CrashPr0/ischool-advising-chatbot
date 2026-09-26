@@ -1,0 +1,7 @@
+ISDA 80 - Introduction to Human-Centered Artificial Intelligence
+3 unit(s)
+Prerequisite(s): Completion of the 1A (Written Communication) and 1B (Critical Thinking and Writing) GE requirements.
+Grading: Letter Graded
+Provides an interdisciplinary introduction to the foundational AI concepts, the qualities and use cases of human-centered artificial intelligence (HCAI) applications, and their potential impacts on culture and society in various sectors, including education, business, and medicine.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203443
+Retrieved: 2026-09-26

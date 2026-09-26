@@ -1,0 +1,9 @@
+ISDA 111 - Information and Data Science
+3 unit(s)
+Prerequisite(s): ISDA 20A, ISDA 20B, and GE Area 2 (formerly B4, STAT 95 preferred).
+Pre/Corequisite(s): ISDA 101.
+Grading: Letter Graded.
+Note(s): Course should be taken in first semester of junior year.
+Conceptual foundations and theoretical underpinnings pertaining to the social, political, and economic factors associated with the information society. Definition of information and information science; constructing information individually and collectively; and emerging information and communications technologies. Concepts, techniques, and tools needed to accomplish various facets of data science practice, including data collection and integration, management, analysis, modeling, and visualization. Data science skills such as product creation, communication, evaluation, presentation, and storytelling.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202911
+Retrieved: 2026-09-26

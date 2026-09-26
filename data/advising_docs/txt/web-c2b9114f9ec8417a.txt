@@ -1,0 +1,7 @@
+ISDA 20A - Query Languages
+1 unit(s)
+Grading: Letter Graded.
+Note(s): Should be taken before major work begins.
+Introduction to the features and functionalities of structured query language (SQL) focusing on manipulating data in a database, creating tables and indexes, modifying stored records, creating database objects
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202921
+Retrieved: 2026-09-26

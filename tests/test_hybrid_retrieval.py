@@ -92,7 +92,7 @@ def test_spaced_and_compact_course_codes_share_a_token():
     assert "isda" not in spaced
     assert spaced == compact
     assert tokenize("Prerequisites: ISDA 20A and ISDA20A") == [
-        "prerequisites",
+        "prerequisite",
         "isda20a",
         "isda20a",
     ]
@@ -101,6 +101,50 @@ def test_spaced_and_compact_course_codes_share_a_token():
         "Compare ISDA 150 with ISDA 20A"
     )
     assert compact_course_codes("ISDA 150") == "isda150"
+
+
+def test_requisite_spellings_share_a_token_and_course_codes_stay_intact():
+    prerequisite_forms = [
+        "prerequisite",
+        "prerequisites",
+        "Prerequisite(s)",
+        "prereq",
+        "prereqs",
+    ]
+    assert [tokenize(form) for form in prerequisite_forms] == [
+        ["prerequisite"]
+    ] * len(prerequisite_forms)
+
+    corequisite_forms = [
+        "corequisite",
+        "corequisites",
+        "Corequisite(s)",
+        "coreq",
+        "coreqs",
+    ]
+    assert [tokenize(form) for form in corequisite_forms] == [
+        ["corequisite"]
+    ] * len(corequisite_forms)
+
+    either_forms = [
+        "pre/corequisite",
+        "pre/corequisites",
+        "Pre/Corequisite(s)",
+        "pre/coreq",
+        "pre / coreqs",
+    ]
+    assert [tokenize(form) for form in either_forms] == [["precorequisite"]] * len(
+        either_forms
+    )
+
+    assert tokenize("Prerequisite(s): ISDA 20A. Pre/Corequisite(s): ISDA 101.") == [
+        "prerequisite",
+        "isda20a",
+        "precorequisite",
+        "isda101",
+    ]
+    assert tokenize("ISDA 20S and ISDA150") == ["isda20s", "isda150"]
+    assert tokenize("courses") == tokenize("course") == ["course"]
 
 
 def test_bm25_ranks_the_exact_course_code_above_generic_prerequisites():

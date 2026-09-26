@@ -1,0 +1,7 @@
+ISDA 20C - Web Development
+1 unit(s)
+Grading: Letter Graded.
+Note(s): Should be taken before major work begins.
+The structure and functionality of the world wide web and modular web design techniques. Covers HTML5, CSS, and JavaScript. Topics also include cultural issues in website designing, and accessible and responsive web design.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202923
+Retrieved: 2026-09-26

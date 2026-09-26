@@ -2,7 +2,8 @@
 
 Production stays on vector search unless ``HYBRID_RETRIEVAL`` is true. The
 lexical side is local Okapi BM25 (no extra package, no API calls). Course
-codes are rewritten so ``ISDA 150`` and ``ISDA150`` share one token.
+codes are rewritten so ``ISDA 150`` and ``ISDA150`` share one token. Requisite
+labels share one token too, so ``Prerequisite(s)`` matches ``prerequisites``.
 """
 
 from __future__ import annotations
@@ -69,6 +70,19 @@ _COURSE_CODE = re.compile(
     r"(?<![A-Za-z0-9])([A-Za-z]{2,6})\s*(\d{2,3}[A-Za-z]?)(?![A-Za-z0-9])"
 )
 _TOKEN = re.compile(r"[a-z0-9]+")
+# Longer forms first. Parenthetical plurals such as Prerequisite(s) are one
+# label, not the stem plus a stray "s". pre/corequisite is its own label.
+_REQUISITE_FORM = re.compile(
+    r"(?<![A-Za-z])(?:"
+    r"pre\s*/\s*corequisite(?:s|\(s\))?"
+    r"|pre\s*/\s*coreq(?:s|\(s\))?"
+    r"|corequisite(?:s|\(s\))?"
+    r"|coreq(?:s|\(s\))?"
+    r"|prerequisite(?:s|\(s\))?"
+    r"|prereq(?:s|\(s\))?"
+    r")(?![A-Za-z])",
+    re.IGNORECASE,
+)
 
 
 def hybrid_retrieval_enabled() -> bool:
@@ -110,13 +124,46 @@ def expand_course_codes(text: str) -> str:
     return _COURSE_CODE.sub(replace, text)
 
 
+def _canonical_requisite(match: re.Match) -> str:
+    """Map one requisite label onto the token its family shares."""
+    raw = re.sub(r"[\s()]", "", match.group(0).casefold())
+    if raw.startswith("pre/"):
+        return "precorequisite"
+    if raw.startswith("core"):
+        return "corequisite"
+    return "prerequisite"
+
+
+def normalize_requisite_words(text: str) -> str:
+    """Rewrite requisite spellings before the token split."""
+    return _REQUISITE_FORM.sub(_canonical_requisite, text)
+
+
+def _lighten_plural(token: str) -> str:
+    """Drop one trailing plural s from an alphabetic token.
+
+    Tokens that contain a digit are course codes (``isda20a``, ``isda150``)
+    and are left unchanged, including a code whose number ends in s.
+    """
+    if any(character.isdigit() for character in token):
+        return token
+    if (
+        len(token) >= 5
+        and token.endswith("s")
+        and not token.endswith(("ss", "us", "is"))
+    ):
+        return token[:-1]
+    return token
+
+
 def tokenize(text: str) -> list[str]:
-    """Tokenize text after course-code normalization."""
+    """Tokenize text after requisite and course-code normalization."""
     if not isinstance(text, str):
         return []
+    normalized = compact_course_codes(normalize_requisite_words(text)).casefold()
     return [
-        token
-        for token in _TOKEN.findall(compact_course_codes(text).casefold())
+        _lighten_plural(token)
+        for token in _TOKEN.findall(normalized)
         if token not in _STOPWORDS
     ]
 
