@@ -308,12 +308,15 @@ def get_chatbot():
 def get_evaluation_store():
     """Get the review store for the currently configured artifact paths."""
     global _evaluation_store, _evaluation_store_key
+    from durable_storage import prepare_eval_db_path
+
     results_path = os.getenv(
         "EVAL_RESULTS_PATH", os.path.join(_BASE_DIR, "evals", "results", "latest.json")
     )
-    database_path = os.getenv(
-        "EVAL_DB_PATH", os.path.join(_BASE_DIR, "evals", "reviews.sqlite3")
-    )
+    # Copy a legacy reviews file onto /home/data before opening the store.
+    # The copy never moves or deletes the original. An explicit EVAL_DB_PATH
+    # that is not the durable default is used as-is.
+    database_path = prepare_eval_db_path(os.getenv("EVAL_DB_PATH"), app_dir=_BASE_DIR)
     store_key = (os.path.abspath(results_path), os.path.abspath(database_path))
     if _evaluation_store is None or _evaluation_store_key != store_key:
         with _evaluation_store_lock:
@@ -795,6 +798,24 @@ def _write_index_receipt(processor, commit: str, job_id: str | None) -> dict:
 def healthz():
     """Liveness probe that does not require an LLM key or vector index."""
     return jsonify({"status": "ok", "version": _deployment_version()})
+
+
+@app.route("/readyz", methods=["GET"])
+def readyz():
+    """Readiness signal for the advising index receipt.
+
+    This does not import Chroma or call a model. The deploy workflow and any
+    platform health probe must keep using /healthz. This route stays not-ready
+    until the post-deploy rebuild writes an index_build.json for this commit.
+    """
+    from config import Config
+    from durable_storage import assess_index_readiness
+
+    report = assess_index_readiness(
+        Config.VECTOR_STORE_PATH,
+        version_file=os.path.join(_BASE_DIR, "deployment_version.txt"),
+    )
+    return jsonify(report), (200 if report["ready"] else 503)
 
 
 @app.route("/api/docs-stats", methods=["GET"])

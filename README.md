@@ -18,16 +18,12 @@ The chatbot takes in student questions and makes an answer based on what it know
 - Joshua Rieta (GitHub: cho-sua)
 
 ---
-## Proof of Concept Scope
-Currently on the main branch, there is an Azure site where it takes in inputs in a chatbox and answers based on sentence structures and its own thought process. On a different branch there is no Azure site, but a filter to make sure that the students are not asking inappropriate questions. As a whole, the website needs a bit of tweaking to make sure the links are correct, the sentence structures is not the main focus, and the chat filter actually works. We also need a bit more information for the chatbot to use so that it can answer questions correctly. If it does not have the required information, the chatbot will state so.
-
----
-## Prerequisites/Running the PoC
+## Prerequisites
 Use Python 3.11 or newer and configure at least one supported provider in
 `.env`. The CLI and web app fail clearly when no provider is configured; the
 knowledge base remains useful for tests and direct library callers without
-making a network request. The deployed Azure URL in “External documents” can
-be used to test the current hosted PoC.
+making a network request. The deployed Azure URL in “External documents” is
+the hosted app.
 
 ---
 # Installation
@@ -134,9 +130,13 @@ python -m src.build_index --docs ./data/advising_docs
 python -m src.build_index --docs ./data/advising_docs --clean
 ```
 
-The index persists to `Config.VECTOR_STORE_PATH` (default: `./data/chroma`).
-The web rebuild endpoint is admin-only; use the CLI for scheduled or local
-indexing jobs.
+The index persists to `Config.VECTOR_STORE_PATH`. With that variable unset,
+local development uses `./data/chroma`. On Azure App Service the same default
+is `/home/data/chroma`, which lives on the persistent `/home` share. Do not
+point production at `/tmp/chroma` or another path under the Oryx extract:
+those directories disappear on restart. An explicit `VECTOR_STORE_PATH` still
+overrides the default. The web rebuild endpoint is admin-only; use the CLI
+for scheduled or local indexing jobs.
 
 The Azure deployment workflow rebuilds the production index from the committed
 source snapshots and fails if the deployed collection is empty. Configure the
@@ -169,7 +169,8 @@ Open `http://localhost:5000`.
 ### Web API endpoints
 
 - `GET /api/status`
-- `GET /healthz` (liveness probe; does not require provider credentials)
+- `GET /healthz` (liveness probe; does not require provider credentials or an index)
+- `GET /readyz` (index receipt; 503 until `index_build.json` matches `deployment_version.txt`. Deploy probes and the Azure health check must keep using `/healthz`)
 - `POST /api/chat` `{ "message": "..." }`
 - `GET /api/history`
 - `POST /api/clear-history`
@@ -403,36 +404,52 @@ per-reviewer randomized Candidate A/B comparison with:
 - model identity reveal only after both responses to a question are scored;
 - aggregate model results and CSV audit export only after the run is complete.
 
-Reviews are stored in the ignored SQLite file `evals/reviews.sqlite3`. Localhost
-can use the workspace without a shared secret. For a deployed handoff, configure:
+Reviews are stored in SQLite. Locally the file is `evals/reviews.sqlite3`
+beside the app (gitignored). On Azure App Service, when `EVAL_DB_PATH` is
+unset, the file is `/home/data/evaluation/reviews.sqlite3` on the persistent
+`/home` share. The first start copies a legacy database onto that path when
+the new file is missing and an older file is still on disk (beside the app,
+or under `/home/site/wwwroot/evals/`). The copy never moves or deletes the
+original. Because Oryx runs from `/tmp`, that legacy file is often already
+gone after a restart, so take the manual backup in `AZURE_DEPLOYMENT.md`
+before deploying the path change. Opening `/evaluation` against a missing
+durable file creates an empty database, and a later copy will not overwrite it.
 
-```env
-EVAL_ACCESS_TOKEN=<long-random-shared-secret>
-EVAL_RESULTS_PATH=/home/data/evaluation/latest.json
-EVAL_DB_PATH=/home/data/evaluation/reviews.sqlite3
-```
+Localhost can use the workspace without a shared secret. For a deployed
+handoff, set `EVAL_ACCESS_TOKEN` to a long random value. Leave `EVAL_DB_PATH`
+unset unless you intentionally pin `/home/data/evaluation/reviews.sqlite3`.
+`EVAL_RESULTS_PATH` still defaults to the `evals/results/latest.json` shipped
+with the release.
 
 The access token is exchanged for a signed, HTTP-only session and is never
-stored in browser storage. The workspace also recognizes Azure App Service Easy
-Auth/Entra user headers, so the shared token can be retired when organizational
-sign-in is enabled. SQLite is appropriate for one App Service instance; use a
-managed database before scaling the app horizontally.
+stored in browser storage. The workspace recognizes Azure App Service Easy
+Auth/Entra user headers. Turn Easy Auth on in the portal so the platform, not
+the browser, supplies `X-MS-CLIENT-PRINCIPAL-NAME`. Keep `EVAL_ACCESS_TOKEN`
+set until that is confirmed. SQLite is appropriate for one App Service
+instance; use a managed database before scaling the app horizontally.
 
 ---
 
 ## Deploy to Azure (App Service)
 
-This repo includes `Procfile` (`gunicorn app:app`) and an `app.py` that reads `PORT`.
+Production is the Linux App Service app `ischooladvisingchatbot-dx4ynl` on the
+Basic B1 plan (a paid tier, billed against student credits; B1 is not free and
+cannot use deployment slots). Every push to `main` that changes the app runs
+`.github/workflows/deploy-azure.yml`: tests, zip deploy, wait for `/healthz`,
+then rebuild the advising index. Oryx runs the release from `/tmp`. `/home` is
+the persistent share, so the index and reviews database default to
+`/home/data` there.
 
-High-level steps:
+The runbook in `AZURE_DEPLOYMENT.md` covers the required portal settings
+(Easy Auth, HTTPS-only, `SESSION_SECRET_KEY`, `DOCS_LOAD_TOKEN`,
+`EVAL_ACCESS_TOKEN`), how to back up the reviews database, rollback (`git revert`
+and push), a budget alert and Azure OpenAI quota, and Application Insights.
+Staging needs a second App Service app or a plan that supports slots (Standard
+or higher).
 
-1. `az login`
-2. Create a resource group + App Service plan + web app
-3. Set app settings (environment variables) in Azure Portal:
-   - `OPENAI_API_KEY` (and/or other provider keys)
-   - `DEFAULT_LLM_PROVIDER`
-   - `WEBSITES_PORT=5000`
-4. Deploy from GitHub (or ZIP deploy)
+Gunicorn worker, timeout, and chat-model `max_tokens` / timeout settings are
+being chosen separately. Confirm those names before adding them in the portal,
+and keep the platform health check on `/healthz`.
 
 ---
 
@@ -452,8 +469,8 @@ High-level steps:
 ```
 
 ---
-## Running the PoC and Demo
-Below in "External documents", there is a link marked for use (the Azure link). In this section, there are screenshots of the website to show it working along with descriptions:
+## Demo
+The hosted app is linked in “External documents”. Screenshots of that site:
 
 <img width="2234" height="1290" alt="image" src="https://github.com/user-attachments/assets/3505bb5e-6b1a-4736-838f-66edc799c035" />
 Main page of the chatbot on Azure
@@ -481,7 +498,7 @@ We want to fix up what we currently have at this moment since for next semester 
 - iSchool Advising Chatbot Rubric: `https://docs.google.com/spreadsheets/d/1kXhvObOL_13er0D4eyMBNfHel7tIFF4seUtL0yQtMk8/edit?usp=sharing`
 - ISDA Advising Support Chatbot – Smoke Test Question Set: `https://docs.google.com/document/d/1KON-OufGsHjJpwY_hQp5m_doXAMw-rn98g4Oz9YvCQY/edit?usp=sharing`
 - Figma Website Design `https://www.figma.com/design/J5cIoGXTAs7K07Q5X988Z6/iSchool-Chatbot-Site-RD?node-id=0-1&p=f&t=z4ZYAu1mDT8v6J8y-0`
-- iSchool Advising Chatbot Azure Website (use for PoC): `https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/`
+- iSchool Advising Chatbot Azure Website: `https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/`
 ---
 
 ## License

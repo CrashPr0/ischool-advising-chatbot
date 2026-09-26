@@ -4,18 +4,12 @@ import os
 from dotenv import load_dotenv
 from enum import Enum
 
+try:
+    from .durable_storage import resolve_vector_store_path
+except ImportError:  # pragma: no cover - supports ``src/`` on sys.path
+    from durable_storage import resolve_vector_store_path
+
 load_dotenv()
-
-
-def resolve_vector_store_path(configured_path: str | None = None) -> str:
-    """Use an explicit path, then Azure's persistent index, then local data."""
-    explicit = (configured_path or "").strip()
-    if explicit:
-        return explicit
-    azure_path = "/home/site/wwwroot/data/chroma"
-    if os.path.isdir(azure_path):
-        return azure_path
-    return "./data/chroma"
 
 
 class LLMProvider(str, Enum):

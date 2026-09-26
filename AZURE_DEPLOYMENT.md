@@ -1,427 +1,264 @@
-# Deploy to Azure - Complete Guide
+# Azure App Service runbook
 
-Deploy your iSchool Advising Chatbot on Azure using your student free credits ($100/month)!
+Production is one Linux App Service app on the **Basic B1** plan. B1 is a paid
+SKU, not a free tier. Student credits can pay the bill; they do not make B1
+free. Check the current price in the Azure pricing calculator. Basic cannot
+use deployment slots.
 
-## Prerequisites
+Pushes to `main` that change the app run
+[`.github/workflows/deploy-azure.yml`](.github/workflows/deploy-azure.yml).
+There is no `deploy.yml`. The workflow runs tests, builds a zip of that
+commit, deploys it, waits until `/healthz` reports the new commit, then
+rebuilds the advising index and checks the receipt.
 
-- ✅ Azure account (free tier with student credits)
-- ✅ Docker installed locally (optional for testing)
-- ✅ GitHub account (for source control)
-- ✅ Local copy of the chatbot code
+| | |
+| --- | --- |
+| App name | `ischooladvisingchatbot-dx4ynl` |
+| URL | `https://ischooladvisingchatbot-dx4ynl.azurewebsites.net` |
+| Plan | Linux, Basic B1 |
+| Build | Oryx (`SCM_DO_BUILD_DURING_DEPLOYMENT=true`) |
+| Process | `Procfile`: `gunicorn --bind 0.0.0.0:${PORT:-8000} app:app` |
 
-## Step 1: Set Up Azure Account
+Oryx runs each release from an extracted copy under `/tmp`. That copy is
+deleted on restart or redeploy. **`/home` is the persistent share.** Do not
+store the Chroma index or the reviews database under `/tmp` or under the
+release directory.
 
-### 1.1 Claim Your Student Free Credits
+## Durable paths
 
-1. Go to [Azure for Students](https://azure.microsoft.com/en-us/free/students/)
-2. Sign in with your SJSU email
-3. Verify your student status
-4. You'll get **$100 free credits** (refreshed annually)
+With the variables unset, App Service uses:
 
-### 1.2 Create Resource Group
+| Data | Path |
+| --- | --- |
+| Chroma index and `index_build.json` | `/home/data/chroma` |
+| Reviews SQLite database | `/home/data/evaluation/reviews.sqlite3` |
 
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Search for "Resource Groups"
-3. Click "Create"
-4. **Name:** `ischool-chatbot-rg`
-5. **Region:** `West US 2` (closest to California)
-6. Click "Review + Create" → "Create"
+Local development, with the same variables unset, keeps using `./data/chroma`
+and `evals/reviews.sqlite3` beside the app.
 
-## Step 2: Option A - Deploy with Azure App Service (Easiest)
+An explicit `VECTOR_STORE_PATH` or `EVAL_DB_PATH` overrides the default. If
+App Service still has `VECTOR_STORE_PATH=/tmp/chroma` (or `./data/chroma`)
+from an older guide, remove it or set `/home/data/chroma`. The next deploy
+rebuilds the index in the path the app is actually using. The workflow's
+rebuild and verify steps call the app; they do not hard-code a directory.
 
-### 2.1 Set Up Azure CLI
+`EVAL_RESULTS_PATH` stays the `evals/results/latest.json` shipped in the
+release unless you set it.
 
-```bash
-# Install Azure CLI
-# Windows: https://aka.ms/installazurecliwindows
-# macOS: brew install azure-cli
-# Linux: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+## Back up the reviews database before the path change
 
-# Login to Azure
-az login
-```
+The live reviews file is still at the old default: `evals/reviews.sqlite3`
+next to `app.py`. On the current host that is usually inside the Oryx
+extract under `/tmp`. A restart deletes it. The new process copies a legacy
+file onto `/home/data/evaluation/reviews.sqlite3` only when that new file
+does not exist yet **and** the old file is still on disk (beside the app, or
+at `/home/site/wwwroot/evals/reviews.sqlite3`). The copy never moves or
+deletes the original.
 
-### 2.2 Prepare Application
+Do this on the running app **before** merging the durable-path change. If the
+new code starts first and someone opens `/evaluation`, it creates an empty
+database at the new path, and a later copy will not overwrite that file.
 
-1. **Update** `app.py` port to use environment variable:
-
-The app already handles this - it reads `PORT` env var!
-
-2. **Add** `Procfile` for Azure App Service:
-
-```
-web: gunicorn --bind 0.0.0.0:${PORT:-8000} app:app
-```
-
-3. **Update** `.gitignore` (already done):
-
-Ensures `.env` with API keys isn't committed
-
-### 2.3 Deploy to App Service
-
-```bash
-# Create App Service Plan (B1 = free tier eligible)
-az appservice plan create \
-  --name ischool-chatbot-plan \
-  --resource-group ischool-chatbot-rg \
-  --sku B1 \
-  --is-linux
-
-# Create Web App
-az webapp create \
-  --resource-group ischool-chatbot-rg \
-  --plan ischool-chatbot-plan \
-  --name ischool-chatbot-prod \
-  --runtime "PYTHON:3.11"
-
-# Configure environment variables
-az webapp config appsettings set \
-  --resource-group ischool-chatbot-rg \
-  --name ischool-chatbot-prod \
-  --settings DEFAULT_LLM_PROVIDER=openai
-
-# Deploy from GitHub
-az webapp deployment github-actions add \
-  --resource-group ischool-chatbot-rg \
-  --name ischool-chatbot-prod \
-  --repo <YOUR-GITHUB-REPO-URL> \
-  --branch main
-```
-
-### 2.4 Set API Keys in Azure
-
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Find your App Service: `ischool-chatbot-prod`
-3. Go to **Settings → Configuration**
-4. Add Environment Variables (click "+ New application setting"):
-
-```
-OPENAI_API_KEY = sk-...
-DEFAULT_LLM_PROVIDER = openai
-VECTOR_STORE_PATH = /tmp/chroma
-```
-
-5. Click "Save"
-
-**Your app will restart automatically!**
-
-### 2.5 Access Your Chatbot
-
-```
-https://ischool-chatbot-prod.azurewebsites.net
-```
-
----
-
-## Step 2: Option B - Deploy with Azure Container Instances
-
-### 2.1 Build Docker Image
+SSH or the Kudu Bash console (`https://ischooladvisingchatbot-dx4ynl.scm.azurewebsites.net`):
 
 ```bash
-# Create container registry
-az acr create \
-  --resource-group ischool-chatbot-rg \
-  --name ischoolchatbot \
-  --sku Basic
-
-# Login to container registry
-az acr login --name ischoolchatbot
-
-# Get login server
-az acr show \
-  --name ischoolchatbot \
-  --query loginServer \
-  --output table
+find /tmp /home/site/wwwroot /home/data -name 'reviews.sqlite3' -print 2>/dev/null
+mkdir -p /home/data/evaluation
 ```
 
-### 2.2 Build and Push Image
+Copy with SQLite's backup so a WAL sidecar is included. Do not `mv` or `rm`
+the original. If the `sqlite3` CLI is not installed, use the app's Python:
 
 ```bash
-# Replace <login-server> with output from above
-cd your-repo-directory
+python - <<'PY'
+import sqlite3
+from pathlib import Path
 
-docker build -t ischool-chatbot:latest .
-
-docker tag ischool-chatbot:latest <login-server>/ischool-chatbot:latest
-
-docker push <login-server>/ischool-chatbot:latest
+source = Path("/path/from/find/reviews.sqlite3")  # replace
+destination = Path("/home/data/evaluation/reviews.sqlite3")
+destination.parent.mkdir(parents=True, exist_ok=True)
+offline = destination.with_name("reviews-backup-before-durable-path.sqlite3")
+source_conn = sqlite3.connect(source)
+try:
+    for target in (destination, offline):
+        target_conn = sqlite3.connect(target)
+        try:
+            source_conn.backup(target_conn)
+        finally:
+            target_conn.close()
+finally:
+    source_conn.close()
+print("copied", destination)
+print("offline copy", offline)
+PY
 ```
 
-### 2.3 Deploy Container
+Confirm the copy has rows, then download the offline copy from Kudu:
 
 ```bash
-# Create container instance
-az container create \
-  --resource-group ischool-chatbot-rg \
-  --name ischool-chatbot \
-  --image <login-server>/ischool-chatbot:latest \
-  --cpu 1 \
-  --memory 2 \
-  --registry-login-server <login-server> \
-  --registry-username <username> \
-  --registry-password <password> \
-  --ports 5000 \
-  --dns-name-label ischool-chatbot \
-  --environment-variables \
-    OPENAI_API_KEY=sk-... \
-    DEFAULT_LLM_PROVIDER=openai
+sqlite3 /home/data/evaluation/reviews.sqlite3 \
+  "SELECT COUNT(*) FROM evaluation_reviews;"
 ```
 
-### 2.4 Access Your Chatbot
+The copy runs the first time the evaluation store opens (a visit to
+`/evaluation` or an evaluation API call), not during process import. The log
+stream then contains `Copied reviews database from ...` if a legacy file was
+still on disk. `no legacy database was found` means the durable file was
+missing and nothing was copied. Restore the backup before that first
+evaluation request; opening the workspace creates an empty database, and a
+later copy will not overwrite it.
 
-```
-http://ischool-chatbot.westus2.azurecontainers.io:5000
-```
+## Required App Service settings
 
----
+Portal: the app → **Settings → Configuration**, and **Settings → Authentication**.
 
-## Step 3: Configure API Keys
+| Setting | What to confirm |
+| --- | --- |
+| Authentication (Easy Auth) | Enabled, so the platform supplies `X-MS-CLIENT-PRINCIPAL-NAME` and strips a client-supplied value. `WEBSITE_AUTH_ENABLED` should be true. Keep `EVAL_ACCESS_TOKEN` set until this is confirmed. |
+| HTTPS Only | On (Configuration → General settings, or TLS/SSL settings). |
+| `SESSION_SECRET_KEY` | A long random value, stable across restarts. Not the `.env.example` placeholder. An unset key is a new random value every process start, which logs reviewers out. |
+| `SESSION_COOKIE_SECURE` | `true` |
+| `DOCS_LOAD_TOKEN` | A long random value. The same value must be the GitHub Actions secret `DOCS_LOAD_TOKEN`. Placeholder values disable index rebuilds. |
+| `EVAL_ACCESS_TOKEN` | A long random shared secret for `/evaluation`. |
+| `SCM_DO_BUILD_DURING_DEPLOYMENT` | `true`, or Oryx never installs `requirements.txt` and Gunicorn fails with `No module named 'flask_cors'`. |
+| Azure OpenAI (or the chosen provider) | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, and `DEFAULT_LLM_PROVIDER`. `EMBEDDING_PROVIDER` stays `hashing` unless you intentionally pay for hosted embeddings. |
 
-### 3.1 Add OpenAI API Key
+Leave `VECTOR_STORE_PATH` and `EVAL_DB_PATH` unset so the `/home/data` defaults
+apply. Do not set `VECTOR_STORE_PATH=/tmp/chroma`.
 
-1. Get your key: https://platform.openai.com/api-keys
-2. In Azure Portal, set environment variable:
-   - **OPENAI_API_KEY** = `sk-...`
+GitHub repository secrets used by the workflow:
 
-### 3.2 Optional: Add Other Providers
+- `AZURE_WEBAPP_PUBLISH_PROFILE` for `ischooladvisingchatbot-dx4ynl`
+- `DOCS_LOAD_TOKEN` matching the app setting
 
-```
-ANTHROPIC_API_KEY = claude-key...
-HUGGINGFACE_API_KEY = hf_...
-```
+## Health and readiness
 
-### 3.3 Optional: Use Chinese or OpenAI-Compatible Models
+`GET /healthz` is liveness only. It returns `{"status":"ok","version":"<commit>"}`
+and does not open Chroma or call a model. The deploy workflow waits on this
+route **before** it rebuilds the index, and the App Service health check path
+must stay `/healthz`.
 
-DeepSeek, Alibaba Cloud Model Studio/DashScope (Qwen), and Zhipu (GLM) use
-the app's OpenAI-compatible integration. Set the provider-specific variables
-in Azure App Service **Configuration → Application settings**; do not commit
-keys to the repository:
+`GET /readyz` reads `index_build.json` under the vector-store path and
+compares its `commit` to `deployment_version.txt`. It returns 200 when they
+match and 503 when the receipt is missing, unreadable, or names another
+commit. It does not load Chroma. A missing receipt is expected from the moment
+the new zip is serving until the workflow's rebuild finishes. Do not point the
+platform health check at `/readyz`, or the instance will be marked unhealthy
+before the index exists and the rebuild may never run.
 
-```text
-# Choose one provider profile
-DEFAULT_LLM_PROVIDER = deepseek       # or qwen / zhipu
+Chat does not yet refuse answers when `/readyz` is not ready. The signal is
+the route above. A later change can call `assess_index_readiness` in
+`src/durable_storage.py` from the chat path before retrieval.
 
-DEEPSEEK_API_KEY = ...
-DEEPSEEK_BASE_URL = https://api.deepseek.com
-DEEPSEEK_MODEL = deepseek-v4-flash
+## Rollback
 
-DASHSCOPE_API_KEY = ...
-DASHSCOPE_BASE_URL = https://dashscope.aliyuncs.com/compatible-mode/v1
-QWEN_MODEL = qwen-plus
-
-ZAI_API_KEY = ...
-ZHIPU_BASE_URL = https://open.bigmodel.cn/api/paas/v4
-ZHIPU_MODEL = glm-5.2
-```
-
-For a self-hosted gateway or another compatible vendor, use
-`DEFAULT_LLM_PROVIDER = openai_compatible` with
-`OPENAI_COMPATIBLE_API_KEY`, `OPENAI_COMPATIBLE_BASE_URL`, and
-`OPENAI_COMPATIBLE_MODEL`. Verify the provider's region-specific endpoint and
-model name before deployment. See the [DeepSeek API docs](https://api-docs.deepseek.com/),
-[Alibaba Cloud Model Studio compatibility guide](https://help.aliyun.com/en/model-studio/compatibility-of-openai-with-dashscope),
-and [Zhipu OpenAI compatibility guide](https://docs.bigmodel.cn/cn/guide/develop/openai/introduction).
-
----
-
-## Step 4: Add Custom Documents
-
-### 4.1 Upload via Container Storage
-
-**For App Service:**
-
-1. Connect via SFTP:
-   ```bash
-   az webapp deployment list-publishing-profiles \
-     --name ischool-chatbot-prod \
-     --resource-group ischool-chatbot-rg \
-     --query [0].publishUrl
-   ```
-
-2. Upload files to `/data/advising_docs/` using SFTP client
-
-3. Restart app → run "docs" command in chatbot
-
-### 4.2 Alternative: Use App Service Editor
-
-1. Go to [Azure Portal](https://portal.azure.com)
-2. App Service → **Development Tools → App Service Editor**
-3. Navigate to `data/advising_docs/`
-4. Upload `.txt` or `.pdf` files
-
----
-
-## Step 5: Monitor Your Deployment
-
-### 5.1 View Logs
+Basic B1 has no deployment slots, so there is no swap back to the previous
+package. Rollback is a new commit on `main`:
 
 ```bash
-# App Service logs
+git revert <bad-commit>
+git push origin main
+```
+
+The workflow deploys that commit, waits for `/healthz`, and rebuilds the
+index for the reverted SHA. **Run workflow** (`workflow_dispatch`) redeploys
+whatever `main` is now; it does not restore an older package by itself.
+
+A failed index rebuild leaves the previous `index_build.json` in place on
+purpose. `/readyz` then reports a commit mismatch until a rebuild for the
+running commit succeeds. The site can still be serving the new code against
+the previous corpus. Watch the Actions log; a red job can mean the new code
+is already live.
+
+## Staging
+
+Slots require Standard or higher. On Basic, staging is a **second App Service
+app** (its own URL, its own `/home`, its own `DOCS_LOAD_TOKEN` and reviews
+file). Do not point a staging app at the production `/home` data.
+
+## Budget alert and Azure OpenAI quota
+
+The app cannot see the Azure bill. Set both of these in the portal:
+
+1. **Cost Management → Budgets → Add.** Scope the resource group or
+   subscription. Set the amount under the remaining student credits (confirm
+   the current Azure for Students grant; B1 and Azure OpenAI both spend it).
+   Alert at 50% and 80% to the people who watch the app.
+2. **Azure OpenAI → the deployment → quota.** Keep a token or
+   tokens-per-minute cap on the student deployment. The advising benchmark
+   already waits 60 seconds between questions because that quota is small.
+   Raising the app's rate limit does not raise the Azure quota.
+
+## Application Insights and a failure alert
+
+This repository does not install the Application Insights SDK. Use platform
+metrics, which App Service records without that package:
+
+1. Open the app → **Application Insights** → turn it on and create (or pick)
+   a workspace-based resource in the same region.
+2. **Monitoring → Alerts → Create → Alert rule.**
+3. Signal: App Service **Http Server Errors** (HTTP 5xx), or **Failed
+   requests** if the Application Insights metric is already flowing.
+4. Condition: greater than 5 in a 5-minute window. Action: email the team.
+5. Leave the health-check path on `/healthz`. A separate alert on
+   "health check failing" is useful only if that path stays `/healthz`.
+
+The GitHub Actions log is still the place to see a failed index rebuild. The
+alert above is for 5xx responses after deploy.
+
+## Settings landing in other changes
+
+Do not guess these names. Confirm them in the pull requests that change the
+process model and the chat client, then set the values those PRs document:
+
+- Gunicorn worker class, thread count, request timeout, and graceful timeout.
+  Today the `Procfile` is `gunicorn --bind 0.0.0.0:${PORT:-8000} app:app`
+  (one sync worker, Gunicorn's 30-second default timeout).
+- Chat LLM request timeout, retry count, and `max_tokens`.
+
+`/healthz` stays the liveness path after those changes. `/api/status` loads
+the RAG stack and is not a health check.
+
+## What a deploy does
+
+1. `git archive` of the commit, plus a `deployment_version.txt` containing
+   `GITHUB_SHA`.
+2. Zip deploy to `ischooladvisingchatbot-dx4ynl`.
+3. Poll `GET /healthz` until `version` equals that SHA (up to about 10 minutes).
+4. `python scripts/verify_deployed_index.py` posts `POST /api/load-docs?async=true`
+   with `DOCS_LOAD_TOKEN`, then polls until `index_build.json` names that SHA
+   and the collection is non-empty.
+5. The same script runs again with `--verify-only`.
+
+Documentation-only pushes are ignored by the workflow (`**/*.md`). Use
+**Run workflow** when a docs-only commit must be published anyway. Deploys
+are serialized; a second push waits.
+
+## Logs
+
+```bash
 az webapp log tail \
-  --name ischool-chatbot-prod \
-  --resource-group ischool-chatbot-rg
-
-# Or in Azure Portal:
-# App Service → "App Service logs" → "Logs stream"
+  --name ischooladvisingchatbot-dx4ynl \
+  --resource-group <resource-group>
 ```
 
-### 5.2 Monitor Performance
-
-1. Go to [Azure Portal](https://portal.azure.com)
-2. App Service → **Monitoring → Metrics**
-3. View CPU, Memory, HTTP requests
-
-### 5.3 Set Up Alerts
-
-1. **Monitoring → Alerts**
-2. **Create alert rule**
-3. Condition: HTTP 5xx errors > 5
-4. Set email notification
-
----
-
-## Step 6: Cost Optimization
-
-### 6.1 Keep Within Free Tier
-
-**Free resources:**
-- ✅ 1 App Service Plan (B1 tier) = **FREE**
-- ✅ 1 Web App = **FREE**
-- ✅ 1 Application Insights = **free tier**
-
-**Paid resources to avoid:**
-- ❌ Scaling to multiple instances
-- ❌ Premium tier (P1, P2, P3)
-- ❌ Continuous deployment pipelines beyond quota
-
-### 6.2 Monitor Credits
-
-1. Go to [Azure Portal](https://portal.azure.com)
-2. **Cost Management + Billing**
-3. **View budgets and expenditure**
-
-### 6.3 Set Budget Alert
-
-1. **Cost Management → Budgets**
-2. **Create new budget**
-3. Set limit: `$80` (leave $20 buffer)
-4. Alert at 80%
-
----
-
-## Step 7: GitHub Actions CI/CD (Optional)
-
-Automatically deploy on code push!
-
-### 7.1 Create GitHub Workflow
-
-Create `.github/workflows/deploy.yml`:
-
-```yaml
-name: Deploy to Azure
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: 'ischool-chatbot-prod'
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: .
-```
-
-### 7.2 Add Publish Profile
-
-1. App Service → **Get publish profile** (download XML)
-2. GitHub → **Settings → Secrets → New repository secret**
-3. **Name:** `AZURE_WEBAPP_PUBLISH_PROFILE`
-4. **Value:** Contents of downloaded XML
-5. Save
-
-Now pushes to `main` branch auto-deploy!
-
----
+Or the portal log stream. Look for the index receipt line
+(`Document index rebuilt for <sha>`) and, on the first start after the path
+change, the reviews copy line.
 
 ## Troubleshooting
 
-### App won't start
-
-**Check logs:**
-```bash
-az webapp log tail --name ischool-chatbot-prod --resource-group ischool-chatbot-rg
-```
-
-**Common issues:**
-- Missing `OPENAI_API_KEY` → Set in Configuration
-- App won't respond / wrong port:
-  - **App Service (code deploy)**: ensure `Procfile` binds to `$PORT` (this repo uses `gunicorn --bind 0.0.0.0:${PORT:-8000} app:app`)
-  - **App Service (custom container)**: set `WEBSITES_PORT=5000` (matches the container’s exposed port)
-- Module not found → Ensure all packages in `requirements.txt`
-
-### High memory usage
-
-- Reduce `sentence-transformers` model size
-- Or switch to smaller embeddings: `"all-MiniLM-L6-v2"` (current, lightweight)
-- Disable document processing if not used
-
-### API rate limits
-
-- OpenAI: Check quota at https://platform.openai.com/account/rate-limits
-- Anthropic: Similar dashboard
-- Upgrade plan if needed
-
----
-
-## Upgrading Beyond Free Tier
-
-When you run out of credits or need more:
-
-### Option 1: Pay-As-You-Go
-- B1 App Service: **~$11/month**
-- Minimal for production
-
-### Option 2: Use Spot Instances
-- 70% discount on compute
-- Can be interrupted
-- Good for non-critical apps
-
-### Option 3: Alternative Platforms
-- **Heroku**: $7/month dyno
-- **Railway**: $5 credit/month + usage
-- **Vercel**: Free with serverless backend elsewhere
-
----
-
-## Next Steps
-
-1. ✅ Deploy to Azure
-2. 🔄 Customize knowledge base
-3. 📄 Add your advising documents
-4. 🧪 Test all features
-5. 📊 Monitor performance
-6. 🚀 Share URL with team
-
----
-
-## Useful Resources
-
-- [Azure Free Account](https://azure.microsoft.com/en-us/free/)
-- [Azure for Students](https://azure.microsoft.com/en-us/free/students/)
-- [Azure App Service Docs](https://learn.microsoft.com/en-us/azure/app-service/)
-- [Azure Container Instances](https://learn.microsoft.com/en-us/azure/container-instances/)
-- [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/calculator/)
-
----
-
-## Questions?
-
-Check the main [SETUP.md](SETUP.md) or ask your team!
+- **`No module named 'flask_cors'`** — `SCM_DO_BUILD_DURING_DEPLOYMENT` is not
+  `true`, so Oryx did not install `requirements.txt`.
+- **`/healthz` never shows the new SHA** — the zip did not become the running
+  release. Check the deployment log. Do not switch the probe to `/readyz`.
+- **Actions is red after `/healthz` succeeded** — the index rebuild failed or
+  the receipt still names an older commit. `/readyz` reports the reason
+  (`missing` or `mismatch`) without loading Chroma.
+- **Answers fall back to "not enough information" while `/healthz` is green**
+  — the index path is empty or ephemeral. Confirm `VECTOR_STORE_PATH` is unset
+  or `/home/data/chroma`, then rerun the workflow.
+- **Evaluation workspace has no previous reviews** — the durable file was
+  created empty. Restore `/home/data/evaluation/reviews-backup-before-durable-path.sqlite3`
+  only after stopping traffic to `/evaluation`, and only if you are replacing
+  an empty file you just confirmed is empty. Do not delete the backup.
