@@ -84,10 +84,12 @@ class HashingEmbeddings(Embeddings):
 
     def _embed(self, text: str) -> list[float]:
         vector = [0.0] * self.dimensions
+        # A one-digit unit marker such as "(3)" would otherwise dominate the
+        # vector and hide the course list. Course numbers stay; they are longer.
         tokens = [
             token
             for token in re.findall(r"[a-z0-9]+", text.casefold())
-            if token not in self._STOPWORDS
+            if token not in self._STOPWORDS and not (token.isdigit() and len(token) == 1)
         ]
         if "bsisda" in tokens:
             tokens.extend(["bs", "isda", "information", "science", "data", "analytics"])
