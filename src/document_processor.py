@@ -618,6 +618,11 @@ DEFAULT_VECTOR_COLLECTION = "advising_documents"
 NON_DOCUMENT_DIRECTORIES = {"meta", "scrape", "__pycache__"}
 
 
+def _paragraph_has_heading(paragraph: str, heading: str) -> bool:
+    """True when ``heading`` is its own line, not a substring of another line."""
+    return any(line.strip() == heading for line in paragraph.splitlines())
+
+
 class DocumentProcessor:
     """Handles loading and processing advising documents."""
 
@@ -835,19 +840,80 @@ class DocumentProcessor:
     def split_documents(
         self, documents: List[Document], chunk_size: int = 600, chunk_overlap: int = 150
     ) -> List[Document]:
-        """Split documents into chunks optimised for advising-style Q&A retrieval."""
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            separators=["\n\n", "\n", ". ", " ", ""],
-        )
+        """Split documents into chunks optimised for advising-style Q&A retrieval.
 
-        split_docs = splitter.split_documents(documents)
+        A document may set metadata ``atomic_section`` to a heading. The
+        paragraph that contains that heading is emitted as one chunk, and the
+        text before and after it is split at ``chunk_size``. The BS ISDA core
+        list is longer than 600 characters; splitting it would leave some
+        catalog titles out of every retrieved chunk.
+        """
+        split_docs: List[Document] = []
+        for document in documents:
+            split_docs.extend(
+                self._split_one_document(document, chunk_size, chunk_overlap)
+            )
         print(
             f"Split into {len(split_docs)} chunks "
             f"(size={chunk_size}, overlap={chunk_overlap})"
         )
         return split_docs
+
+    def _split_one_document(
+        self, document: Document, chunk_size: int, chunk_overlap: int
+    ) -> List[Document]:
+        heading = self._atomic_section_heading(document)
+        if not heading:
+            return self._character_split([document], chunk_size, chunk_overlap)
+
+        pieces = re.split(r"(\n[ \t]*\n+)", document.page_content)
+        metadata = dict(document.metadata or {})
+        chunks: List[Document] = []
+        pending: List[str] = []
+
+        def flush_pending() -> None:
+            if not pending:
+                return
+            block = "".join(pending)
+            pending.clear()
+            if not block.strip():
+                return
+            chunks.extend(
+                self._character_split(
+                    [Document(page_content=block, metadata=dict(metadata))],
+                    chunk_size,
+                    chunk_overlap,
+                )
+            )
+
+        for piece in pieces:
+            if _paragraph_has_heading(piece, heading):
+                flush_pending()
+                chunks.append(
+                    Document(page_content=piece.strip("\n"), metadata=dict(metadata))
+                )
+            else:
+                pending.append(piece)
+        flush_pending()
+        return chunks
+
+    @staticmethod
+    def _atomic_section_heading(document: Document) -> str:
+        raw = (document.metadata or {}).get("atomic_section")
+        if not isinstance(raw, str):
+            return ""
+        return raw.strip()
+
+    @staticmethod
+    def _character_split(
+        documents: List[Document], chunk_size: int, chunk_overlap: int
+    ) -> List[Document]:
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separators=["\n\n", "\n", ". ", " ", ""],
+        )
+        return splitter.split_documents(documents)
 
     def _document_id(self, document: Document) -> str:
         """Generate a stable ID so a rebuild has deterministic chunk keys."""

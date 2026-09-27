@@ -6,7 +6,6 @@ from hashlib import sha256
 from pathlib import Path
 
 import yaml
-from langchain_core.documents import Document
 
 from src.config import Config
 from src.document_processor import DocumentProcessor
@@ -15,40 +14,21 @@ DOCS = Path(__file__).resolve().parents[1] / "data" / "advising_docs"
 BS_URL = "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100"
 ONLINE_URL = "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19052"
 CATALOG_YEAR = "2026-2027"
+CORE_HEADING = "Core Courses (36 units)"
 CORE_COURSES = (
-    "ISDA 100 - Technical Writing for Information 3 unit(s)",
-    "ISDA 101 - Online Learning: Tools and Strategies for Success 1 unit(s)",
-    "ISDA 110 - Technology, Culture, and Society 3 unit(s)",
-    "ISDA 111 - Information and Data Science 3 unit(s)",
-    "ISDA 120 - Information Security 3 unit(s)",
-    "ISDA 121 - Human Centered Cybersecurity 3 unit(s)",
-    "ISDA 122 - Privacy, Security, Ethics 2 unit(s)",
-    "ISDA 123 - Information Assurance 2 unit(s)",
-    "ISDA 130 - User Centered Interface Architecture 3 unit(s)",
-    "ISDA 131 - Information Architecture 3 unit(s)",
-    "ISDA 140 - Big Data Analytics and Management 3 unit(s)",
-    "ISDA 141 - Information Visualization 3 unit(s)",
-    "ISDA 170 - The Emerging Future: Technology Issues and Trends 4 unit(s)",
-)
-CORE_UNIT_LINE = (
-    "Core Courses (36 units), 13 courses: ISDA 100 (3), 101 (1), 110 (3), "
-    "111 (3), 120 (3), 121 (3), 122 (2), 123 (2), 130 (3), 131 (3), "
-    "140 (3), 141 (3), 170 (4)."
-)
-CORE_TITLE_LINE = (
-    "Core course titles and units: ISDA 100 - Technical Writing for Information (3); "
-    "101 - Online Learning: Tools and Strategies for Success (1); "
-    "110 - Technology, Culture, and Society (3); "
-    "111 - Information and Data Science (3); "
-    "120 - Information Security (3); "
-    "121 - Human Centered Cybersecurity (3); "
-    "122 - Privacy, Security, Ethics (2); "
-    "123 - Information Assurance (2); "
-    "130 - User Centered Interface Architecture (3); "
-    "131 - Information Architecture (3); "
-    "140 - Big Data Analytics and Management (3); "
-    "141 - Information Visualization (3); "
-    "170 - The Emerging Future: Technology Issues and Trends (4)."
+    "ISDA 100 - Technical Writing for Information (3)",
+    "ISDA 101 - Online Learning: Tools and Strategies for Success (1)",
+    "ISDA 110 - Technology, Culture, and Society (3)",
+    "ISDA 111 - Information and Data Science (3)",
+    "ISDA 120 - Information Security (3)",
+    "ISDA 121 - Human Centered Cybersecurity (3)",
+    "ISDA 122 - Privacy, Security, Ethics (2)",
+    "ISDA 123 - Information Assurance (2)",
+    "ISDA 130 - User Centered Interface Architecture (3)",
+    "ISDA 131 - Information Architecture (3)",
+    "ISDA 140 - Big Data Analytics and Management (3)",
+    "ISDA 141 - Information Visualization (3)",
+    "ISDA 170 - The Emerging Future: Technology Issues and Trends (4)",
 )
 CORE_UNITS = {
     "100": 3,
@@ -95,11 +75,15 @@ def test_bs_isda_catalog_program_pages_record_the_published_requirements():
         assert f"Source URL: {url}" in text
         assert f"{CATALOG_YEAR} Academic Catalog" in text
         assert text.splitlines()[-1] == "Retrieved: 2026-09-27"
-        assert "Core Courses (36 units)" in text
+        assert text.count(CORE_HEADING) == 1
+        assert "13 courses:" not in text
+        assert "Core course titles and units:" not in text
         assert "Major Requirements: 48" in text or "Major Requirements (48 units)" in text
         assert "Total: 120" in text or "Total Units Required (120 units)" in text
         for course in CORE_COURSES:
             assert course in text
+        assert meta["atomic_section"] == CORE_HEADING
+        assert meta["title"] in text
 
     _on_path, onsite, _on_meta = _snapshot(BS_URL)
     assert "Major Preparation: 5" in onsite
@@ -126,13 +110,20 @@ def test_core_courses_query_retrieves_the_catalog_program_page(monkeypatch, tmp_
     assert processor.process_and_index() is not None
 
     hits = processor.retrieve_relevant_docs("What are the ISDA core courses?", k=5)
-    blob = "\n".join(hit.page_content for hit in hits)
-    assert BS_URL in {hit.metadata.get("source_url") for hit in hits}
-    assert BS_URL in blob
-    assert CATALOG_YEAR in blob
-    assert CORE_UNIT_LINE in blob
-    for course in CORE_COURSES:
-        assert course in blob
+    for url in (BS_URL, ONLINE_URL):
+        complete = [
+            hit
+            for hit in hits
+            if hit.metadata.get("source_url") == url
+            and CORE_HEADING in hit.page_content
+            and CATALOG_YEAR in hit.page_content
+            and f"Source URL: {url}" in hit.page_content
+            and all(course in hit.page_content for course in CORE_COURSES)
+        ]
+        assert len(complete) == 1
+    for hit in hits:
+        present = [course for course in CORE_COURSES if course in hit.page_content]
+        assert present == [] or len(present) == len(CORE_COURSES)
 
     units = processor.retrieve_relevant_docs("How many units is the ISDA major?", k=5)
     units_blob = "\n".join(hit.page_content for hit in units)
@@ -148,36 +139,40 @@ def test_core_courses_query_retrieves_the_catalog_program_page(monkeypatch, tmp_
     )
 
 
-def test_every_core_courses_chunk_pairs_each_course_with_its_units(monkeypatch):
-    """The splitter check does not depend on which embedding model is installed."""
+def test_each_snapshot_has_one_complete_core_chunk(monkeypatch):
+    """The real splitter must not leave a partial core list in any chunk."""
     monkeypatch.setattr(Config, "EMBEDDING_PROVIDER", "hashing")
 
     processor = DocumentProcessor(str(DOCS))
+    loaded = {
+        doc.metadata.get("source_url"): doc for doc in processor.load_documents()
+    }
     for url in (BS_URL, ONLINE_URL):
-        path, text, _meta = _snapshot(url)
-        chunks = processor.split_documents(
-            [Document(page_content=text, metadata={"source": str(path)})]
-        )
+        _path, _text, meta = _snapshot(url)
+        chunks = processor.split_documents([loaded[url]])
         core_chunks = [
-            chunk for chunk in chunks if "Core Courses" in chunk.page_content
+            chunk for chunk in chunks if CORE_HEADING in chunk.page_content
         ]
-        assert core_chunks
-        for chunk in core_chunks:
-            assert CORE_UNIT_LINE in chunk.page_content
-            for number, units in CORE_UNITS.items():
-                assert f"{number} ({units})" in chunk.page_content
-            line = next(
-                part
-                for part in chunk.page_content.splitlines()
-                if part.startswith("Core Courses (36 units), 13 courses:")
-            )
-            paired = re.findall(r"(\d+) \((\d+)\)", line)
-            assert len(paired) == 13
-            assert sum(int(units) for _number, units in paired) == 36
-            assert {number: int(units) for number, units in paired} == CORE_UNITS
-
-        title_chunks = [
-            chunk for chunk in chunks if CORE_TITLE_LINE in chunk.page_content
-        ]
-        assert len(title_chunks) == 1
-        assert len(title_chunks[0].page_content) <= 600
+        assert len(core_chunks) == 1
+        core = core_chunks[0]
+        assert meta["title"] in core.page_content
+        assert CATALOG_YEAR in core.page_content
+        assert f"Source URL: {url}" in core.page_content
+        for course in CORE_COURSES:
+            assert course in core.page_content
+        paired = re.findall(r"^ISDA (\d{3}) - .+\((\d+)\)$", core.page_content, re.M)
+        assert len(paired) == 13
+        assert {number: int(units) for number, units in paired} == CORE_UNITS
+        assert sum(int(units) for _number, units in paired) == 36
+        assert "ISDA 80, 81, 150, 160, 180, and 181" not in core.page_content
+        assert any(
+            "ISDA 80, 81, 150, 160, 180, and 181" in chunk.page_content
+            for chunk in chunks
+        )
+        for chunk in chunks:
+            if chunk is core:
+                continue
+            assert CORE_HEADING not in chunk.page_content
+            for course in CORE_COURSES:
+                assert course not in chunk.page_content
+            assert len(chunk.page_content) <= 600
