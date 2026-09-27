@@ -19,6 +19,7 @@ try:
     from .catalog_recency import (
         apply_catalog_metadata,
         catalog_recency_rerank_enabled,
+        include_authoritative_course_pages,
         reorder_documents,
         reorder_ids,
     )
@@ -26,6 +27,7 @@ except ImportError:  # pragma: no cover - src/ on sys.path
     from catalog_recency import (
         apply_catalog_metadata,
         catalog_recency_rerank_enabled,
+        include_authoritative_course_pages,
         reorder_documents,
         reorder_ids,
     )
@@ -452,7 +454,8 @@ def hybrid_retrieve(
             print(f"Query embedding failed; using BM25 only: {error}")
             # The lexical list is already the candidate pool. Prefer the
             # current catalog inside that pool, then cut to k.
-            return _documents_for_ids(reorder_ids(bm25_ids, by_id), by_id, k)
+            lexical = _documents_for_ids(reorder_ids(bm25_ids, by_id), by_id, k)
+            return include_authoritative_course_pages(lexical, records, k)
         # Fuse the whole candidate pool, then let the current catalog take
         # the better slots of an older catalog for the same course or program.
         # Slicing after that swap is what brings a lower-ranked current chunk
@@ -465,7 +468,8 @@ def hybrid_retrieve(
         )
         if catalog_recency_rerank_enabled():
             fused = reorder_ids(fused, by_id)
-        return _documents_for_ids(fused, by_id, k)
+        fused_hits = _documents_for_ids(fused, by_id, k)
+        return include_authoritative_course_pages(fused_hits, records, k)
     except Exception as error:
         print(f"Hybrid retrieval failed; using vector search: {error}")
         try:

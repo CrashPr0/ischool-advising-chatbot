@@ -13,6 +13,7 @@ from src.catalog_recency import (
     current_catalog_catoid,
     current_catalog_year,
     document_heading,
+    include_authoritative_course_pages,
     reorder_documents,
 )
 from src.config import Config
@@ -354,15 +355,115 @@ def test_hybrid_fusion_then_prefers_the_current_isda_150_chunk(monkeypatch):
     assert before[1].metadata["catalog_year"] == "2023-2024"
 
 
-def test_context_heading_names_the_catalog_year_only_for_catalog_chunks():
-    assert (
-        document_heading(1, {"source": "registrar.txt"})
-        == "[Document 1 — registrar.txt]"
+def test_conflicting_ischool_title_pulls_the_current_course_page():
+    program = Document(
+        page_content="Major electives include ISDA 80, 81, 150, 160, 180, and 181.",
+        metadata={
+            "source": "program.txt",
+            "source_url": "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100",
+            "title": "Information Science and Data Analytics, BS",
+            "catalog_year": "2026-2027",
+            "catoid": "23",
+            "is_current": True,
+        },
+    )
+    ischool = Document(
+        page_content=(
+            "ISDA 150 – Special Topics in Information Science and Data Analytics"
+        ),
+        metadata={
+            "source": "ischool.txt",
+            "source_url": "https://ischool.sjsu.edu/bsisda-electives",
+        },
+    )
+    filler = Document(
+        page_content="Office hours are posted each semester.",
+        metadata={
+            "source": "hours.txt",
+            "source_url": "https://ischool.sjsu.edu/hours",
+        },
+    )
+    current = Document(
+        page_content=CURRENT_150,
+        metadata={
+            "source": "current-150.txt",
+            "title": "ISDA 150 - Topics in Information Science and Data Analytics",
+            "source_url": ISDA_150_URL,
+        },
+    )
+    records = [
+        ("program", program.page_content, program.metadata),
+        ("ischool", ischool.page_content, ischool.metadata),
+        ("filler", filler.page_content, filler.metadata),
+        ("current", current.page_content, current.metadata),
+    ]
+    pulled = include_authoritative_course_pages(
+        [ischool, program, filler], records, k=3
+    )
+    blob = "\n".join(hit.page_content for hit in pulled)
+    assert "ISDA 150 - Topics in Information Science and Data Analytics" in blob
+    assert "Special Topics" in blob
+    assert "ISDA 80, 81, 150, 160, 180, and 181" in blob
+    assert len(pulled) == 3
+    assert all(hit.page_content != filler.page_content for hit in pulled)
+
+
+def test_context_heading_labels_catalog_year_and_non_catalog_source_type():
+    assert document_heading(
+        1,
+        {
+            "source": "electives.txt",
+            "source_url": "https://ischool.sjsu.edu/bsisda-electives",
+        },
+    ) == (
+        "[Document 1 — electives.txt | "
+        "Source type: iSchool web page (not the official catalog)]"
+    )
+    assert document_heading(
+        2,
+        {
+            "source": "registrar.txt",
+            "source_url": (
+                "https://www.sjsu.edu/registrar/registration/"
+                "registration-basics/index.php"
+            ),
+        },
+    ) == (
+        "[Document 2 — registrar.txt | "
+        "Source type: Registrar web page (not the official catalog)]"
     )
     assert (
-        document_heading(2, {"source": "isda150.txt", "catalog_year": "2026-2027"})
-        == "[Document 2 — isda150.txt | Catalog year: 2026-2027]"
+        document_heading(3, {"source": "isda150.txt", "catalog_year": "2026-2027"})
+        == "[Document 3 — isda150.txt | Catalog year: 2026-2027]"
     )
+
+
+def test_model_context_labels_an_ischool_page_and_a_catalog_page():
+    from src.rag_chatbot import RAGAdvisingChatbot
+
+    bot = RAGAdvisingChatbot.__new__(RAGAdvisingChatbot)
+    context = bot._build_context(
+        "What electives can I take for the ISDA major?",
+        [
+            Document(
+                page_content="ISDA 150 – Special Topics in Information Science and Data Analytics",
+                metadata={
+                    "source": "ischool.txt",
+                    "source_url": "https://ischool.sjsu.edu/bsisda-electives",
+                },
+            ),
+            Document(
+                page_content="ISDA 150 - Topics in Information Science and Data Analytics",
+                metadata={
+                    "source": "catalog.txt",
+                    "catalog_year": "2026-2027",
+                    "catoid": "23",
+                },
+            ),
+        ],
+    )
+    assert "Source type: iSchool web page (not the official catalog)" in context
+    assert "Catalog year: 2026-2027" in context
 
 
 def test_real_corpus_keeps_core_graduation_and_current_isda_150(monkeypatch, tmp_path):
@@ -412,6 +513,20 @@ def test_real_corpus_keeps_core_graduation_and_current_isda_150(monkeypatch, tmp
     assert "graduation requirements" in graduation_blob
     assert "they graduate" in graduation_blob
     assert "Apply through Cal State Apply" in graduation_blob
+
+    electives = processor.retrieve_relevant_docs(
+        "What electives can I take for the ISDA major?", k=DEFAULT_RAG_TOP_K
+    )
+    electives_blob = "\n".join(hit.page_content for hit in electives)
+    assert (
+        "ISDA 150 - Topics in Information Science and Data Analytics" in electives_blob
+    )
+    assert "ISDA 80, 81, 150, 160, 180, and 181" in electives_blob
+    assert any(
+        hit.metadata.get("catalog_year") == "2026-2027"
+        and "Topics in Information Science and Data Analytics" in hit.page_content
+        for hit in electives
+    )
 
     prerequisites = processor.retrieve_relevant_docs(
         "What are the prerequisites for ISDA 150?", k=DEFAULT_RAG_TOP_K

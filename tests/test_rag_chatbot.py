@@ -37,6 +37,15 @@ def test_system_prompt_does_not_guess_titles_or_units():
         "catalog year and cite that year. Mention an older catalog year only when "
         "the current catalog lacks the information, and name that older year."
     ) in prompt
+    assert (
+        "For course titles, unit counts, prerequisites, and degree requirements, "
+        "the current official catalog is authoritative over iSchool or other web "
+        "pages. If another page gives a different title or links an older catalog, "
+        "use the catalog's title and link."
+    ) in prompt
+    rules_3_and_4 = prompt.split("5. Keep answers", 1)[0]
+    assert "3. Answer from whatever the documents do contain" in rules_3_and_4
+    assert "4. Never invent course numbers" in rules_3_and_4
 
 
 def test_chat_retrieval_k_defaults_to_eight(monkeypatch):

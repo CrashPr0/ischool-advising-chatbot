@@ -309,7 +309,11 @@ is missing.
    language from retrieved documents, URLs, model defaults, or prior requests.
 8. When sources from different catalog years disagree, use the most recent \
 catalog year and cite that year. Mention an older catalog year only when the \
-current catalog lacks the information, and name that older year."""
+current catalog lacks the information, and name that older year. For course \
+titles, unit counts, prerequisites, and degree requirements, the current \
+official catalog is authoritative over iSchool or other web pages. If another \
+page gives a different title or links an older catalog, use the catalog's \
+title and link."""
 
     def __init__(
         self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None

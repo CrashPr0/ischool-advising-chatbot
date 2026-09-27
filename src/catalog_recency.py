@@ -4,7 +4,9 @@ SJSU catalog snapshots are kept for every year that is in the corpus. Students
 on older catalog rights can still be answered from those pages. When the
 current catalog and an older catalog both describe the same course or program,
 retrieval gives the current catalog the better slot. Registrar pages and
-iSchool pages are not catalog snapshots and are left unchanged.
+iSchool pages stay non-catalog. If one of them is in the top results and
+gives a different title for a course the current catalog already lists there,
+the current course page is pulled into that result set.
 """
 
 from __future__ import annotations
@@ -47,6 +49,12 @@ _ACADEMIC_YEAR_LABEL = re.compile(
 )
 _HEADING_COURSE = re.compile(
     r"^\s*([A-Za-z]{2,6})\s+(\d{2,3}[A-Za-z]?)\s*[-–—]\s+\S",
+)
+_TITLED_MENTION = re.compile(
+    r"(?<![A-Za-z0-9])([A-Za-z]{2,6})\s+(\d{2,3}[A-Za-z]?)\s*[-–—]\s*([^,.\n\[\]]+)",
+)
+_HEADING_TITLE = re.compile(
+    r"^([A-Za-z]{2,6})\s+(\d{2,3}[A-Za-z]?)\s*[-–—]\s*(.+)$",
 )
 _YEAR_LINE = re.compile(r"^\s*20\d{2}-20\d{2}\s+Academic Catalog\s*$", re.IGNORECASE)
 
@@ -287,11 +295,191 @@ def reorder_documents(documents: Sequence[Document]) -> list[Document]:
     return [prepared[int(doc_id)] for doc_id in ordered]
 
 
+def source_type_label(metadata: Optional[dict]) -> str:
+    """Name a non-catalog source so the model does not treat it as the catalog."""
+    metadata = metadata or {}
+    raw = metadata.get("source_url")
+    url = raw.strip().casefold() if isinstance(raw, str) else ""
+    if "ischool.sjsu.edu" in url:
+        kind = "iSchool web page"
+    elif "registrar" in url:
+        kind = "Registrar web page"
+    elif url:
+        kind = "SJSU web page"
+    else:
+        kind = "Advising document"
+    return f"{kind} (not the official catalog)"
+
+
 def document_heading(index: int, metadata: Optional[dict]) -> str:
-    """Context label. Catalog hits name their academic year; others do not."""
+    """Context label. Catalog hits name their year; other hits name the source type."""
     metadata = metadata or {}
     source = metadata.get("source", "unknown")
     year = metadata.get("catalog_year")
     if isinstance(year, str) and year.strip():
         return f"[Document {index} — {source} | Catalog year: {year.strip()}]"
-    return f"[Document {index} — {source}]"
+    return f"[Document {index} — {source} | Source type: {source_type_label(metadata)}]"
+
+
+def _course_code(department: str, number: str) -> str:
+    return f"{department.casefold()}{number.casefold()}"
+
+
+def _normalize_title(title: str) -> str:
+    text = (
+        (title or "").casefold().replace("–", " ").replace("—", " ").replace("-", " ")
+    )
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _heading_parts(text: str) -> tuple[str, str]:
+    """Return ``(course code, normalized title)`` from a heading line."""
+    line = ""
+    for raw in (text or "").splitlines():
+        if raw.strip():
+            line = raw.strip()
+            break
+    match = _HEADING_TITLE.match(line)
+    if not match:
+        return "", ""
+    return _course_code(match.group(1), match.group(2)), _normalize_title(
+        match.group(3)
+    )
+
+
+_COURSE_LIST = re.compile(
+    r"(?<![A-Za-z0-9])([A-Za-z]{2,6})\s+"
+    r"(\d{2,3}[A-Za-z]?(?:\s*,\s*(?:and\s+)?\d{2,3}[A-Za-z]?)*)",
+    re.IGNORECASE,
+)
+
+
+def _course_codes_in(text: str) -> set[str]:
+    """Course codes, including ``ISDA 80, 81, 150`` lists that share one prefix."""
+    codes: set[str] = set()
+    for match in _COURSE_LIST.finditer(text or ""):
+        for number in re.findall(r"\d{2,3}[A-Za-z]?", match.group(2)):
+            codes.add(_course_code(match.group(1), number))
+    return codes
+
+
+def _titled_mentions(text: str) -> dict[str, str]:
+    """Map a course code to the title a non-catalog page printed after a dash."""
+    found: dict[str, str] = {}
+    for match in _TITLED_MENTION.finditer(text or ""):
+        title = _normalize_title(match.group(3))
+        if not title:
+            continue
+        found[_course_code(match.group(1), match.group(2))] = title
+    return found
+
+
+def _current_course_pages(
+    records: Sequence[tuple[str, str, dict]],
+) -> dict[str, Document]:
+    """One current-catalog chunk per course, preferring the chunk with the heading."""
+    pages: dict[str, Document] = {}
+    for _doc_id, content, metadata in records:
+        text = content or ""
+        meta = apply_catalog_metadata(dict(metadata or {}), text)
+        if not metadata_is_current(meta):
+            continue
+        code, title = _heading_parts(
+            meta.get("title") if isinstance(meta.get("title"), str) else ""
+        )
+        if not code:
+            code, title = _heading_parts(text)
+        if not code or not title:
+            continue
+        key = catalog_subject_key(text, meta)
+        if key and not key.startswith("course:"):
+            continue
+        document = Document(page_content=text, metadata=meta)
+        current = pages.get(code)
+        starts = bool(_heading_parts(text)[0])
+        if current is None or starts:
+            pages[code] = document
+    return pages
+
+
+def _is_current_catalog_document(document: Document) -> bool:
+    metadata = getattr(document, "metadata", None) or {}
+    return bool(metadata.get("catoid")) and metadata_is_current(metadata)
+
+
+def include_authoritative_course_pages(
+    documents: Sequence[Document],
+    records: Sequence[tuple[str, str, dict]],
+    k: int,
+) -> list[Document]:
+    """Pull a current course page in when a non-catalog hit contradicts its title.
+
+    The current catalog chunk already in ``documents`` must mention the course
+    number, and a non-catalog chunk must give a different dashed title. The
+    pulled page replaces the lowest non-catalog hit that is not the
+    contradicting one, so the elective list and other current-catalog chunks
+    stay. ``CATALOG_RECENCY_RERANK=false`` leaves the list unchanged.
+    """
+    chosen = list(documents)
+    if not catalog_recency_rerank_enabled() or k <= 0 or not records:
+        return chosen
+
+    catalog_codes: set[str] = set()
+    for document in chosen:
+        if _is_current_catalog_document(document):
+            catalog_codes.update(_course_codes_in(document.page_content))
+    if not catalog_codes:
+        return chosen
+
+    pages = _current_course_pages(records)
+    wanted: list[Document] = []
+    trigger_ids: set[int] = set()
+    for index, document in enumerate(chosen):
+        if _is_current_catalog_document(document):
+            continue
+        for code, title in _titled_mentions(document.page_content).items():
+            if code not in catalog_codes:
+                continue
+            page = pages.get(code)
+            if page is None:
+                continue
+            _code, official = _heading_parts(
+                page.metadata.get("title")
+                if isinstance(page.metadata.get("title"), str)
+                else page.page_content
+            )
+            if not official or official == title:
+                continue
+            trigger_ids.add(index)
+            if any(page.page_content in hit.page_content for hit in chosen + wanted):
+                continue
+            if any(hit.page_content == page.page_content for hit in wanted):
+                continue
+            wanted.append(page)
+    if not wanted:
+        return chosen
+
+    insert_at = min(trigger_ids) if trigger_ids else len(chosen)
+    for offset, page in enumerate(wanted):
+        chosen.insert(insert_at + offset, page)
+    protected = set(range(insert_at, insert_at + len(wanted)))
+    protected.update(
+        index + len(wanted) if index >= insert_at else index for index in trigger_ids
+    )
+
+    while len(chosen) > k:
+        evict = None
+        for index in range(len(chosen) - 1, -1, -1):
+            if index in protected or _is_current_catalog_document(chosen[index]):
+                continue
+            evict = index
+            break
+        if evict is None:
+            # Making room would drop a current-catalog chunk. Keep the fused list.
+            return list(documents)
+        del chosen[evict]
+        protected = {
+            (item if item < evict else item - 1) for item in protected if item != evict
+        }
+    return chosen
