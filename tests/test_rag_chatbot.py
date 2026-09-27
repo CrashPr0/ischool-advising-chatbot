@@ -165,6 +165,7 @@ def test_follow_up_uses_the_previous_question_without_calling_a_real_model():
     assert query.endswith("what about the prerequisites?")
     payload = bot.chain.payloads[-1]
     assert payload["question"] == "what about the prerequisites?"
+    assert "2026-2027" in payload["catalog_note"]
     assert "Assistant: DATA 201." in payload["context"]
     assert "Earlier conversation is context" in payload["context"]
     assert turns == [

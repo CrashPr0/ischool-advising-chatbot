@@ -1160,7 +1160,19 @@ def readyz():
     until the post-deploy rebuild writes an index_build.json for this commit
     and for the embedding provider, model, and dimension now configured.
     """
+    from catalog_recency import catalog_staleness_report
+
     report = _index_readiness_report()
+    staleness = catalog_staleness_report()
+    report.update(staleness)
+    if staleness["catalog_may_be_stale"]:
+        logger.warning(
+            "Catalog may be stale: configured %s (catoid %s); expected %s "
+            "after the fall cutoff",
+            staleness["catalog_year"],
+            staleness["catalog_catoid"],
+            staleness["expected_catalog_year"],
+        )
     return jsonify(report), (200 if report["ready"] else 503)
 
 

@@ -189,11 +189,18 @@ def test_manifest_catalog_urls_resolve_to_the_current_catalog():
         if "catalog.sjsu.edu" in item["source_url"]
     ]
     assert catalog_urls
+    saw_current = False
     for url in catalog_urls:
         meta = apply_catalog_metadata({"source_url": url, "doc_id": "web"}, "")
-        assert meta["catoid"] == "23"
-        assert meta["catalog_year"] == CATALOG_YEAR_BY_CATOID["23"]
-        assert meta["is_current"] is True
+        assert meta["catoid"]
+        assert meta["catalog_year"]
+        if meta["catoid"] == current_catalog_catoid():
+            assert meta["catalog_year"] == CATALOG_YEAR_BY_CATOID[meta["catoid"]]
+            assert meta["is_current"] is True
+            saw_current = True
+        else:
+            assert meta["is_current"] is False
+    assert saw_current
 
 
 def test_ischool_and_registrar_pages_are_not_catalog_chunks():
@@ -243,8 +250,13 @@ def test_loaded_catalog_documents_carry_year_and_chunks_keep_it():
 def test_current_catalog_year_follows_the_environment(monkeypatch):
     monkeypatch.delenv("CURRENT_CATALOG_CATOID", raising=False)
     monkeypatch.delenv("CURRENT_CATALOG_YEAR", raising=False)
-    assert current_catalog_catoid() == "23"
-    assert current_catalog_year() == "2026-2027"
+    identity = json.loads(
+        (
+            Path(__file__).resolve().parents[1] / "data" / "catalog_identity.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert current_catalog_catoid() == identity["current_catoid"]
+    assert current_catalog_year() == identity["current_year"]
 
     monkeypatch.setenv("CURRENT_CATALOG_CATOID", "14")
     monkeypatch.setenv("CURRENT_CATALOG_YEAR", "2023-2024")

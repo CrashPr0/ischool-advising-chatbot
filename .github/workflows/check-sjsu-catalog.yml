@@ -1,0 +1,103 @@
+name: Check SJSU catalog
+
+# Weekly check for a newer catalog.sjsu.edu academic year, plus a manual run
+# from the Actions tab (Run workflow). A newer year refreshes the ISDA
+# snapshots and opens a pull request for a person to review.
+#
+# This workflow leaves main untouched. It does not merge.
+#
+# GITHUB_TOKEN needs contents: write (push the catalog branch) and
+# pull-requests: write (open the pull request). The repository setting
+# Settings → Actions → General → Workflow permissions has to allow
+# Read and write permissions, and "Allow GitHub Actions to create and
+# approve pull requests" has to be enabled. A pull request opened with
+# GITHUB_TOKEN does not start the pull-request test workflow; pytest runs
+# in this job before the pull request is opened.
+
+on:
+  schedule:
+    # Monday 15:17 UTC, away from the top of the hour.
+    - cron: "17 15 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sjsu-catalog-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Detect a newer catalog
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Skip when a catalog pull request is already open
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count="$(gh pr list --state open --base main --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("catalog/sjsu-"))] | length')"
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
+          if [ "${count}" != "0" ]; then
+            echo "An open catalog pull request already exists. Leaving it for review."
+          fi
+
+      - name: Set up Python
+        if: steps.open.outputs.count == '0'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            constraints.txt
+
+      - name: Install dependencies
+        if: steps.open.outputs.count == '0'
+        run: pip install -r requirements.txt
+
+      - name: Detect a newer catalog and refresh snapshots
+        id: catalog
+        if: steps.open.outputs.count == '0'
+        run: python scripts/check_sjsu_catalog.py --result "${RUNNER_TEMP}/catalog-check.json" --pr-body "${RUNNER_TEMP}/pr-body.md"
+
+      - name: Run tests
+        if: steps.open.outputs.count == '0' && steps.catalog.outputs.changed == 'true'
+        env:
+          APP_URL: http://127.0.0.1:8000
+          DOCS_LOAD_TOKEN: test-docs-token
+        run: python -m pytest tests/ -q
+
+      - name: Open a pull request
+        if: steps.open.outputs.count == '0' && steps.catalog.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status="$(jq --raw-output '.status' "${RUNNER_TEMP}/catalog-check.json")"
+          year="$(jq --raw-output '.year' "${RUNNER_TEMP}/catalog-check.json")"
+          if [ "${status}" != "updated" ] || [ -z "$(git status --porcelain)" ]; then
+            echo "Catalog check did not change the tree. No pull request."
+            exit 0
+          fi
+          branch="catalog/sjsu-${year}"
+          if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
+            echo "Branch ${branch} already exists. No pull request."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${branch}"
+          git add data .env.example README.md
+          git commit -m "Update SJSU catalog snapshots to ${year}"
+          git push -u origin "${branch}"
+          gh pr create --base main --head "${branch}" \
+            --title "Update SJSU catalog snapshots to ${year}" \
+            --body-file "${RUNNER_TEMP}/pr-body.md"

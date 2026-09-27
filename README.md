@@ -172,7 +172,7 @@ Open `http://localhost:5000`.
 
 - `GET /api/status`
 - `GET /healthz` (liveness probe; does not require provider credentials or an index)
-- `GET /readyz` (index receipt; 503 until `index_build.json` matches `deployment_version.txt` and the embedding provider, model, and dimension. Deploy probes and the Azure health check must keep using `/healthz`)
+- `GET /readyz` (index receipt; 503 until `index_build.json` matches `deployment_version.txt` and the embedding provider, model, and dimension. The JSON also includes `catalog_may_be_stale`, which is a warning and does not change the HTTP status. Deploy probes and the Azure health check must keep using `/healthz`)
 - `POST /api/chat` `{ "message": "..." }` (503 with a short message when the index receipt is missing, is for another release, or was built with a different embedder; the model is not called. `/healthz` stays up so a deploy can rebuild the index)
 - `GET /api/history`
 - `POST /api/clear-history`
@@ -268,6 +268,55 @@ for a course the current catalog already lists there, that course's current
 catalog page is pulled into the result. Older catalog snapshots stay in the
 index for students on earlier catalog rights. Non-catalog context is labeled
 with its source type; catalog context is labeled with its catalog year.
+
+### Catalog updates
+
+The committed catalog map is [`data/catalog_identity.json`](data/catalog_identity.json).
+The app reads that file when it starts. `CURRENT_CATALOG_CATOID` and
+`CURRENT_CATALOG_YEAR`, when set, override the file, including on Azure App
+Service. An unknown catoid takes its year from the snapshot's stored
+`catalog_year` or from a `YYYY-YYYY Academic Catalog` line in the text.
+Startup and each request stay on the committed snapshots.
+
+[`.github/workflows/check-sjsu-catalog.yml`](.github/workflows/check-sjsu-catalog.yml)
+runs every Monday, and it can be started by hand: open the GitHub **Actions**
+tab, choose **Check SJSU catalog**, and click **Run workflow**. The job reads
+the catalog menu at `catalog.sjsu.edu` and treats the selected academic year
+as the published current catalog. When that year is newer than
+`data/catalog_identity.json`, the job downloads the ISDA program pages and
+ISDA course pages for the new catoid, writes those snapshots next to the
+older ones, and updates the identity file, `.env.example`, and the catalog
+year named above. It then runs `pytest` and opens a pull request against
+`main` for a person to review. The pull request is left for that review;
+main stays as it is until someone merges.
+
+The job finishes successfully with no pull request when the published catalog
+is unchanged, when a catalog pull request is already open, or when the site
+cannot be read. A network error, a bot challenge, or a page that no longer
+has one selected academic year is logged as a warning and leaves the tree
+alone.
+
+The workflow asks for `contents: write` and `pull-requests: write` on
+`GITHUB_TOKEN`. Under **Settings → Actions → General → Workflow permissions**,
+the repository needs **Read and write permissions** and **Allow GitHub Actions
+to create and approve pull requests**. A pull request opened with
+`GITHUB_TOKEN` does not start the pull-request test workflow. This job runs
+pytest before it opens the pull request. If `CURRENT_CATALOG_CATOID` or
+`CURRENT_CATALOG_YEAR` is set on App Service, that value overrides the file
+after the pull request is merged, so clear or update the App Service setting
+when you accept the new catalog.
+
+`GET /readyz` includes `catalog_may_be_stale`, `catalog_year`,
+`catalog_catoid`, and `expected_catalog_year`. The flag is true when today's
+date is on or after `CATALOG_STALE_CUTOFF` (default `08-20`) and the
+configured catalog year is still an older academic year. SJSU fall
+instruction usually begins in the second half of August, so August 20 is the
+default point at which the next catalog year should already be current.
+Before that date in calendar year Y the expected catalog is (Y-1)-Y; on that
+date and after it, the expected catalog is Y-(Y+1). The HTTP status stays the
+index receipt. A stale catalog is also written to the log. Answers name the
+catalog year they are using, and when the flag is true they say a newer
+catalog may have been published.
 
 ### Chinese models and other OpenAI-compatible services
 
