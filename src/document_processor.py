@@ -30,8 +30,10 @@ import yaml
 from langchain_core.embeddings import Embeddings
 
 try:
+    from .catalog_recency import apply_catalog_metadata, reorder_documents
     from .config import Config
 except ImportError:  # pragma: no cover
+    from catalog_recency import apply_catalog_metadata, reorder_documents
     from config import Config
 
 
@@ -799,6 +801,7 @@ class DocumentProcessor:
                     if companion:
                         document.metadata.update(companion)
                     document.metadata["source"] = source
+                    apply_catalog_metadata(document.metadata, document.page_content)
                     documents.append(document)
             except Exception as e:
                 print(f"Error loading {source}: {e}")
@@ -1111,7 +1114,7 @@ class DocumentProcessor:
             if hybrid_hits is not None:
                 return hybrid_hits
             results = store.similarity_search(query, k=k)
-            return results
+            return reorder_documents(results)
         except Exception as e:
             print(f"Error retrieving documents: {e}")
             return []

@@ -24,11 +24,13 @@ from typing import Any, Callable, Iterable, Optional
 from langchain_core.prompts import PromptTemplate
 
 try:
+    from .catalog_recency import document_heading
     from .config import Config
     from .document_processor import DocumentProcessor
     from .llm_providers import LLMFactory
     from .rag_chatbot import RAGAdvisingChatbot
 except ImportError:  # pragma: no cover - supports direct script execution
+    from catalog_recency import document_heading
     from config import Config
     from document_processor import DocumentProcessor
     from llm_providers import LLMFactory
@@ -123,9 +125,8 @@ def build_context(documents: Iterable[Any]) -> str:
     parts = ["--- Retrieved advising documents ---\n"]
     for index, document in enumerate(documents, 1):
         metadata = getattr(document, "metadata", {}) or {}
-        source = metadata.get("source", "unknown")
         content = str(getattr(document, "page_content", "")).strip()
-        parts.append(f"[Document {index} — {source}]\n{content}\n")
+        parts.append(f"{document_heading(index, metadata)}\n{content}\n")
     parts.append("--- End of documents ---")
     return "\n".join(parts)
 

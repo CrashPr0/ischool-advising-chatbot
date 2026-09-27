@@ -15,6 +15,21 @@ from typing import Optional, Sequence
 
 from langchain_core.documents import Document
 
+try:
+    from .catalog_recency import (
+        apply_catalog_metadata,
+        catalog_recency_rerank_enabled,
+        reorder_documents,
+        reorder_ids,
+    )
+except ImportError:  # pragma: no cover - src/ on sys.path
+    from catalog_recency import (
+        apply_catalog_metadata,
+        catalog_recency_rerank_enabled,
+        reorder_documents,
+        reorder_ids,
+    )
+
 # Cormack, Clarke, and Buettcher, SIGIR 2009. Rank is 1-based.
 # Vector neighbors use the paper's constant. The lexical list uses a smaller
 # constant so an exact course-code hit is not pushed out of the chat top-k by
@@ -363,7 +378,8 @@ def _documents_for_ids(doc_ids, by_id, limit: int) -> list[Document]:
         if row is None:
             continue
         content, metadata = row
-        documents.append(Document(page_content=content, metadata=metadata))
+        meta = apply_catalog_metadata(dict(metadata or {}), content)
+        documents.append(Document(page_content=content, metadata=meta))
         if len(documents) >= limit:
             break
     return documents
@@ -434,22 +450,26 @@ def hybrid_retrieve(
             vector_ids = _vector_ids(vector_store, query, pool, by_content)
         except Exception as error:
             print(f"Query embedding failed; using BM25 only: {error}")
-            return _documents_for_ids(bm25_ids, by_id, k)
+            # The lexical list is already the candidate pool. Prefer the
+            # current catalog inside that pool, then cut to k.
+            return _documents_for_ids(reorder_ids(bm25_ids, by_id), by_id, k)
+        # Fuse the whole candidate pool, then let the current catalog take
+        # the better slots of an older catalog for the same course or program.
+        # Slicing after that swap is what brings a lower-ranked current chunk
+        # into the chat top-k without moving non-catalog hits.
         fused = reciprocal_rank_fusion(
             [vector_ids, bm25_ids],
             rrf_ks=[VECTOR_RRF_K, LEXICAL_RRF_K],
-            limit=k,
+            limit=pool,
             tie_break=bm25_ids,
         )
-        return [
-            Document(page_content=by_id[doc_id][0], metadata=by_id[doc_id][1])
-            for doc_id in fused
-            if doc_id in by_id
-        ]
+        if catalog_recency_rerank_enabled():
+            fused = reorder_ids(fused, by_id)
+        return _documents_for_ids(fused, by_id, k)
     except Exception as error:
         print(f"Hybrid retrieval failed; using vector search: {error}")
         try:
-            return list(vector_store.similarity_search(query, k=k))
+            return reorder_documents(list(vector_store.similarity_search(query, k=k)))
         except Exception as inner:
             print(f"Error retrieving documents: {inner}")
             return []

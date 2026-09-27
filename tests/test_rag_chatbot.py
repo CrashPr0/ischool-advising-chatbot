@@ -32,6 +32,11 @@ def test_system_prompt_does_not_guess_titles_or_units():
         "Do not withhold facts the sources do contain because a course title "
         "or unit count is missing."
     ) in prompt
+    assert (
+        "When sources from different catalog years disagree, use the most recent "
+        "catalog year and cite that year. Mention an older catalog year only when "
+        "the current catalog lacks the information, and name that older year."
+    ) in prompt
 
 
 def test_chat_retrieval_k_defaults_to_eight(monkeypatch):
