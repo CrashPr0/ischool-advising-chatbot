@@ -21,13 +21,17 @@ def test_system_prompt_does_not_guess_titles_or_units():
         "and any units that are present and say the title isn't in the sources; never "
         "supply a title from your own knowledge."
     ) in prompt
-    assert "Never invent a course title or unit count" in prompt
+    assert (
+        "Never invent course numbers, titles, unit counts, prerequisites, "
+        "policies, or deadlines that aren't written in the sources."
+    ) in prompt
+    assert "policies, or deadlines" in prompt
     assert "Answer from whatever the documents do contain" in prompt
     assert "only for the missing part" in prompt
     assert (
-        "Never fabricate course numbers, unit counts, policies, or deadlines"
-        not in prompt
-    )
+        "Do not withhold facts the sources do contain because a course title "
+        "or unit count is missing."
+    ) in prompt
 
 
 def test_chat_retrieval_k_defaults_to_eight(monkeypatch):
