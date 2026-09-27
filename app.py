@@ -379,6 +379,35 @@ def _session_id() -> str:
     return value
 
 
+# Client-chosen tab ids. Scoped under the server session id, so one browser
+# cannot read another browser's conversation by guessing the id.
+_CONVERSATION_ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
+
+
+def _optional_conversation_id(source: dict | None) -> str | None:
+    """Return a validated tab id, or None when the client did not send one.
+
+    An empty string is treated as omitted so older clients stay compatible.
+    A present but malformed value raises ValueError (the route returns 400).
+    """
+    if not isinstance(source, dict) or "conversation_id" not in source:
+        return None
+    raw = source.get("conversation_id")
+    if raw is None or raw == "":
+        return None
+    if not isinstance(raw, str) or _CONVERSATION_ID.fullmatch(raw) is None:
+        raise ValueError("conversation_id is invalid")
+    return raw
+
+
+def _history_key(conversation_id: str | None) -> str:
+    """Isolate each tab under the browser session without changing the default key."""
+    session_id = _session_id()
+    if conversation_id is None:
+        return session_id
+    return f"{session_id}:{conversation_id}"
+
+
 def _client_key() -> str:
     """Return the address used as a rate-limit bucket.
 
@@ -851,14 +880,15 @@ def chat():
     """Answer one student message for the current browser session.
 
     Earlier turns from the session store are passed into ``chat`` so a
-    follow-up can use them. The new turn is stored only when the reply is
-    not marked ``safety_tier`` ``crisis`` (that field arrives with the
-    safety layer). A missing or stale index receipt returns 503 and does
-    not load the model. ``/healthz`` does not use this check: the deploy
-    workflow waits for liveness, then rebuilds the index through the admin
-    load-docs route rather than through this one.
+    follow-up can use them. An optional ``conversation_id`` keeps each
+    browser tab in its own history bucket under the same session. Omitting
+    it preserves the single-conversation key. The new turn is stored only
+    when the reply is not marked ``safety_tier`` ``crisis`` (that field
+    arrives with the safety layer). A missing or stale index receipt
+    returns 503 and does not load the model. ``/healthz`` does not use
+    this check: the deploy workflow waits for liveness, then rebuilds the
+    index through the admin load-docs route rather than through this one.
     """
-    session_id = _session_id()
     allowed, retry_after = _rate_limiter.allow(
         f"chat:{_client_key()}",
         _env_int("CHAT_RATE_LIMIT", 60, 1, 1_000),
@@ -886,6 +916,11 @@ def chat():
                 jsonify({"error": f"Message exceeds the {max_length}-character limit"}),
                 413,
             )
+        try:
+            conversation_id = _optional_conversation_id(data)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        session_id = _history_key(conversation_id)
 
         # Validate the message before the index check so a bad request stays
         # a 400. The index check itself must run before get_chatbot(): that
@@ -1250,9 +1285,13 @@ def load_docs_status():
 
 @app.route("/api/history", methods=["GET"])
 def history():
-    """Get conversation history."""
+    """Get conversation history for the session, or for one tab id."""
     try:
-        return jsonify({"history": _history_store.snapshot(_session_id())})
+        try:
+            conversation_id = _optional_conversation_id(request.args)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify({"history": _history_store.snapshot(_history_key(conversation_id))})
     except Exception:
         logger.exception("Unable to read conversation history")
         return jsonify({"error": "Unable to read conversation history"}), 500
@@ -1260,9 +1299,16 @@ def history():
 
 @app.route("/api/clear-history", methods=["POST"])
 def clear_history():
-    """Clear conversation history."""
+    """Clear one tab's history, or the session default when no tab id is sent."""
     try:
-        _history_store.clear(_session_id())
+        payload = request.get_json(silent=True)
+        try:
+            conversation_id = _optional_conversation_id(
+                payload if isinstance(payload, dict) else None
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        _history_store.clear(_history_key(conversation_id))
         return jsonify({"success": True})
     except Exception:
         logger.exception("Unable to clear conversation history")

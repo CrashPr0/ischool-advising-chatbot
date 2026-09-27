@@ -14,6 +14,8 @@ const activeTopicLabel = document.getElementById("active-topic-label");
 const sampleChipsArea = document.getElementById("sample-chips-area");
 const sampleChipsLabel = document.getElementById("sample-chips-label");
 const sampleChipsContainer = document.getElementById("sample-chips");
+const emptyState = document.getElementById("empty-state");
+const chatTabs = document.getElementById("chat-tabs");
 
 const voiceTools = document.getElementById("voice-tools");
 const voiceListenButton = document.getElementById("voice-listen-button");
@@ -409,6 +411,7 @@ function showSampleChips(topic, samples) {
 
   samples.forEach((q) => {
     const chip = document.createElement("button");
+    chip.type = "button";
     chip.classList.add("sample-chip");
     chip.textContent = q;
     chip.addEventListener("click", () => {
@@ -418,6 +421,38 @@ function showSampleChips(topic, samples) {
   });
 
   sampleChipsArea.classList.remove("hidden");
+}
+
+// Welcome suggestions sit outside the transcript. Hide them once a message
+// exists, and bring them back when New chat clears the conversation.
+function hideEmptyState() {
+  if (!emptyState || !chatBox) return;
+  const active = document.activeElement;
+  const focusedInWelcome = Boolean(
+    active &&
+    typeof emptyState.contains === "function" &&
+    emptyState.contains(active)
+  );
+  emptyState.classList.add("hidden");
+  chatBox.classList.remove("is-empty");
+  if (focusedInWelcome && userInput && typeof userInput.focus === "function") {
+    userInput.focus();
+  }
+}
+
+function showEmptyState() {
+  if (!emptyState || !chatBox) return;
+  if (typeof chatBox.replaceChildren === "function") {
+    chatBox.replaceChildren();
+  } else {
+    chatBox.innerHTML = "";
+  }
+  chatBox.classList.add("is-empty");
+  emptyState.classList.remove("hidden");
+}
+
+function hideSampleChips() {
+  sampleChipsArea?.classList.add("hidden");
 }
 
 // ── MESSAGES ──
@@ -443,7 +478,18 @@ function renderMessageText(container, value, linkify = false) {
   }
 }
 
-function addMessage(text, className, label) {
+function addMessage(text, className, label, options) {
+  const skipRecord = Boolean(options && options.skipRecord);
+  hideEmptyState();
+  if (!skipRecord && tabsEnabled()) {
+    const current = getActiveConversation();
+    if (current) {
+      rememberMessage(current.id, {
+        role: className === "user-message" ? "user" : "bot",
+        text: text
+      });
+    }
+  }
   const wrapper = document.createElement("div");
   wrapper.classList.add("message", className);
 
@@ -507,47 +553,85 @@ async function sendMessage(prefilledMessage = null) {
   const message = (prefilledMessage || userInput.value).trim();
   if (!message) return;
 
-  addMessage(message, "user-message", "You");
+  // Pin the tab that asked. A reply that arrives after New chat or a tab
+  // switch must land in this conversation, not the one now on screen.
+  const conversationId = tabsEnabled() ? getActiveConversation()?.id : null;
 
+  hideSampleChips();
   userInput.value = "";
-  showTypingIndicator();
   updateMeta({});
+
+  if (conversationId) {
+    rememberMessage(conversationId, { role: "user", text: message });
+    if (isActiveConversation(conversationId)) {
+      addMessage(message, "user-message", "You", { skipRecord: true });
+      showTypingIndicator();
+    }
+  } else {
+    addMessage(message, "user-message", "You");
+    showTypingIndicator();
+  }
+
+  const payload = { message: message };
+  if (conversationId) payload.conversation_id = conversationId;
 
   try {
     const response = await fetch(apiUrl("/api/chat"), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: message })
+      body: JSON.stringify(payload)
     });
 
     const data = await response.json();
-    removeTypingIndicator();
+    if (isActiveConversation(conversationId) || !conversationId) {
+      removeTypingIndicator();
+    }
 
     if (!response.ok) {
-      addMessage(data.error || "An error occurred while contacting the chatbot.", "bot-message", "ISDA Bot");
+      const errorText = data.error || "An error occurred while contacting the chatbot.";
+      deliverBotReply(conversationId, errorText);
       return;
     }
 
     const responseText =
       data.response || "I couldn't find an answer for that question.";
-    addMessage(responseText, "bot-message", "ISDA Bot");
-    updateMeta({
+    deliverBotReply(conversationId, responseText, {
       source: data.source,
-      retrieved_docs: data.retrieved_docs
+      retrievedDocs: data.retrieved_docs
     });
-    // Speech runs after the reply is on screen. A browser speech failure
-    // must not look like a lost connection.
-    speakBotReply(responseText);
+    if (isActiveConversation(conversationId) || !conversationId) {
+      updateMeta({
+        source: data.source,
+        retrieved_docs: data.retrieved_docs
+      });
+      // Speech runs after the reply is on screen. A browser speech failure
+      // must not look like a lost connection.
+      speakBotReply(responseText);
+    }
   } catch (error) {
-    removeTypingIndicator();
-    addMessage(
-      "Sorry, I couldn't connect to the chatbot backend right now.",
-      "bot-message",
-      "ISDA Bot"
+    if (isActiveConversation(conversationId) || !conversationId) {
+      removeTypingIndicator();
+    }
+    deliverBotReply(
+      conversationId,
+      "Sorry, I couldn't connect to the chatbot backend right now."
     );
     console.error("Chat error:", error);
   }
+}
+
+function deliverBotReply(conversationId, text, meta) {
+  if (conversationId) {
+    rememberMessage(conversationId, {
+      role: "bot",
+      text: text,
+      source: meta && meta.source,
+      retrievedDocs: meta ? meta.retrievedDocs : null
+    });
+    if (!isActiveConversation(conversationId)) return;
+  }
+  addMessage(text, "bot-message", "ISDA Bot", { skipRecord: Boolean(conversationId) });
 }
 
 function speakBotReply(responseText) {
@@ -570,25 +654,34 @@ function speakBotReply(responseText) {
 // and does not open the index. The index loads on the first real question.
 function setServiceStatus(state, detail) {
   if (!statusText || !providerText) return;
+  statusText.classList.remove("is-ready", "is-error", "is-unavailable");
   if (state === "ready") {
     statusText.textContent = "Ready to help";
+    statusText.classList.add("is-ready");
     providerText.textContent = "Advising support is available.";
     return;
   }
   if (state === "error") {
     statusText.textContent = "Status: error";
+    statusText.classList.add("is-error");
     providerText.textContent = detail || "Could not load status.";
     return;
   }
   statusText.textContent = "Status: unavailable";
+  statusText.classList.add("is-unavailable");
   providerText.textContent =
     detail || "Could not connect to backend status endpoint.";
 }
 
 // ── CLEAR ──
-async function clearHistory() {
+async function clearHistory(conversationId) {
   try {
-    await fetch(apiUrl("/api/clear-history"), { method: "POST", credentials: "include" });
+    const options = { method: "POST", credentials: "include" };
+    if (conversationId) {
+      options.headers = { "Content-Type": "application/json" };
+      options.body = JSON.stringify({ conversation_id: conversationId });
+    }
+    await fetch(apiUrl("/api/clear-history"), options);
   } catch (error) {
     console.error("Clear history error:", error);
   }
@@ -604,26 +697,51 @@ userInput.addEventListener("keydown", (event) => {
   }
 });
 
-clearButton.addEventListener("click", async () => {
-  chatBox.innerHTML = `
-    <div class="message bot-message">
-      <div class="message-label">ISDA Bot</div>
-      <div>Hi! I’m your ISDA advising assistant. I can help you explore degree requirements, plan your courses, and navigate registration. Choose a topic or ask me a question to get started.</div>
-    </div>
-  `;
-
+function resetTopicSelection() {
   topicButtons.forEach((b) => {
     b.classList.remove("active");
     b.setAttribute("aria-pressed", "false");
   });
 
   activeBanner?.classList.add("hidden");
-  sampleChipsArea?.classList.add("hidden");
+  hideSampleChips();
   if (sampleChipsContainer) sampleChipsContainer.innerHTML = "";
   activeTopic = null;
   updateMeta({});
+}
 
-  await clearHistory();
+clearButton.addEventListener("click", async (event) => {
+  if (tabsEnabled()) {
+    startNewConversation();
+  } else if (emptyState) {
+    showEmptyState();
+  } else {
+    chatBox.innerHTML = `
+    <div class="message bot-message">
+      <div class="message-label">ISDA Bot</div>
+      <div>Hi! I’m your ISDA advising assistant. I can help you explore degree requirements, plan your courses, and navigate registration. Choose a topic or ask me a question to get started.</div>
+    </div>
+  `;
+  }
+
+  resetTopicSelection();
+
+  // A mouse click leaves the button focused, which looks stuck in a pressed state.
+  if (event && event.detail > 0 && typeof clearButton.blur === "function") {
+    clearButton.blur();
+  } else if (tabsEnabled()) {
+    const selected = chatTabs.querySelector('[aria-selected="true"]');
+    if (selected && typeof selected.focus === "function") selected.focus();
+  }
+
+  if (!tabsEnabled()) await clearHistory();
+});
+
+document.querySelectorAll(".starter-chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const question = String(chip.getAttribute("data-question") || "").trim();
+    if (question) sendMessage(question);
+  });
 });
 
 if (voiceListenButton) {
@@ -658,4 +776,358 @@ if (voiceLanguageSelect) {
   });
 }
 
+// ── CONVERSATION TABS ──
+// Transcripts stay in this browser. The server only keeps model context,
+// keyed by conversation_id under the existing session cookie.
+const CONVERSATION_STORAGE_KEY = "isda-chat-conversations-v1";
+const MAX_CONVERSATIONS = 10;
+const MAX_STORED_MESSAGES = 50;
+const CONVERSATION_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+
+let conversations = [];
+let activeConversationId = null;
+
+function tabsEnabled() {
+  return Boolean(chatTabs && emptyState);
+}
+
+function browserStorage() {
+  try {
+    if (typeof localStorage === "undefined" || !localStorage) return null;
+    return localStorage;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function newConversationId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  let suffix = "";
+  for (let index = 0; index < 16; index += 1) {
+    suffix += Math.floor(Math.random() * 36).toString(36);
+  }
+  return `conv-${suffix}`;
+}
+
+function createConversation() {
+  const now = Date.now();
+  return { id: newConversationId(), createdAt: now, updatedAt: now, messages: [] };
+}
+
+function conversationTitle(convo) {
+  const firstUser = (convo.messages || []).find((message) => message.role === "user");
+  if (!firstUser || !firstUser.text) return "New chat";
+  return String(firstUser.text).replace(/\s+/g, " ").trim() || "New chat";
+}
+
+function normalizeMessage(message) {
+  if (!message || (message.role !== "user" && message.role !== "bot")) return null;
+  if (typeof message.text !== "string") return null;
+  return {
+    role: message.role,
+    text: message.text,
+    source: typeof message.source === "string" ? message.source : null,
+    retrievedDocs: Number.isFinite(message.retrievedDocs) ? message.retrievedDocs : null
+  };
+}
+
+function normalizeConversation(raw) {
+  if (!raw || typeof raw.id !== "string" || !CONVERSATION_ID_PATTERN.test(raw.id)) return null;
+  const messages = Array.isArray(raw.messages)
+    ? raw.messages.map(normalizeMessage).filter(Boolean).slice(-MAX_STORED_MESSAGES)
+    : [];
+  const createdAt = Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now();
+  const updatedAt = Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
+  return { id: raw.id, createdAt, updatedAt, messages };
+}
+
+function getActiveConversation() {
+  return conversations.find((item) => item.id === activeConversationId) || conversations[0] || null;
+}
+
+function isActiveConversation(conversationId) {
+  if (!conversationId || !tabsEnabled()) return false;
+  const current = getActiveConversation();
+  return Boolean(current && current.id === conversationId);
+}
+
+function saveConversations() {
+  const store = browserStorage();
+  if (!store) return;
+  try {
+    store.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify({
+      activeId: activeConversationId,
+      conversations: conversations
+    }));
+  } catch (_error) {
+    // A full or blocked store should not stop the chat.
+  }
+}
+
+function loadStoredConversations() {
+  const store = browserStorage();
+  if (!store) return;
+  try {
+    const raw = store.getItem(CONVERSATION_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    const stored = Array.isArray(parsed.conversations)
+      ? parsed.conversations.map(normalizeConversation).filter(Boolean)
+      : [];
+    conversations = stored;
+    activeConversationId = typeof parsed.activeId === "string" ? parsed.activeId : null;
+  } catch (_error) {
+    conversations = [];
+    activeConversationId = null;
+  }
+}
+
+function dropOldestConversation() {
+  let chosen = -1;
+  conversations.forEach((convo, index) => {
+    if (convo.id === activeConversationId) return;
+    if (chosen === -1 || convo.updatedAt < conversations[chosen].updatedAt) chosen = index;
+  });
+  if (chosen < 0) return;
+  const removed = conversations.splice(chosen, 1)[0];
+  clearHistory(removed.id);
+}
+
+function trimConversations() {
+  while (conversations.length > MAX_CONVERSATIONS) dropOldestConversation();
+}
+
+function rememberMessage(conversationId, message) {
+  const convo = conversations.find((item) => item.id === conversationId);
+  const normalized = normalizeMessage(message);
+  if (!convo || !normalized) return;
+  convo.messages.push(normalized);
+  if (convo.messages.length > MAX_STORED_MESSAGES) {
+    convo.messages.splice(0, convo.messages.length - MAX_STORED_MESSAGES);
+  }
+  convo.updatedAt = Date.now();
+  trimConversations();
+  saveConversations();
+  renderTabs();
+}
+
+function paintConversation(convo) {
+  if (!convo || !chatBox) return;
+  hideSampleChips();
+  if (typeof chatBox.replaceChildren === "function") {
+    chatBox.replaceChildren();
+  } else {
+    chatBox.innerHTML = "";
+  }
+  if (!convo.messages.length) {
+    showEmptyState();
+    updateMeta({});
+    return;
+  }
+  convo.messages.forEach((message) => {
+    addMessage(
+      message.text,
+      message.role === "user" ? "user-message" : "bot-message",
+      message.role === "user" ? "You" : "ISDA Bot",
+      { skipRecord: true }
+    );
+  });
+  const lastBot = [...convo.messages].reverse().find((message) => message.role === "bot");
+  if (lastBot && (lastBot.source || lastBot.retrievedDocs !== null)) {
+    updateMeta({ source: lastBot.source, retrieved_docs: lastBot.retrievedDocs });
+  } else {
+    updateMeta({});
+  }
+}
+
+function renderTabs(options) {
+  if (!chatTabs) return;
+  const activeElement = document.activeElement;
+  const focusId = activeElement && activeElement.dataset
+    ? activeElement.dataset.conversationId
+    : null;
+  const focusWasClose = Boolean(
+    activeElement &&
+    activeElement.classList &&
+    activeElement.classList.contains("chat-tab-close")
+  );
+  if (typeof chatTabs.replaceChildren === "function") chatTabs.replaceChildren();
+  else chatTabs.innerHTML = "";
+
+  conversations.forEach((convo) => {
+    const selected = convo.id === activeConversationId;
+    const title = conversationTitle(convo);
+    const tab = document.createElement("div");
+    tab.className = "chat-tab";
+    tab.id = `chat-tab-${convo.id}`;
+    tab.dataset.conversationId = convo.id;
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-selected", selected ? "true" : "false");
+    tab.setAttribute("aria-controls", "conversation-stage");
+    tab.tabIndex = selected ? 0 : -1;
+
+    const label = document.createElement("span");
+    label.className = "chat-tab-label";
+    label.textContent = title;
+    if (title.length > 32) label.title = title;
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "chat-tab-close";
+    close.dataset.conversationId = convo.id;
+    close.setAttribute("aria-label", `Close ${title}`);
+    close.textContent = "×";
+
+    tab.appendChild(label);
+    tab.appendChild(close);
+    chatTabs.appendChild(tab);
+
+    if (focusId === convo.id) {
+      const target = focusWasClose ? close : tab;
+      if (typeof target.focus === "function") target.focus();
+    }
+  });
+
+  const stage = document.getElementById("conversation-stage");
+  const active = getActiveConversation();
+  if (stage && active) stage.setAttribute("aria-labelledby", `chat-tab-${active.id}`);
+
+  if (options && options.scrollActive && typeof chatTabs.querySelector === "function") {
+    const selectedTab = chatTabs.querySelector('[aria-selected="true"]');
+    if (selectedTab && typeof selectedTab.scrollIntoView === "function") {
+      selectedTab.scrollIntoView({ inline: "nearest", block: "nearest" });
+    }
+  }
+}
+
+function selectConversation(conversationId) {
+  const convo = conversations.find((item) => item.id === conversationId);
+  if (!convo || convo.id === activeConversationId) {
+    renderTabs({ scrollActive: true });
+    return;
+  }
+  activeConversationId = convo.id;
+  convo.updatedAt = Date.now();
+  saveConversations();
+  resetTopicSelection();
+  paintConversation(convo);
+  renderTabs({ scrollActive: true });
+}
+
+function startNewConversation() {
+  const current = getActiveConversation();
+  if (current && current.messages.length === 0) {
+    paintConversation(current);
+    renderTabs({ scrollActive: true });
+    return;
+  }
+  const convo = createConversation();
+  conversations.push(convo);
+  activeConversationId = convo.id;
+  trimConversations();
+  saveConversations();
+  paintConversation(convo);
+  renderTabs({ scrollActive: true });
+}
+
+function closeConversation(conversationId) {
+  const index = conversations.findIndex((item) => item.id === conversationId);
+  if (index < 0) return;
+  const removed = conversations.splice(index, 1)[0];
+  clearHistory(removed.id);
+  if (!conversations.length) {
+    const fresh = createConversation();
+    conversations.push(fresh);
+    activeConversationId = fresh.id;
+  } else if (activeConversationId === conversationId) {
+    const neighbor = conversations[Math.min(index, conversations.length - 1)];
+    activeConversationId = neighbor.id;
+  }
+  saveConversations();
+  resetTopicSelection();
+  paintConversation(getActiveConversation());
+  renderTabs({ scrollActive: true });
+  const selected = chatTabs.querySelector('[aria-selected="true"]');
+  if (selected && typeof selected.focus === "function") selected.focus();
+}
+
+function tabFromTarget(target) {
+  if (!target || typeof target.closest !== "function") return null;
+  return target.closest('[role="tab"]');
+}
+
+function onTabClick(event) {
+  const closeButton = event.target && typeof event.target.closest === "function"
+    ? event.target.closest(".chat-tab-close")
+    : null;
+  if (closeButton) {
+    event.preventDefault();
+    closeConversation(closeButton.dataset.conversationId);
+    return;
+  }
+  const tab = tabFromTarget(event.target);
+  if (tab) selectConversation(tab.dataset.conversationId);
+}
+
+function moveTabFocus(current, direction) {
+  const tabs = [...chatTabs.querySelectorAll('[role="tab"]')];
+  const index = tabs.indexOf(current);
+  if (index < 0 || !tabs.length) return;
+  let next = current;
+  if (direction === "next") next = tabs[(index + 1) % tabs.length];
+  if (direction === "previous") next = tabs[(index - 1 + tabs.length) % tabs.length];
+  if (direction === "first") next = tabs[0];
+  if (direction === "last") next = tabs[tabs.length - 1];
+  selectConversation(next.dataset.conversationId);
+  const selected = [...chatTabs.querySelectorAll('[role="tab"]')].find(
+    (tab) => tab.dataset.conversationId === next.dataset.conversationId
+  );
+  if (selected && typeof selected.focus === "function") selected.focus();
+}
+
+function onTabKeydown(event) {
+  const tab = tabFromTarget(event.target);
+  if (!tab) return;
+  const onClose = Boolean(
+    event.target.classList && event.target.classList.contains("chat-tab-close")
+  );
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    moveTabFocus(tab, "next");
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    moveTabFocus(tab, "previous");
+  } else if (event.key === "Home") {
+    event.preventDefault();
+    moveTabFocus(tab, "first");
+  } else if (event.key === "End") {
+    event.preventDefault();
+    moveTabFocus(tab, "last");
+  } else if (!onClose && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    selectConversation(tab.dataset.conversationId);
+  } else if (!onClose && (event.key === "Delete" || event.key === "Backspace")) {
+    event.preventDefault();
+    closeConversation(tab.dataset.conversationId);
+  }
+}
+
+function initConversations() {
+  if (!tabsEnabled()) return;
+  loadStoredConversations();
+  if (!conversations.length) conversations = [createConversation()];
+  if (!conversations.some((item) => item.id === activeConversationId)) {
+    activeConversationId = conversations[conversations.length - 1].id;
+  }
+  trimConversations();
+  saveConversations();
+  paintConversation(getActiveConversation());
+  renderTabs({ scrollActive: true });
+  chatTabs.addEventListener("click", onTabClick);
+  chatTabs.addEventListener("keydown", onTabKeydown);
+}
+
+initConversations();
 loadVoiceConfig();

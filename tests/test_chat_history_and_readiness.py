@@ -160,6 +160,74 @@ def test_chat_passes_prior_turns_and_skips_crisis(monkeypatch, ready_chat_index)
     assert stored[-1]["assistant"] == "Reply to I feel overwhelmed"
 
 
+def test_conversation_ids_keep_separate_histories(monkeypatch, ready_chat_index):
+    """Each tab id is its own context, and the old session key still works."""
+    bot = RecordingChatbot()
+    monkeypatch.setattr(app_module, "chatbot", bot)
+    client = app_module.app.test_client()
+    other = app_module.app.test_client()
+
+    alpha = client.post(
+        "/api/chat",
+        json={"message": "alpha question", "conversation_id": "tab-alpha-1"},
+    )
+    beta = client.post(
+        "/api/chat",
+        json={"message": "beta question", "conversation_id": "tab-beta-22"},
+    )
+    assert alpha.status_code == 200
+    assert beta.status_code == 200
+    assert bot.calls[0]["history"] == []
+    assert bot.calls[1]["history"] == []
+
+    follow = client.post(
+        "/api/chat",
+        json={"message": "alpha follow up", "conversation_id": "tab-alpha-1"},
+    )
+    assert follow.status_code == 200
+    assert [entry["user"] for entry in bot.calls[2]["history"]] == ["alpha question"]
+
+    # A client that omits the id still uses the original session bucket.
+    legacy = client.post("/api/chat", json={"message": "legacy question"})
+    assert legacy.status_code == 200
+    assert bot.calls[3]["history"] == []
+
+    alpha_history = client.get("/api/history?conversation_id=tab-alpha-1").get_json()
+    beta_history = client.get("/api/history?conversation_id=tab-beta-22").get_json()
+    legacy_history = client.get("/api/history").get_json()
+    assert [entry["user"] for entry in alpha_history["history"]] == [
+        "alpha question",
+        "alpha follow up",
+    ]
+    assert [entry["user"] for entry in beta_history["history"]] == ["beta question"]
+    assert [entry["user"] for entry in legacy_history["history"]] == ["legacy question"]
+
+    # The same tab id in another browser session does not see this history.
+    other_view = other.get("/api/history?conversation_id=tab-alpha-1")
+    assert other_view.status_code == 200
+    assert other_view.get_json()["history"] == []
+
+    cleared = client.post("/api/clear-history", json={"conversation_id": "tab-alpha-1"})
+    assert cleared.status_code == 200
+    assert client.get("/api/history?conversation_id=tab-alpha-1").get_json()["history"] == []
+    assert client.get("/api/history?conversation_id=tab-beta-22").get_json()["history"]
+    assert client.get("/api/history").get_json()["history"]
+
+    rejected = client.post(
+        "/api/chat",
+        json={"message": "nope", "conversation_id": "bad id"},
+    )
+    assert rejected.status_code == 400
+    untouched = client.post(
+        "/api/clear-history",
+        json={"conversation_id": "../secrets"},
+    )
+    assert untouched.status_code == 400
+    assert [entry["user"] for entry in client.get("/api/history").get_json()["history"]] == [
+        "legacy question"
+    ]
+
+
 def _point_at_store(monkeypatch, tmp_path, commit, receipt):
     # Local import so collection does not bind the root config shim before
     # tests that compare it with src.durable_storage.
