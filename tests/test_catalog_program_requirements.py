@@ -1,6 +1,7 @@
 """Official 2026-2027 SJSU catalog pages for the BS ISDA major."""
 
 import json
+import re
 from hashlib import sha256
 from pathlib import Path
 
@@ -29,9 +30,41 @@ CORE_COURSES = (
     "ISDA 141 - Information Visualization 3 unit(s)",
     "ISDA 170 - The Emerging Future: Technology Issues and Trends 4 unit(s)",
 )
-CORE_NUMBER_LIST = (
-    "ISDA 100, 101, 110, 111, 120, 121, 122, 123, 130, 131, 140, 141, 170"
+CORE_UNIT_LINE = (
+    "Core Courses (36 units), 13 courses: ISDA 100 (3), 101 (1), 110 (3), "
+    "111 (3), 120 (3), 121 (3), 122 (2), 123 (2), 130 (3), 131 (3), "
+    "140 (3), 141 (3), 170 (4)."
 )
+CORE_TITLE_LINE = (
+    "Core course titles and units: ISDA 100 - Technical Writing for Information (3); "
+    "101 - Online Learning: Tools and Strategies for Success (1); "
+    "110 - Technology, Culture, and Society (3); "
+    "111 - Information and Data Science (3); "
+    "120 - Information Security (3); "
+    "121 - Human Centered Cybersecurity (3); "
+    "122 - Privacy, Security, Ethics (2); "
+    "123 - Information Assurance (2); "
+    "130 - User Centered Interface Architecture (3); "
+    "131 - Information Architecture (3); "
+    "140 - Big Data Analytics and Management (3); "
+    "141 - Information Visualization (3); "
+    "170 - The Emerging Future: Technology Issues and Trends (4)."
+)
+CORE_UNITS = {
+    "100": 3,
+    "101": 1,
+    "110": 3,
+    "111": 3,
+    "120": 3,
+    "121": 3,
+    "122": 2,
+    "123": 2,
+    "130": 3,
+    "131": 3,
+    "140": 3,
+    "141": 3,
+    "170": 4,
+}
 
 
 def _snapshot(url):
@@ -97,7 +130,7 @@ def test_core_courses_query_retrieves_the_catalog_program_page(monkeypatch, tmp_
     assert BS_URL in {hit.metadata.get("source_url") for hit in hits}
     assert BS_URL in blob
     assert CATALOG_YEAR in blob
-    assert CORE_NUMBER_LIST in blob
+    assert CORE_UNIT_LINE in blob
     for course in CORE_COURSES:
         assert course in blob
 
@@ -115,7 +148,7 @@ def test_core_courses_query_retrieves_the_catalog_program_page(monkeypatch, tmp_
     )
 
 
-def test_every_core_courses_chunk_contains_all_thirteen_numbers(monkeypatch):
+def test_every_core_courses_chunk_pairs_each_course_with_its_units(monkeypatch):
     """The splitter check does not depend on which embedding model is installed."""
     monkeypatch.setattr(Config, "EMBEDDING_PROVIDER", "hashing")
 
@@ -130,4 +163,21 @@ def test_every_core_courses_chunk_contains_all_thirteen_numbers(monkeypatch):
         ]
         assert core_chunks
         for chunk in core_chunks:
-            assert CORE_NUMBER_LIST in chunk.page_content
+            assert CORE_UNIT_LINE in chunk.page_content
+            for number, units in CORE_UNITS.items():
+                assert f"{number} ({units})" in chunk.page_content
+            line = next(
+                part
+                for part in chunk.page_content.splitlines()
+                if part.startswith("Core Courses (36 units), 13 courses:")
+            )
+            paired = re.findall(r"(\d+) \((\d+)\)", line)
+            assert len(paired) == 13
+            assert sum(int(units) for _number, units in paired) == 36
+            assert {number: int(units) for number, units in paired} == CORE_UNITS
+
+        title_chunks = [
+            chunk for chunk in chunks if CORE_TITLE_LINE in chunk.page_content
+        ]
+        assert len(title_chunks) == 1
+        assert len(title_chunks[0].page_content) <= 600
