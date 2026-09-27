@@ -288,7 +288,7 @@ relevant details (course names, unit counts, links, deadlines, etc.).
 and recommend the student contact the iSchool advising team or visit \
 https://ischoolapps.sjsu.edu/advising/index.php.
 4. Never fabricate course numbers, unit counts, policies, or deadlines.
-5. Keep answers concise but complete. Use bullet points for lists.
+5. Keep answers concise but complete. Short Markdown is fine for **bold** labels and bullet lists.
 6. Do not access or reference personal student records.
 7. Follow the response-language instruction exactly. Never infer the response
    language from retrieved documents, URLs, model defaults, or prior requests."""

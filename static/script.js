@@ -421,60 +421,26 @@ function showSampleChips(topic, samples) {
 }
 
 // ── MESSAGES ──
-function appendExternalLink(container, label, href) {
-  let parsed;
-  try {
-    parsed = new URL(href);
-  } catch (_error) {
-    container.appendChild(document.createTextNode(label));
-    return;
-  }
-
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    container.appendChild(document.createTextNode(label));
-    return;
-  }
-
-  const link = document.createElement('a');
-  link.classList.add('message-link');
-  link.href = parsed.href;
-  link.textContent = label;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  container.appendChild(link);
-}
-
 function renderMessageText(container, value, linkify = false) {
-  const text = String(value ?? '');
+  const text = String(value ?? "");
+  // User messages stay plain text. Only bot replies opt into Markdown.
   if (!linkify) {
     container.textContent = text;
     return;
   }
 
-  // Support the two formats returned by the knowledge base and LLMs:
-  // Markdown links ([label](https://...)) and ordinary bare URLs. Building
-  // DOM nodes instead of assigning innerHTML keeps model output untrusted.
-  const linkPattern = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/gi;
-  let cursor = 0;
-  let match;
-
-  while ((match = linkPattern.exec(text)) !== null) {
-    container.appendChild(document.createTextNode(text.slice(cursor, match.index)));
-
-    if (match[1] && match[2]) {
-      appendExternalLink(container, match[1], match[2]);
-      cursor = linkPattern.lastIndex;
-      continue;
-    }
-
-    const rawUrl = match[3];
-    const cleanUrl = rawUrl.replace(/[.,;:!?)}\]]+$/g, '');
-    appendExternalLink(container, cleanUrl, cleanUrl);
-    container.appendChild(document.createTextNode(rawUrl.slice(cleanUrl.length)));
-    cursor = linkPattern.lastIndex;
+  // markdown.js escapes the string first, then adds a fixed set of tags.
+  // If that file did not load, show the reply as text rather than HTML.
+  if (typeof renderBotMarkdown !== "function") {
+    container.textContent = text;
+    return;
   }
 
-  container.appendChild(document.createTextNode(text.slice(cursor)));
+  try {
+    container.innerHTML = renderBotMarkdown(text);
+  } catch (_error) {
+    container.textContent = text;
+  }
 }
 
 function addMessage(text, className, label) {
@@ -570,7 +536,9 @@ async function sendMessage(prefilledMessage = null) {
       source: data.source,
       retrieved_docs: data.retrieved_docs
     });
-    speakResponse(responseText);
+    // Speech runs after the reply is on screen. A browser speech failure
+    // must not look like a lost connection.
+    speakBotReply(responseText);
   } catch (error) {
     removeTypingIndicator();
     addMessage(
@@ -579,6 +547,19 @@ async function sendMessage(prefilledMessage = null) {
       "ISDA Bot"
     );
     console.error("Chat error:", error);
+  }
+}
+
+function speakBotReply(responseText) {
+  try {
+    // Visible words only. Markdown markers and the bubble's HTML are not spoken.
+    const spoken =
+      typeof botMarkdownPlainText === "function"
+        ? botMarkdownPlainText(responseText)
+        : responseText;
+    speakResponse(spoken);
+  } catch (error) {
+    console.error("Voice reply error:", error);
   }
 }
 
