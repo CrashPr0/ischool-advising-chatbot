@@ -89,7 +89,8 @@ class HashingEmbeddings(Embeddings):
         tokens = [
             token
             for token in re.findall(r"[a-z0-9]+", text.casefold())
-            if token not in self._STOPWORDS and not (token.isdigit() and len(token) == 1)
+            if token not in self._STOPWORDS
+            and not (token.isdigit() and len(token) == 1)
         ]
         if "bsisda" in tokens:
             tokens.extend(["bs", "isda", "information", "science", "data", "analytics"])
@@ -616,11 +617,25 @@ def _first_existing_dir(candidates: list[str], fallback: str) -> str:
 
 DEFAULT_VECTOR_COLLECTION = "advising_documents"
 NON_DOCUMENT_DIRECTORIES = {"meta", "scrape", "__pycache__"}
+# The catalog core list is one atomic chunk. This line is retrieval text only:
+# it mirrors how students ask, and it is not a course title.
+CORE_SECTION_HEADING = "Core Courses (36 units)"
+CORE_RETRIEVAL_HEADER = (
+    "BS ISDA required core courses (major requirements, 36 units) — "
+    "what classes are required for the Information Science and Data Analytics major"
+)
 
 
 def _paragraph_has_heading(paragraph: str, heading: str) -> bool:
     """True when ``heading`` is its own line, not a substring of another line."""
     return any(line.strip() == heading for line in paragraph.splitlines())
+
+
+def _prepend_core_retrieval_header(content: str) -> str:
+    """Put the student-phrasing header on the one complete core chunk."""
+    if content.startswith(CORE_RETRIEVAL_HEADER):
+        return content
+    return f"{CORE_RETRIEVAL_HEADER}\n{content}"
 
 
 class DocumentProcessor:
@@ -846,7 +861,8 @@ class DocumentProcessor:
         paragraph that contains that heading is emitted as one chunk, and the
         text before and after it is split at ``chunk_size``. The BS ISDA core
         list is longer than 600 characters; splitting it would leave some
-        catalog titles out of every retrieved chunk.
+        catalog titles out of every retrieved chunk. That one core chunk gets
+        a short retrieval header in front of the unchanged catalog list.
         """
         split_docs: List[Document] = []
         for document in documents:
@@ -889,9 +905,10 @@ class DocumentProcessor:
         for piece in pieces:
             if _paragraph_has_heading(piece, heading):
                 flush_pending()
-                chunks.append(
-                    Document(page_content=piece.strip("\n"), metadata=dict(metadata))
-                )
+                content = piece.strip("\n")
+                if heading == CORE_SECTION_HEADING:
+                    content = _prepend_core_retrieval_header(content)
+                chunks.append(Document(page_content=content, metadata=dict(metadata)))
             else:
                 pending.append(piece)
         flush_pending()
@@ -1085,8 +1102,9 @@ class DocumentProcessor:
 
         try:
             k = max(1, min(int(k), 20))
-            # None keeps vector-only search. That is the production path
-            # when HYBRID_RETRIEVAL is unset or false.
+            # None means the hybrid helper could not run. Unset
+            # HYBRID_RETRIEVAL fuses BM25 with vector search; false keeps
+            # vector-only search.
             hybrid_hits = _optional_hybrid_retrieve(
                 store, query, k, collection_id=collection_id
             )

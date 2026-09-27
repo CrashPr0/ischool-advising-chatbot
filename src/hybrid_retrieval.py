@@ -1,7 +1,7 @@
-"""Optional BM25 + vector retrieval fused with reciprocal rank fusion.
+"""BM25 + vector retrieval fused with reciprocal rank fusion.
 
-Production stays on vector search unless ``HYBRID_RETRIEVAL`` is true. The
-lexical side is local Okapi BM25 (no extra package, no API calls). Course
+``HYBRID_RETRIEVAL`` defaults to on. Set it to false for vector search only.
+The lexical side is local Okapi BM25 (no extra package, no API calls). Course
 codes are rewritten so ``ISDA 150`` and ``ISDA150`` share one token. Requisite
 labels share one token too, so ``Prerequisite(s)`` matches ``prerequisites``.
 """
@@ -88,11 +88,11 @@ _REQUISITE_FORM = re.compile(
 def hybrid_retrieval_enabled() -> bool:
     """Return whether this process should fuse BM25 with vector search.
 
-    Unset, empty, and any value other than true/yes/on/1 keep the vector-only
-    path. Read on each call so tests and operators can change the flag
-    without restarting the interpreter.
+    Unset enables fusion. Empty and any value other than true/yes/on/1 keep
+    the vector-only path. Read on each call so tests and operators can change
+    the flag without restarting the interpreter.
     """
-    raw = os.getenv("HYBRID_RETRIEVAL", "false")
+    raw = os.getenv("HYBRID_RETRIEVAL", "true")
     return raw.strip().lower() in _TRUE_VALUES
 
 

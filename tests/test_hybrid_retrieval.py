@@ -172,9 +172,9 @@ def test_rrf_combines_lists_and_breaks_ties_toward_bm25():
     assert tied == ["lexical-hit", "vector-hit"]
 
 
-def test_hybrid_flag_defaults_off(monkeypatch):
+def test_hybrid_flag_defaults_on(monkeypatch):
     monkeypatch.delenv("HYBRID_RETRIEVAL", raising=False)
-    assert hybrid_retrieval_enabled() is False
+    assert hybrid_retrieval_enabled() is True
     for value in ("false", "no", "0", "off", ""):
         monkeypatch.setenv("HYBRID_RETRIEVAL", value)
         assert hybrid_retrieval_enabled() is False
@@ -184,7 +184,7 @@ def test_hybrid_flag_defaults_off(monkeypatch):
 
 
 def test_flag_off_keeps_vector_order_and_the_original_query(monkeypatch):
-    monkeypatch.delenv("HYBRID_RETRIEVAL", raising=False)
+    monkeypatch.setenv("HYBRID_RETRIEVAL", "false")
     store = _VectorStore(_records(), ["office", "generic", "isda111", "elective"])
     hits = _processor(store).retrieve_relevant_docs(
         "What are the prerequisites for ISDA150?", k=2
@@ -280,7 +280,7 @@ def test_hybrid_uses_bm25_when_query_embedding_fails():
 
 
 def test_retrieve_does_not_hold_the_index_lock_during_search(monkeypatch):
-    monkeypatch.delenv("HYBRID_RETRIEVAL", raising=False)
+    monkeypatch.setenv("HYBRID_RETRIEVAL", "false")
     store = _VectorStore(_records(), ["office", "generic", "isda111", "elective"])
     processor = _processor(store)
     processor._align_open_collection = lambda: None
