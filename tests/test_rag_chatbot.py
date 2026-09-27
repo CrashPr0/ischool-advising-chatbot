@@ -21,6 +21,42 @@ def test_system_prompt_does_not_guess_titles_or_units():
         "and any units that are present and say the title isn't in the sources; never "
         "supply a title from your own knowledge."
     ) in prompt
+    assert "Never invent a course title or unit count" in prompt
+    assert "Answer from whatever the documents do contain" in prompt
+    assert "only for the missing part" in prompt
+    assert (
+        "Never fabricate course numbers, unit counts, policies, or deadlines"
+        not in prompt
+    )
+
+
+def test_chat_retrieval_k_defaults_to_eight(monkeypatch):
+    monkeypatch.delenv("RAG_TOP_K", raising=False)
+    bot = _bare_bot()
+    seen = {}
+
+    def retrieve(query, k=5):
+        seen["k"] = k
+        return [_Doc("Submit the graduation application and check commencement.")]
+
+    bot.doc_processor.retrieve_relevant_docs = retrieve
+    result = bot.chat("How do I apply to graduate?")
+    assert seen["k"] == 8
+    assert result["source"] == "rag"
+
+
+def test_chat_retrieval_k_follows_rag_top_k(monkeypatch):
+    monkeypatch.setenv("RAG_TOP_K", "5")
+    bot = _bare_bot()
+    seen = {}
+
+    def retrieve(query, k=8):
+        seen["k"] = k
+        return [_Doc("Submit the graduation application and check commencement.")]
+
+    bot.doc_processor.retrieve_relevant_docs = retrieve
+    bot.chat("How do I apply to graduate?")
+    assert seen["k"] == 5
 
 
 def test_english_question_requires_english_response():

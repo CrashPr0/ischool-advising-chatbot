@@ -244,17 +244,20 @@ For deployment security, also set a stable `SESSION_SECRET_KEY`, a separate
 The app bounds request size, chat input, and request rates through
 `MAX_REQUEST_BYTES`, `CHAT_MESSAGE_MAX_LENGTH`, `CHAT_RATE_LIMIT`, and
 `CHAT_RATE_WINDOW_SECONDS`; generated responses are bounded by
-`RAG_RESPONSE_MAX_CHARS`; history retention is controlled by
-`MAX_HISTORY_MESSAGES` and `CHAT_SESSION_TTL_SECONDS`.
+`RAG_RESPONSE_MAX_CHARS`; chat retrieves `RAG_TOP_K` chunks (default 8,
+clamped to 1–20). The completion cap stays `LLM_MAX_TOKENS` (512). History
+retention is controlled by `MAX_HISTORY_MESSAGES` and `CHAT_SESSION_TTL_SECONDS`.
 
 ### Hybrid retrieval
 
-`HYBRID_RETRIEVAL` defaults to off. Leave it unset on Azure so chat keeps
-vector-only search over the hashing index. Set `HYBRID_RETRIEVAL=true` to fuse
-that vector ranking with local BM25 scores using reciprocal rank fusion.
-Course codes are normalized on the lexical side, so `ISDA 150` and `ISDA150`
-hit the same chunks. Fusion does not call an embedding or chat API. Rebuild
-the index only when documents change; the flag is read on each query.
+`HYBRID_RETRIEVAL` defaults to on. Chat fuses the vector ranking with local
+BM25 scores using reciprocal rank fusion. The lexical side is what keeps
+keyword questions such as "core courses" and "required classes" on the
+complete BS ISDA core list. Set `HYBRID_RETRIEVAL=false` for vector-only
+search. Course codes are normalized, so `ISDA 150` and `ISDA150` hit the
+same chunks. Fusion does not call an embedding or chat API. The flag is
+read on each query. Rebuild the index when advising documents change; the
+core-list chunk text is part of that index.
 
 ### Chinese models and other OpenAI-compatible services
 

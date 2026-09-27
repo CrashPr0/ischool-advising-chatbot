@@ -8,7 +8,8 @@ from pathlib import Path
 import yaml
 
 from src.config import Config
-from src.document_processor import DocumentProcessor
+from src.document_processor import CORE_RETRIEVAL_HEADER, DocumentProcessor
+from src.rag_chatbot import DEFAULT_RAG_TOP_K
 
 DOCS = Path(__file__).resolve().parents[1] / "data" / "advising_docs"
 BS_URL = "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100"
@@ -60,7 +61,9 @@ def _snapshot(url):
 
 
 def test_bs_isda_catalog_program_pages_record_the_published_requirements():
-    manifest = json.loads((DOCS / "scrape" / "manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (DOCS / "scrape" / "manifest.json").read_text(encoding="utf-8")
+    )
     listed = {item["source_url"]: item for item in manifest["documents"]}
     seeds = (DOCS / "scrape" / "seed_urls.txt").read_text(encoding="utf-8")
 
@@ -78,7 +81,9 @@ def test_bs_isda_catalog_program_pages_record_the_published_requirements():
         assert text.count(CORE_HEADING) == 1
         assert "13 courses:" not in text
         assert "Core course titles and units:" not in text
-        assert "Major Requirements: 48" in text or "Major Requirements (48 units)" in text
+        assert (
+            "Major Requirements: 48" in text or "Major Requirements (48 units)" in text
+        )
         assert "Total: 120" in text or "Total Units Required (120 units)" in text
         for course in CORE_COURSES:
             assert course in text
@@ -144,20 +149,18 @@ def test_each_snapshot_has_one_complete_core_chunk(monkeypatch):
     monkeypatch.setattr(Config, "EMBEDDING_PROVIDER", "hashing")
 
     processor = DocumentProcessor(str(DOCS))
-    loaded = {
-        doc.metadata.get("source_url"): doc for doc in processor.load_documents()
-    }
+    loaded = {doc.metadata.get("source_url"): doc for doc in processor.load_documents()}
     for url in (BS_URL, ONLINE_URL):
         _path, _text, meta = _snapshot(url)
         chunks = processor.split_documents([loaded[url]])
-        core_chunks = [
-            chunk for chunk in chunks if CORE_HEADING in chunk.page_content
-        ]
+        core_chunks = [chunk for chunk in chunks if CORE_HEADING in chunk.page_content]
         assert len(core_chunks) == 1
         core = core_chunks[0]
         assert meta["title"] in core.page_content
         assert CATALOG_YEAR in core.page_content
         assert f"Source URL: {url}" in core.page_content
+        assert core.page_content.startswith(CORE_RETRIEVAL_HEADER + "\n")
+        assert core.page_content.count(CORE_RETRIEVAL_HEADER) == 1
         for course in CORE_COURSES:
             assert course in core.page_content
         paired = re.findall(r"^ISDA (\d{3}) - .+\((\d+)\)$", core.page_content, re.M)
@@ -173,6 +176,48 @@ def test_each_snapshot_has_one_complete_core_chunk(monkeypatch):
             if chunk is core:
                 continue
             assert CORE_HEADING not in chunk.page_content
+            assert CORE_RETRIEVAL_HEADER not in chunk.page_content
             for course in CORE_COURSES:
                 assert course not in chunk.page_content
             assert len(chunk.page_content) <= 600
+
+
+def _complete_core_hits(hits, url):
+    return [
+        hit
+        for hit in hits
+        if hit.metadata.get("source_url") == url
+        and CORE_HEADING in hit.page_content
+        and all(course in hit.page_content for course in CORE_COURSES)
+    ]
+
+
+def test_core_and_required_questions_retrieve_the_complete_core_chunk(
+    monkeypatch, tmp_path
+):
+    """Hashing and hybrid both surface one complete core chunk within chat k."""
+    assert DEFAULT_RAG_TOP_K == 8
+    assert CORE_RETRIEVAL_HEADER == (
+        "BS ISDA required core courses (major requirements, 36 units) — "
+        "what classes are required for the Information Science and Data Analytics major"
+    )
+    monkeypatch.setattr(Config, "EMBEDDING_PROVIDER", "hashing")
+    monkeypatch.setattr(Config, "VECTOR_STORE_PATH", str(tmp_path / "chroma"))
+    processor = DocumentProcessor(str(DOCS))
+    assert processor.process_and_index() is not None
+
+    questions = (
+        "What are the ISDA core courses?",
+        "What classes are required for the ISDA major?",
+    )
+    for hybrid in ("false", "true"):
+        monkeypatch.setenv("HYBRID_RETRIEVAL", hybrid)
+        for question in questions:
+            hits = processor.retrieve_relevant_docs(question, k=DEFAULT_RAG_TOP_K)
+            for url in (BS_URL, ONLINE_URL):
+                assert len(_complete_core_hits(hits, url)) == 1
+            for hit in hits:
+                present = [
+                    course for course in CORE_COURSES if course in hit.page_content
+                ]
+                assert present == [] or len(present) == len(CORE_COURSES)
