@@ -272,6 +272,32 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 
 .message-body { white-space: pre-wrap; }
 
+.bot-message .message-body p,
+.bot-message .message-body ul,
+.bot-message .message-body ol {
+  margin: 0 0 0.65em;
+}
+
+.bot-message .message-body > :last-child { margin-bottom: 0; }
+
+.bot-message .message-body ul,
+.bot-message .message-body ol { padding-left: 1.25em; }
+
+.bot-message .message-body li + li { margin-top: 0.4em; }
+
+.bot-message .message-body .md-heading {
+  margin-bottom: 0.35em;
+  line-height: 1.35;
+}
+
+.bot-message .message-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: rgba(23, 43, 67, 0.06);
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+}
+
 .bot-message {
   background: #f1f4f8;
   border: 1px solid #e8edf3;
