@@ -2,6 +2,20 @@
   "schema_version": 1,
   "documents": [
     {
+      "doc_id": "web-40a52cbd73c9bde9",
+      "source_url": "https://catalog.sjsu.edu/content.php?catoid=23&navoid=8473",
+      "title": "Undergraduate University Graduation Requirements",
+      "content_sha256": "3a96ec90f6db2d90847f6785302519e7fc9df2231ab8f046f1859607132987f7",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
       "doc_id": "web-32073f1d302c4a9e",
       "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202908",
       "title": "ISDA 101 - Online Learning: Tools and Strategies for Success",
@@ -587,6 +601,48 @@
       ]
     },
     {
+      "doc_id": "web-7cb352458448ad58",
+      "source_url": "https://www.sjsu.edu/commencement/ceremonies/index.php",
+      "title": "Schedule of Events | Commencement",
+      "content_sha256": "7a022b46a324abfd9bf2e15b336c68bf8f9559a9dfde7757e48e4b02ed06a603",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-90bf6cc5164dbaf9",
+      "source_url": "https://www.sjsu.edu/commencement/participation/grad-vs-comm.php",
+      "title": "Understanding Commencement",
+      "content_sha256": "11bc38e2553df185ba20daa21dc0e24687c831c64d20eb696f13a587fb4d1ac2",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-5c118118b448cc8a",
+      "source_url": "https://www.sjsu.edu/commencement/participation/tickets.php",
+      "title": "Registration and Tickets | Commencement",
+      "content_sha256": "a8e8fdba42e814af9c740b216bd365953b28ea627775ae0362416967cab4ef2e",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
       "doc_id": "web-60c4174573a5d596",
       "source_url": "https://www.sjsu.edu/faso/",
       "title": "Financial Aid and Scholarships | SJSU | Financial Aid and Scholarship Office",
@@ -629,6 +685,132 @@
         "degree-requirements",
         "financial-aid",
         "registration"
+      ]
+    },
+    {
+      "doc_id": "web-afd4ffd17369beaa",
+      "source_url": "https://www.sjsu.edu/registrar/docs/GradAppOnlineTutorial.pdf",
+      "title": "Online Graduation Application Overview Undergraduate Guide",
+      "content_sha256": "2a20ac53417839af8944021563d14d99cd4900b0a9bca6768e5a96a301c512a6",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-acb08947e7ec6c88",
+      "source_url": "https://www.sjsu.edu/registrar/graduation/application-central.php",
+      "title": "Apply for Graduation - Registrar | Office of the Registrar",
+      "content_sha256": "8aba5f704c89dd3f394b59f9a9349c6f91e43b339fefc1dbb244d2ba88aaf10e",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-2696b15a85b29fda",
+      "source_url": "https://www.sjsu.edu/registrar/graduation/diploma.php",
+      "title": "Diploma Information | Office of the Registrar",
+      "content_sha256": "be29fc292c75c8d80e91dda98ef2722b41e9910787fa2fa4a52829715424b194",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-f86ac5362eaae233",
+      "source_url": "https://www.sjsu.edu/registrar/graduation/evaluators.php",
+      "title": "Graduation Evaluators | Office of the Registrar",
+      "content_sha256": "7ab90ffc3f1cb984ec2a8f6962ab9317fdc513afc060624d025a51950f8c93e9",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-2633bf5e8b922f89",
+      "source_url": "https://www.sjsu.edu/registrar/graduation/faq.php",
+      "title": "FAQs About Graduation | Office of the Registrar",
+      "content_sha256": "a4893e74c504f9c905401c72b89abf922c57c8da3b5ebd38b892b5ae9b20ac18",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-afae1df6c67e23a7",
+      "source_url": "https://www.sjsu.edu/registrar/graduation/graduation-checklist.php",
+      "title": "Graduation Checklist | Office of the Registrar",
+      "content_sha256": "7ff1defeea0be7d761c94425e743c1e404e447ab67e02c968c5a87b6117056e2",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-10353c380b01f255",
+      "source_url": "https://www.sjsu.edu/registrar/graduation/graduation-date-changes.php",
+      "title": "Graduation Date Changes | Office of the Registrar",
+      "content_sha256": "764766a206676c2736f834436479513e19213f298b12db27bf285fb5e9fa6913",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-99089fe13151591e",
+      "source_url": "https://www.sjsu.edu/registrar/graduation/index.php",
+      "title": "Undergraduate Graduation | Office of the Registrar",
+      "content_sha256": "6396746328d3227dc21e2d72920d348f51261b8eeb2f35e14616d27dc5791840",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-652038e1fe815a13",
+      "source_url": "https://www.sjsu.edu/registrar/graduation/myprogress-graduation-status.php",
+      "title": "MyProgress Graduation Status | Office of the Registrar",
+      "content_sha256": "c21d3c2c9c76c83b9e1b5858cf5becf1715f0fffcc98388df2223eb970fe3615",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "graduation"
       ]
     },
     {
