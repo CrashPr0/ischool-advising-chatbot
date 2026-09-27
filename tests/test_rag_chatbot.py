@@ -17,9 +17,9 @@ from rag_chatbot import (
 def test_system_prompt_does_not_guess_titles_or_units():
     prompt = RAGAdvisingChatbot.SYSTEM_PROMPT
     assert (
-        "State only course titles and unit counts that appear in the retrieved sources; "
-        "never guess or fill in placeholders, and say an item isn't in the sources "
-        "when that's the case."
+        "If a course number appears without its title in the sources, list the number "
+        "and any units that are present and say the title isn't in the sources; never "
+        "supply a title from your own knowledge."
     ) in prompt
 
 

@@ -4,7 +4,7 @@ owner: SJSU
 source_type: webpage
 source_url: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
 retrieved_at: '2026-09-27T19:09:24+00:00'
-content_sha256: 803e3e0f9f3732b89810679b3b3a80662bde9f05ca58cd9dd6e11c649cd47143
+content_sha256: 9ea5a1fef770dff032904adabcaf8273ff8a572ad61206e3108e38eb5555d2e6
 programs:
 - ISDA
 topics:
@@ -13,3 +13,4 @@ topics:
 - financial-aid
 - registration
 catalog_year: 2026-2027
+atomic_section: Core Courses (36 units)
