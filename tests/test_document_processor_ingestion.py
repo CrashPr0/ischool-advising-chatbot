@@ -8,6 +8,17 @@ def bare_processor():
     return DocumentProcessor.__new__(DocumentProcessor)
 
 
+def test_hashing_embeddings_ignore_single_digit_unit_markers():
+    embeddings = HashingEmbeddings(dimensions=64)
+    bare = embeddings.embed_query("ISDA core courses")
+    marked = embeddings.embed_query("ISDA core courses (3) (2) (4)")
+    numbered = embeddings.embed_query("ISDA core courses 122")
+
+    assert bare == marked
+    assert bare != numbered
+    assert embeddings.embed_query("3 2 4") == [0.0] * 64
+
+
 def test_hashing_embeddings_are_deterministic_and_normalized():
     embeddings = HashingEmbeddings(dimensions=64)
 

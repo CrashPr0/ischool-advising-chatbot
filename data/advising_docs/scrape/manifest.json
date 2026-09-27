@@ -347,6 +347,36 @@
       ]
     },
     {
+      "doc_id": "web-8b916ec0844fda62",
+      "source_url": "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19052",
+      "title": "Information Science and Data Analytics, BS (SJSU Online)",
+      "content_sha256": "aa2fc077d3d36723c6a0c7b0cb49b36febe026cd1d5ea354121d760fe2bb6659",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-9644e93659d02ac7",
+      "source_url": "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100",
+      "title": "Information Science and Data Analytics, BS",
+      "content_sha256": "9ea5a1fef770dff032904adabcaf8273ff8a572ad61206e3108e38eb5555d2e6",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
       "doc_id": "web-2fc4c82a38a1e267",
       "source_url": "https://ischool.sjsu.edu/bachelor-science-information-science-and-data-analytics",
       "title": "BS in Information Science & Data Analytics - San José State University",

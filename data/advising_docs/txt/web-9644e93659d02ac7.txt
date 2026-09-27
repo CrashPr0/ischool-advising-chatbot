@@ -1,0 +1,85 @@
+2026-2027 Academic Catalog
+Information Science and Data Analytics, BS
+Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
+
+The Bachelor of Science Information Science and Data Analytics (BS ISDA), offered by the School of Information, prepares students to work with data, technology, and people. BS ISDA majors attain skills that are applicable to a variety of careers involving analytics, visualization, big data, digital curation, digital assets management, knowledge management, information architecture, documents and records management, health care, education, and emerging technologies-all geared toward the information needs of users. Information Science and Data Analytics graduates are utilized by organizations to organize data and interpret the significance of data in a way that can be easily understood and used by others. They focus on what a person can do with an app rather than what an app does.
+
+Program Delivery
+
+The ISDA program is offered, in regular session as a 4-year degree program for freshman entering from high school or transfer students with fewer than 60 credits. In the Regular Session program, courses are delivered both on-campus and online. In general, the program is completed as a hybrid program.
+
+- Program Learning Outcomes
+
+Program Roadmaps
+
+The 4-Year Roadmap is available online. Roadmaps should be used in consultation with the catalog and your advisor to identify additional requirements for completing the major (for example, course grade minimums).
+
+1. Complete the Baccalaureate Degree Requirements
+
+Students must satisfy the specific degree requirements for their undergraduate major and fulfill the following University degree requirements:
+
+1. Academic (program total units with an average 2.0 GPA - “C” or better)
+2. General Education (GE) (34 Lower Division + 9 Upper Division)
+3. American Institutions (AI) (0-6 units) (may be satisfied in GE Areas 3B, 4, UD 3, UD 4)
+4. Graduation Writing Assessment Requirement (GWAR) (3 units)
+5. Physical Education (PE) (0-2 units)
+6. Units in Residence (30 units, including 24 upper division and 12 in major)
+7. Upper Division Units (40 units, including 12 upper div in major for BA, 18 upper div in major for BS)
+8. Undergraduate Admission Procedures and Policies
+9. Apply for Graduation
+   Information about the Commencement Ceremony and Conferral of the Degree
+
+Exceptions for University Graduation Requirements including exemptions and waivers, are approved for specific majors and on a case-by-case evaluation only.
+
+Summary of Degree Units
+2026-2027 Academic Catalog
+Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
+Core Lower Division GE: 28
+6 required units of American Institutions/US123 may be satisfied by selecting applicable GE courses in Areas 3B and/or 4
+Upper Division GE: 9
+Physical Education: 2
+GWAR / WID: 3 (Recommended: LLD 100WB)
+Major Preparation: 5
+Major Requirements: 48
+University Electives: 19
+Total: 120
+
+2. Major Preparation (5 units)
+Courses must be passed with a grade of C- or better.
+- ISDA 20A - Query Languages 1 unit(s)
+- ISDA 20B - Python Programming 2 unit(s)
+- ISDA 20C - Web Development 1 unit(s)
+- ISDA 20D - Computer Operating Systems 1 unit(s)
+
+3. Major Requirements (48 units)
+Core Courses (36 units)
+2026-2027 Academic Catalog
+Information Science and Data Analytics, BS
+Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
+ISDA 100 - Technical Writing for Information (3)
+ISDA 101 - Online Learning: Tools and Strategies for Success (1)
+ISDA 110 - Technology, Culture, and Society (3)
+ISDA 111 - Information and Data Science (3)
+ISDA 120 - Information Security (3)
+ISDA 121 - Human Centered Cybersecurity (3)
+ISDA 122 - Privacy, Security, Ethics (2)
+ISDA 123 - Information Assurance (2)
+ISDA 130 - User Centered Interface Architecture (3)
+ISDA 131 - Information Architecture (3)
+ISDA 140 - Big Data Analytics and Management (3)
+ISDA 141 - Information Visualization (3)
+ISDA 170 - The Emerging Future: Technology Issues and Trends (4)
+
+All classes are infused with hands-on, real-world, collaborative projects to support students developing portfolios that demonstrate their knowledge and skills. Where necessary, students will have access to virtual labs such as INFOSEC, Amazon Web Services, Google Cloud Computing.
+
+Major Electives (12 units)
+Major electives are offered within the ISDA program including ISDA 80, 81, 150, 160, 180, and 181. Other electives may be selected in consultation with an advisor.
+
+Major electives are offered within the ISDA program including ISDA 80, 81, 150, 160, 180, and 181. Other electives may be selected in consultation with an advisor from approved courses outside the department or from approved graduate courses in the School of Information in areas such as Health Data Analytics, Enterprise Content Management and Digital Preservation, and Problem Solving with Data. If electives from the School of Information graduate courses are used to meet the elective requirements, the courses can only be used for the bachelor’s degree and cannot be later applied to any graduate degree.
+
+4. University Electives (19 units)
+
+Total Units Required (120 units)
+
+Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
+Retrieved: 2026-09-27

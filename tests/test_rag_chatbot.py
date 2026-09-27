@@ -14,6 +14,55 @@ from rag_chatbot import (
 )
 
 
+def test_system_prompt_does_not_guess_titles_or_units():
+    prompt = RAGAdvisingChatbot.SYSTEM_PROMPT
+    assert (
+        "If a course number appears without its title in the sources, list the number "
+        "and any units that are present and say the title isn't in the sources; never "
+        "supply a title from your own knowledge."
+    ) in prompt
+    assert (
+        "Never invent course numbers, titles, unit counts, prerequisites, "
+        "policies, or deadlines that aren't written in the sources."
+    ) in prompt
+    assert "policies, or deadlines" in prompt
+    assert "Answer from whatever the documents do contain" in prompt
+    assert "only for the missing part" in prompt
+    assert (
+        "Do not withhold facts the sources do contain because a course title "
+        "or unit count is missing."
+    ) in prompt
+
+
+def test_chat_retrieval_k_defaults_to_eight(monkeypatch):
+    monkeypatch.delenv("RAG_TOP_K", raising=False)
+    bot = _bare_bot()
+    seen = {}
+
+    def retrieve(query, k=5):
+        seen["k"] = k
+        return [_Doc("Submit the graduation application and check commencement.")]
+
+    bot.doc_processor.retrieve_relevant_docs = retrieve
+    result = bot.chat("How do I apply to graduate?")
+    assert seen["k"] == 8
+    assert result["source"] == "rag"
+
+
+def test_chat_retrieval_k_follows_rag_top_k(monkeypatch):
+    monkeypatch.setenv("RAG_TOP_K", "5")
+    bot = _bare_bot()
+    seen = {}
+
+    def retrieve(query, k=8):
+        seen["k"] = k
+        return [_Doc("Submit the graduation application and check commencement.")]
+
+    bot.doc_processor.retrieve_relevant_docs = retrieve
+    bot.chat("How do I apply to graduate?")
+    assert seen["k"] == 5
+
+
 def test_english_question_requires_english_response():
     instruction = RAGAdvisingChatbot._response_language_instruction(
         "Are there scholarships for ISDA students?"

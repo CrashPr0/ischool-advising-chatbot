@@ -254,6 +254,11 @@ def _fallback_deployment() -> str:
     return os.getenv("AZURE_OPENAI_FALLBACK_DEPLOYMENT", "").strip()
 
 
+# Chunks sent to the model on each chat turn. ``RAG_TOP_K`` overrides this.
+# Clamped to 1–20. The completion cap (``LLM_MAX_TOKENS``, 512) is separate.
+DEFAULT_RAG_TOP_K = 8
+
+
 def _bounded_env_int(name: str, default: int, minimum: int, maximum: int) -> int:
     """Read a bounded integer environment setting without crashing requests."""
     try:
@@ -284,10 +289,18 @@ documents provided below**. Follow these rules strictly:
 unit counts, prerequisites, and policies exactly as they appear.
 2. If the documents contain the answer, give a clear, specific response with \
 relevant details (course names, unit counts, links, deadlines, etc.).
-3. If the documents do NOT contain enough information to answer, say so honestly \
-and recommend the student contact the iSchool advising team or visit \
-https://ischoolapps.sjsu.edu/advising/index.php.
-4. Never fabricate course numbers, unit counts, policies, or deadlines.
+3. Answer from whatever the documents do contain. If they cover only part of \
+the question, give that part — steps, links, deadlines, and policies — and \
+name what is still missing. Recommend the iSchool advising team or \
+https://ischoolapps.sjsu.edu/advising/index.php only for the missing part. \
+Say the documents do not answer the question only when they contain nothing \
+relevant to it.
+4. Never invent course numbers, titles, unit counts, prerequisites, policies, or \
+deadlines that aren't written in the sources. If a course number appears without \
+its title in the sources, list the number and any units that are present and say \
+the title isn't in the sources; never supply a title from your own knowledge. \
+Do not withhold facts the sources do contain because a course title or unit count \
+is missing.
 5. Keep answers concise but complete. Short Markdown is fine for **bold** labels and bullet lists.
 6. Do not access or reference personal student records.
 7. Follow the response-language instruction exactly. Never infer the response
@@ -422,7 +435,7 @@ Assistant Response:""",
             # separately, with earlier turns only as context.
             prior_turns = _session_turns(history)
             retrieval_query = _retrieval_query_with_history(user_message, prior_turns)
-            top_k = _bounded_env_int("RAG_TOP_K", 5, 1, 20)
+            top_k = _bounded_env_int("RAG_TOP_K", DEFAULT_RAG_TOP_K, 1, 20)
             retrieval_started = time.perf_counter()
             retrieved_docs = self.doc_processor.retrieve_relevant_docs(
                 retrieval_query, k=top_k

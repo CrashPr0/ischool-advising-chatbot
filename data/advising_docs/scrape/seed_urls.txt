@@ -54,3 +54,10 @@ https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203440
 https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203441
 https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203442
 https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203443
+
+# Official 2026-2027 SJSU catalog program requirements for the BS ISDA.
+# Text is the published program page: core courses, units, electives,
+# and the GE and other requirements printed on that page, plus the
+# source URL, catalog year, and retrieval date.
+https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19052
+https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
