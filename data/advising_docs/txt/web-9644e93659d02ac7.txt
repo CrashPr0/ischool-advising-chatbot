@@ -54,17 +54,17 @@ Courses must be passed with a grade of C- or better.
 3. Major Requirements (48 units)
 
 The Bachelor of Science Information Science and Data Analytics (BS ISDA)
-Core Courses (36 units)
 The Bachelor of Science Information Science and Data Analytics (BS ISDA)
 Core Courses (36 units)
+Core Courses (36 units), 13 courses: ISDA 100, 101, 110, 111, 120, 121, 122, 123, 130, 131, 140, 141, 170.
 - ISDA 100 - Technical Writing for Information 3 unit(s)
 - ISDA 101 - Online Learning: Tools and Strategies for Success 1 unit(s)
 - ISDA 110 - Technology, Culture, and Society 3 unit(s)
 
 The Bachelor of Science Information Science and Data Analytics (BS ISDA)
-Core Courses (36 units)
 The Bachelor of Science Information Science and Data Analytics (BS ISDA)
 Core Courses (36 units)
+Core Courses (36 units), 13 courses: ISDA 100, 101, 110, 111, 120, 121, 122, 123, 130, 131, 140, 141, 170.
 2026-2027 Academic Catalog
 Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
 - ISDA 111 - Information and Data Science 3 unit(s)
@@ -72,9 +72,9 @@ Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
 - ISDA 121 - Human Centered Cybersecurity 3 unit(s)
 
 The Bachelor of Science Information Science and Data Analytics (BS ISDA)
-Core Courses (36 units)
 The Bachelor of Science Information Science and Data Analytics (BS ISDA)
 Core Courses (36 units)
+Core Courses (36 units), 13 courses: ISDA 100, 101, 110, 111, 120, 121, 122, 123, 130, 131, 140, 141, 170.
 2026-2027 Academic Catalog
 Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
 - ISDA 122 - Privacy, Security, Ethics 2 unit(s)
@@ -82,9 +82,9 @@ Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
 - ISDA 130 - User Centered Interface Architecture 3 unit(s)
 
 The Bachelor of Science Information Science and Data Analytics (BS ISDA)
-Core Courses (36 units)
 The Bachelor of Science Information Science and Data Analytics (BS ISDA)
 Core Courses (36 units)
+Core Courses (36 units), 13 courses: ISDA 100, 101, 110, 111, 120, 121, 122, 123, 130, 131, 140, 141, 170.
 - ISDA 131 - Information Architecture 3 unit(s)
 - ISDA 140 - Big Data Analytics and Management 3 unit(s)
 - ISDA 141 - Information Visualization 3 unit(s)

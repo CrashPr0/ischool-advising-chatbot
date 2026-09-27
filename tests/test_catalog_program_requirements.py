@@ -5,6 +5,7 @@ from hashlib import sha256
 from pathlib import Path
 
 import yaml
+from langchain_core.documents import Document
 
 from src.config import Config
 from src.document_processor import DocumentProcessor
@@ -27,6 +28,9 @@ CORE_COURSES = (
     "ISDA 140 - Big Data Analytics and Management 3 unit(s)",
     "ISDA 141 - Information Visualization 3 unit(s)",
     "ISDA 170 - The Emerging Future: Technology Issues and Trends 4 unit(s)",
+)
+CORE_NUMBER_LIST = (
+    "ISDA 100, 101, 110, 111, 120, 121, 122, 123, 130, 131, 140, 141, 170"
 )
 
 
@@ -93,6 +97,7 @@ def test_core_courses_query_retrieves_the_catalog_program_page(monkeypatch, tmp_
     assert BS_URL in {hit.metadata.get("source_url") for hit in hits}
     assert BS_URL in blob
     assert CATALOG_YEAR in blob
+    assert CORE_NUMBER_LIST in blob
     for course in CORE_COURSES:
         assert course in blob
 
@@ -108,3 +113,21 @@ def test_core_courses_query_retrieves_the_catalog_program_page(monkeypatch, tmp_
     assert any(
         hit.metadata.get("source_url") in {BS_URL, ONLINE_URL} for hit in electives
     )
+
+
+def test_every_core_courses_chunk_contains_all_thirteen_numbers(monkeypatch):
+    """The splitter check does not depend on which embedding model is installed."""
+    monkeypatch.setattr(Config, "EMBEDDING_PROVIDER", "hashing")
+
+    processor = DocumentProcessor(str(DOCS))
+    for url in (BS_URL, ONLINE_URL):
+        path, text, _meta = _snapshot(url)
+        chunks = processor.split_documents(
+            [Document(page_content=text, metadata={"source": str(path)})]
+        )
+        core_chunks = [
+            chunk for chunk in chunks if "Core Courses" in chunk.page_content
+        ]
+        assert core_chunks
+        for chunk in core_chunks:
+            assert CORE_NUMBER_LIST in chunk.page_content
