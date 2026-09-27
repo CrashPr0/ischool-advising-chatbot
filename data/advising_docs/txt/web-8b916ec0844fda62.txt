@@ -1,0 +1,87 @@
+2026-2027 Academic Catalog
+Information Science and Data Analytics, BS (SJSU Online)
+Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19052
+
+Fully Online Degree Completion Program
+
+The Special Session Bachelor of Science Information Science and Data Analytics (BS ISDA), offered by the School of Information through SJSU Online, prepares students to work with data, technology, and people. BS ISDA majors attain skills that are applicable to a variety of careers involving analytics, visualization, big data, digital curation, digital assets management, knowledge management, information architecture, documents and records management, health care, education, and emerging technologies-all geared toward the information needs of users. Information Science and Data Analytics graduates are utilized by organizations to organize data and interpret the significance of data in a way that can be easily understood and used by others. They focus on what a person can do with an app rather than what an app does.
+
+Program Delivery
+
+The program is delivered completely online via Canvas. Classes are delivered asynchronously. Where needed, virtual labs are used.
+
+- Program Learning Outcomes
+
+Program Roadmaps
+
+The 2-Year and 3-Year Roadmap is available online. Roadmaps should be used in consultation with the catalog and your advisor to identify additional requirements for completing the major (for example, course grade minimums). Associate Degrees (ADT) Pathways are also available online.
+
+Transfer Units (60 units)
+
+All applicants are required to have completed at least 60 transferable semester or 90 quarter units with an overall grade point average of 2.0 or better. Applicants must also have completed the Core Lower Division General Education Requirements (34 units), including all four CSU-approved Basics Skills courses, each with a C- or better:
+
+GE Area 1A (Formerly Area A2) Written English Composition
+GE Area 1B (Formerly Area A3) Critical Thinking/Logic
+GE Area 1C (Formerly Area A1) Oral Communication/Speech
+GE Area 2 (Formerly Area B4) Math/Quantitative Reasoning (above the level of intermediate algebra)
+
+- GE Area 6 (Formerly Area F) - Ethnic Studies must be completed with a C- or better to meet the requirement at San Jose State University.
+- It is recommended that students complete all lower division General Education and the Physical Education requirement before applying for admissions.
+- Completion of at least 5 units of the following courses (or equivalents), each with a grade of C- or better:
+  - ISDA 20A - Query Languages 1 unit
+  - ISDA 20B - Python Programming 2 unit(s)
+  - ISDA 20C - Web Development 1 unit
+  - ISDA 20D - Computer Operating Systems 1 unit
+
+1. Complete the Baccalaureate Degree Requirements
+
+Students must satisfy the specific degree requirements for their undergraduate major and fulfill the following University degree requirements:
+
+1. Academic (program total units with an average 2.0 GPA - “C” or better)
+2. General Education (GE) (34 Lower Division + 9 Upper Division)
+3. American Institutions (AI) (0-6 units) (may be satisfied in GE Areas 3B, 4, UD 3, UD 4)
+4. Graduation Writing Assessment Requirement (GWAR) (3 units)
+5. Physical Education (PE) (0-2 units)
+6. Units in Residence (30 units, including 24 upper division and 12 in major)
+7. Upper Division Units (40 units, including 12 upper div in major for BA, 18 upper div in major for BS)
+8. Undergraduate Admission Procedures and Policies
+9. Apply for Graduation
+   Information about the Commencement Ceremony and Conferral of the Degree
+
+Exceptions for University Graduation Requirements including exemptions and waivers, are approved for specific majors and on a case-by-case evaluation only.
+
+Summary of Degree Units
+2026-2027 Academic Catalog
+Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19052
+Transfer Units: 60 (Note: Applicants must have completed the 34 Core Lower Division GE Requirements, American Institutions Requirement, and Physical Education Requirement)
+Upper Division GE and GWAR / WID: 12
+Major Requirements: 48
+Total: 120
+
+2. Major Requirements (48 units)
+Core Courses (36 units)
+2026-2027 Academic Catalog
+Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19052
+All classes are infused with hands-on, real-world, collaborative projects to support students developing portfolios that demonstrate their knowledge and skills. Where necessary, students will have access to virtual labs such as INFOSEC, Amazon Web Services, Google Cloud Computing.
+- ISDA 100 - Technical Writing for Information 3 unit(s)
+- ISDA 101 - Online Learning: Tools and Strategies for Success 1 unit(s)
+- ISDA 110 - Technology, Culture, and Society 3 unit(s)
+- ISDA 111 - Information and Data Science 3 unit(s)
+- ISDA 120 - Information Security 3 unit(s)
+- ISDA 121 - Human Centered Cybersecurity 3 unit(s)
+- ISDA 122 - Privacy, Security, Ethics 2 unit(s)
+- ISDA 123 - Information Assurance 2 unit(s)
+- ISDA 130 - User Centered Interface Architecture 3 unit(s)
+- ISDA 131 - Information Architecture 3 unit(s)
+- ISDA 140 - Big Data Analytics and Management 3 unit(s)
+- ISDA 141 - Information Visualization 3 unit(s)
+- ISDA 170 - The Emerging Future: Technology Issues and Trends 4 unit(s)
+Major Electives (12 units)
+2026-2027 Academic Catalog
+Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19052
+Major electives are offered within the ISDA program including ISDA 80, 81, 150, 160, 180, and 181.Other electives may be selected in consultation with an advisor from approved courses outside the department or from approved graduate courses in the School of Information in areas such as Health Data Analytics, Enterprise Content Management and Digital Preservation, and Problem Solving with Data. If electives from the School of Information graduate courses are used to meet the elective requirements, the courses can only be used for the bachelor’s degree and cannot be later applied to any graduate degree.
+
+Total Units Required (120 units)
+
+Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19052
+Retrieved: 2026-09-27
