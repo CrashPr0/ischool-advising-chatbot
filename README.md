@@ -259,6 +259,16 @@ same chunks. Fusion does not call an embedding or chat API. The flag is
 read on each query. Rebuild the index when advising documents change; the
 core-list chunk text is part of that index.
 
+`CATALOG_RECENCY_RERANK` defaults to on. After fusion, a current-catalog
+chunk takes the better slot of an older catalog year for the same course or
+program. `CURRENT_CATALOG_CATOID` (23) and `CURRENT_CATALOG_YEAR` (2026-2027)
+name that catalog. Registrar and iSchool pages are not reordered. If an
+iSchool or other non-catalog page in the top results gives a different title
+for a course the current catalog already lists there, that course's current
+catalog page is pulled into the result. Older catalog snapshots stay in the
+index for students on earlier catalog rights. Non-catalog context is labeled
+with its source type; catalog context is labeled with its catalog year.
+
 ### Chinese models and other OpenAI-compatible services
 
 The app uses the existing `langchain-openai` dependency and passes a provider's

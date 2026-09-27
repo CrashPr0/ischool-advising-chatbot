@@ -8,6 +8,7 @@ from typing import List, Optional, Dict
 from langchain_core.prompts import PromptTemplate
 
 try:
+    from .catalog_recency import document_heading
     from .config import Config
     from .llm_providers import LLMFactory, REASONING_RETRY
     from .knowledge_base import get_knowledge_base
@@ -18,6 +19,7 @@ try:
     )
 except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
+    from catalog_recency import document_heading
     from config import Config
     from llm_providers import LLMFactory, REASONING_RETRY
     from knowledge_base import get_knowledge_base
@@ -304,7 +306,14 @@ is missing.
 5. Keep answers concise but complete. Short Markdown is fine for **bold** labels and bullet lists.
 6. Do not access or reference personal student records.
 7. Follow the response-language instruction exactly. Never infer the response
-   language from retrieved documents, URLs, model defaults, or prior requests."""
+   language from retrieved documents, URLs, model defaults, or prior requests.
+8. When sources from different catalog years disagree, use the most recent \
+catalog year and cite that year. Mention an older catalog year only when the \
+current catalog lacks the information, and name that older year. For course \
+titles, unit counts, prerequisites, and degree requirements, the current \
+official catalog is authoritative over iSchool or other web pages. If another \
+page gives a different title or links an older catalog, use the catalog's \
+title and link."""
 
     def __init__(
         self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None
@@ -641,9 +650,8 @@ Assistant Response:""",
         context_parts = ["--- Retrieved advising documents ---\n"]
 
         for i, doc in enumerate(documents, 1):
-            source = doc.metadata.get("source", "unknown")
             content = doc.page_content.strip()
-            context_parts.append(f"[Document {i} — {source}]\n{content}\n")
+            context_parts.append(f"{document_heading(i, doc.metadata)}\n{content}\n")
 
         context_parts.append("--- End of documents ---")
         return "\n".join(context_parts)
