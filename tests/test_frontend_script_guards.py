@@ -133,15 +133,15 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert 'id="confidence-badge"' not in docs
     assert "filename='script.js', v='20260927-markdown'" in template
     assert "script.js?v=20260927-markdown" in docs
-    assert "filename='markdown.js', v='20260927-markdown'" in template
-    assert "markdown.js?v=20260927-markdown" in docs
+    assert "filename='markdown.js', v='20260927-mailto'" in template
+    assert "markdown.js?v=20260927-mailto" in docs
     assert "filename='script.js', v='20260924-composer'" not in template
     assert "script.js?v=20260924-composer" not in docs
     # The disclaimer paragraph is owned by the grounding change. Leave it.
     assert "For individualized advising, please contact an advisor." in template
     assert "Questions you submit are sent to an AI provider" not in template
     markdown = (ROOT / "static" / "markdown.js").read_text(encoding="utf-8")
-    assert "if (!['http:', 'https:'].includes(parsed.protocol))" in markdown
+    assert "if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol))" in markdown
     assert "container.textContent = text" in script
     assert "container.innerHTML = renderBotMarkdown(text)" in script
     assert "botMarkdownPlainText(responseText)" in script

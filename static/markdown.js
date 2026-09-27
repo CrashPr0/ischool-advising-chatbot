@@ -2,7 +2,7 @@
 //
 // Escape the whole string first, then add only the tags this file creates.
 // Model HTML such as <script> or <img onerror> stays text. Links are emitted
-// only for http(s) URLs.
+// only for http(s) URLs and mailto addresses.
 
 function escapeHtml(value) {
   return String(value)
@@ -22,7 +22,7 @@ function unescapeHtml(value) {
     .replace(/&amp;/g, "&");
 }
 
-function safeHttpUrl(raw) {
+function safeLinkHref(raw) {
   const candidate = String(raw || "").trim();
   if (!candidate || /[\u0000-\u001F\u007F\s]/.test(candidate)) return null;
 
@@ -33,11 +33,20 @@ function safeHttpUrl(raw) {
     return null;
   }
 
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
+  if (!['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
     return null;
   }
   if (/[\u0000-\u001F\u007F\s]/.test(parsed.href)) return null;
-  if (!/^https?:\/\//i.test(parsed.href)) return null;
+
+  if (parsed.protocol === "mailto:") {
+    // A single address, so mailto:javascript:... and quote breakouts stay text.
+    if (!/^mailto:/i.test(parsed.href)) return null;
+    if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(parsed.pathname)) {
+      return null;
+    }
+  } else if (!/^https?:\/\//i.test(parsed.href)) {
+    return null;
+  }
   return escapeHtml(parsed.href);
 }
 
@@ -87,7 +96,7 @@ function renderInline(escaped) {
   );
 
   text = text.replace(/\[([^\]\n]+)\]\(([^)\n]+)\)/g, (match, label, url) => {
-    const href = safeHttpUrl(unescapeHtml(url));
+    const href = safeLinkHref(unescapeHtml(url));
     if (!href) return match;
     const inner = restore(renderEmphasis(label));
     return tokenFor(externalLink(href, inner));
@@ -95,7 +104,7 @@ function renderInline(escaped) {
 
   text = text.replace(/https?:\/\/[^\s<]+/gi, (rawUrl) => {
     const cleanUrl = rawUrl.replace(/[.,;:!?)}\]]+$/g, "");
-    const href = safeHttpUrl(unescapeHtml(cleanUrl));
+    const href = safeLinkHref(unescapeHtml(cleanUrl));
     if (!href) return rawUrl;
     const trailing = rawUrl.slice(cleanUrl.length);
     const visible = escapeHtml(unescapeHtml(cleanUrl));

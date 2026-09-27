@@ -50,7 +50,9 @@ class _FragmentChecker(HTMLParser):
         if tag == "a":
             self.anchors.append(attributes)
             href = attributes.get("href", "")
-            if not href.startswith(("http://", "https://")):
+            if not (
+                href.startswith(("http://", "https://")) or href.startswith("mailto:")
+            ):
                 self.problems.append(f"unsafe href {href!r}")
             rel = attributes.get("rel", "")
             if "noopener" not in rel or "noreferrer" not in rel:
@@ -98,6 +100,15 @@ CASES = [
     {"name": "javascript_mixed_case", "input": "[x](JaVaScRiPt:alert(1))"},
     {"name": "data_link", "input": "[x](data:text/html,<script>alert(1)</script>)"},
     {"name": "quote_breakout", "input": '[x](https://example.com/"onclick="alert(1))'},
+    {
+        "name": "mailto",
+        "input": "[kaitlyn.stauber@sjsu.edu](mailto:kaitlyn.stauber@sjsu.edu)",
+    },
+    {"name": "mailto_javascript", "input": "[x](mailto:javascript:alert(1))"},
+    {
+        "name": "mailto_breakout",
+        "input": '[x](mailto:a@b.com"onclick="alert(1))',
+    },
     {"name": "https_link", "input": "[docs](https://example.com/path)"},
     {"name": "http_link", "input": "See http://example.com/a."},
     {"name": "bare_https", "input": "Catalog: https://catalog.sjsu.edu/"},
@@ -160,6 +171,9 @@ def test_safe_markdown_subset(tmp_path):
         "javascript_link",
         "javascript_mixed_case",
         "data_link",
+        "mailto",
+        "mailto_javascript",
+        "mailto_breakout",
         "quote_breakout",
         "https_link",
         "http_link",
@@ -184,6 +198,14 @@ def test_safe_markdown_subset(tmp_path):
     assert "<a " not in html["javascript_link"]
     assert "<a " not in html["javascript_mixed_case"]
     assert "<a " not in html["data_link"]
+    assert "<a " not in html["mailto_javascript"]
+    assert "<a " not in html["mailto_breakout"]
+
+    mail = _check(html["mailto"])
+    assert len(mail.anchors) == 1
+    assert mail.anchors[0]["href"] == "mailto:kaitlyn.stauber@sjsu.edu"
+    assert "".join(mail.text) == "kaitlyn.stauber@sjsu.edu"
+    assert plain["mailto"] == "kaitlyn.stauber@sjsu.edu"
     assert "<a " not in html["raw_anchor"]
     assert "&lt;a href=" in html["raw_anchor"]
 
