@@ -343,6 +343,65 @@ button::-moz-focus-inner { border: 0; }
 }
 .header-actions { flex-shrink: 0; padding-top: 2px; }
 
+.chat-tabs {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 12px 2px 2px;
+  scrollbar-width: thin;
+}
+
+.chat-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  max-width: 220px;
+  min-height: 40px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid #d5e0ec;
+  border-radius: 999px;
+  background: #eef3f8;
+  color: #24384f;
+  cursor: pointer;
+}
+
+.chat-tab[aria-selected="true"] {
+  background: #ffffff;
+  border-color: #9db8d4;
+  box-shadow: inset 0 -2px 0 var(--sjsu-gold);
+}
+
+.chat-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.chat-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #3d5168;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.chat-tab-close:hover { background: #e4edf6; }
+.chat-tab[aria-selected="true"] .chat-tab-close:hover { background: #e7f0f8; }
+
 button.clear-btn {
   appearance: none;
   -webkit-appearance: none;

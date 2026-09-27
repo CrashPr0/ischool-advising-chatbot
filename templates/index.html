@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260927-welcome') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260927-tabs') }}" />
 </head>
 
 <body>
@@ -174,7 +174,11 @@
             </div>
           </div>
 
-          <div class="conversation-stage">
+          <div class="chat-tabs" id="chat-tabs" role="tablist"
+               aria-label="Conversations" aria-orientation="horizontal"></div>
+
+          <div class="conversation-stage" id="conversation-stage" role="tabpanel"
+               aria-label="Conversation">
             <div class="empty-state" id="empty-state">
               <div class="empty-intro">
                 <p class="empty-kicker">Welcome</p>
@@ -334,6 +338,6 @@
   </div>
 
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
-  <script src="{{ url_for('static', filename='script.js', v='20260927-welcome') }}"></script>
+  <script src="{{ url_for('static', filename='script.js', v='20260927-tabs') }}"></script>
 </body>
 </html>
