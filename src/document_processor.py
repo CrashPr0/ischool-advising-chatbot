@@ -626,6 +626,13 @@ CORE_RETRIEVAL_HEADER = (
     "BS ISDA required core courses (major requirements, 36 units) — "
     "what classes are required for the Information Science and Data Analytics major"
 )
+# Retrieval text only, same idea as the core-list header. It mirrors how
+# students ask and names the major this bot serves. It is not an extra policy.
+GRADUATION_RETRIEVAL_HEADER = (
+    "How to apply to graduate, the graduation application deadline, "
+    "and when an SJSU undergraduate should apply for graduation, "
+    "including the Information Science and Data Analytics (ISDA) major"
+)
 
 
 def _paragraph_has_heading(paragraph: str, heading: str) -> bool:
@@ -638,6 +645,13 @@ def _prepend_core_retrieval_header(content: str) -> str:
     if content.startswith(CORE_RETRIEVAL_HEADER):
         return content
     return f"{CORE_RETRIEVAL_HEADER}\n{content}"
+
+
+def _prepend_retrieval_header(content: str, header: str) -> str:
+    """Prefix a chunk with snapshot retrieval text, without doubling it."""
+    if not header or content.startswith(header):
+        return content
+    return f"{header}\n{content}"
 
 
 class DocumentProcessor:
@@ -866,6 +880,10 @@ class DocumentProcessor:
         list is longer than 600 characters; splitting it would leave some
         catalog titles out of every retrieved chunk. That one core chunk gets
         a short retrieval header in front of the unchanged catalog list.
+        Metadata ``retrieval_header`` is prefixed only to that atomic chunk,
+        not to the shorter pieces around it. Stamping every piece lets a
+        title stub outrank the section that actually answers the question.
+        The header is retrieval text, not an added policy.
         """
         split_docs: List[Document] = []
         for document in documents:
@@ -882,7 +900,10 @@ class DocumentProcessor:
         self, document: Document, chunk_size: int, chunk_overlap: int
     ) -> List[Document]:
         heading = self._atomic_section_heading(document)
+        header = self._retrieval_header(document)
         if not heading:
+            # A header with no atomic section would land on every fragment.
+            # Leave those chunks as published text.
             return self._character_split([document], chunk_size, chunk_overlap)
 
         pieces = re.split(r"(\n[ \t]*\n+)", document.page_content)
@@ -911,6 +932,8 @@ class DocumentProcessor:
                 content = piece.strip("\n")
                 if heading == CORE_SECTION_HEADING:
                     content = _prepend_core_retrieval_header(content)
+                elif header:
+                    content = _prepend_retrieval_header(content, header)
                 chunks.append(Document(page_content=content, metadata=dict(metadata)))
             else:
                 pending.append(piece)
@@ -920,6 +943,13 @@ class DocumentProcessor:
     @staticmethod
     def _atomic_section_heading(document: Document) -> str:
         raw = (document.metadata or {}).get("atomic_section")
+        if not isinstance(raw, str):
+            return ""
+        return raw.strip()
+
+    @staticmethod
+    def _retrieval_header(document: Document) -> str:
+        raw = (document.metadata or {}).get("retrieval_header")
         if not isinstance(raw, str):
             return ""
         return raw.strip()
