@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260927-markdown') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260927-welcome') }}" />
 </head>
 
 <body>
@@ -174,17 +174,58 @@
             </div>
           </div>
 
-          <div id="chat-box" class="chat-box" role="log"
-               aria-label="Conversation" aria-live="polite"
-               aria-relevant="additions">
-            <div class="message bot-message">
-              <div class="message-label">ISDA Bot</div>
-              <div>
-                Hi! I’m your ISDA advising assistant. I can help you explore
-                degree requirements, plan your courses, and navigate registration.
-                Choose a topic or ask me a question to get started.
+          <div class="conversation-stage">
+            <div class="empty-state" id="empty-state">
+              <div class="empty-intro">
+                <p class="empty-kicker">Welcome</p>
+                <h3>Hi! I’m your ISDA advising assistant.</h3>
+                <p class="empty-lead">
+                  I can help you explore degree requirements, plan your courses,
+                  and navigate registration. Choose a topic or ask me a question
+                  to get started.
+                </p>
+              </div>
+
+              <div class="starter-block">
+                <p class="starter-label" id="starter-label">Suggested questions</p>
+                <div class="starter-grid" role="group" aria-labelledby="starter-label">
+                  <button type="button" class="starter-chip"
+                          data-question="Who is my assigned ISDA advisor?">
+                    <span class="starter-topic">General Advising</span>
+                    <span class="starter-question">Who is my assigned ISDA advisor?</span>
+                  </button>
+                  <button type="button" class="starter-chip"
+                          data-question="How do I apply to graduate from ISDA?">
+                    <span class="starter-topic">Graduation</span>
+                    <span class="starter-question">How do I apply to graduate from ISDA?</span>
+                  </button>
+                  <button type="button" class="starter-chip"
+                          data-question="How do I plan my courses for next semester?">
+                    <span class="starter-topic">Course Planning</span>
+                    <span class="starter-question">How do I plan my courses for next semester?</span>
+                  </button>
+                  <button type="button" class="starter-chip"
+                          data-question="What are the ISDA core courses?">
+                    <span class="starter-topic">Degree Requirements</span>
+                    <span class="starter-question">What are the ISDA core courses?</span>
+                  </button>
+                  <button type="button" class="starter-chip"
+                          data-question="How do I add or drop a course?">
+                    <span class="starter-topic">Registration</span>
+                    <span class="starter-question">How do I add or drop a course?</span>
+                  </button>
+                  <button type="button" class="starter-chip"
+                          data-question="Are there scholarships for ISDA students?">
+                    <span class="starter-topic">Financial Aid</span>
+                    <span class="starter-question">Are there scholarships for ISDA students?</span>
+                  </button>
+                </div>
               </div>
             </div>
+
+            <div id="chat-box" class="chat-box is-empty" role="log"
+                 aria-label="Conversation" aria-live="polite"
+                 aria-relevant="additions"></div>
           </div>
 
           <div class="sample-chips-area hidden" id="sample-chips-area">
@@ -192,103 +233,107 @@
             <div class="sample-chips" id="sample-chips"></div>
           </div>
 
-          <div class="input-row-wrapper">
-            <div class="input-container">
-              <label class="sr-only" for="user-input">
-                Your advising question
-              </label>
+          <div class="composer">
+            <div class="input-row-wrapper">
+              <div class="input-container">
+                <label class="sr-only" for="user-input">
+                  Your advising question
+                </label>
 
-              <input type="text" id="user-input"
-                     placeholder="Ask an advising question…"
-                     autocomplete="off" />
+                <input type="text" id="user-input"
+                       placeholder="Ask an advising question…"
+                       autocomplete="off" />
 
-              <button id="voice-listen-button"
-                      class="voice-btn composer-mic"
-                      type="button"
-                      aria-pressed="false"
-                      aria-describedby="voice-status voice-privacy-note"
-                      title="Start voice input"
-                      disabled>
-                <svg viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="1.8"
-                     stroke-linecap="round" aria-hidden="true">
-                  <rect x="9" y="3" width="6" height="12" rx="3"/>
-                  <path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3m-3 0h6"/>
-                </svg>
-                <span id="voice-listen-label" class="sr-only">
-                  Start voice input
-                </span>
-              </button>
+                <button id="voice-listen-button"
+                        class="voice-btn composer-mic"
+                        type="button"
+                        aria-pressed="false"
+                        aria-describedby="voice-status voice-privacy-note"
+                        title="Start voice input"
+                        disabled>
+                  <svg viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="1.8"
+                       stroke-linecap="round" aria-hidden="true">
+                    <rect x="9" y="3" width="6" height="12" rx="3"/>
+                    <path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3m-3 0h6"/>
+                  </svg>
+                  <span id="voice-listen-label" class="sr-only">
+                    Start voice input
+                  </span>
+                </button>
 
-              <button id="send-button" type="button"
-                      title="Send question" aria-label="Send question">
-                <svg viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round"
-                     aria-hidden="true">
-                  <path d="M12 19V5m-6 6 6-6 6 6"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <p id="voice-status" class="voice-status"
-             role="status" aria-live="polite">
-            Type your question or use the microphone.
-          </p>
-
-          <details class="voice-tools" id="voice-tools">
-            <summary>
-              Voice settings
-              <span id="voice-support-badge"
-                    class="voice-support-badge" role="status">
-                Checking browser support…
-              </span>
-            </summary>
-
-            <div class="voice-controls">
-              <label class="voice-select-label" for="voice-language-select">
-                Language
-                <select id="voice-language-select" autocomplete="language">
-                  <option value="en-US">English (US)</option>
-                  <option value="zh-CN">普通话（简体中文）</option>
-                </select>
-              </label>
-
-              <label class="voice-toggle-label" for="voice-reply-toggle">
-                <input id="voice-reply-toggle" type="checkbox" />
-                <span>Read replies aloud</span>
-              </label>
-
-              <button id="voice-stop-button"
-                      class="voice-btn voice-btn-secondary" type="button">
-                Stop audio
-              </button>
+                <button id="send-button" type="button"
+                        title="Send question" aria-label="Send question">
+                  <svg viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round"
+                       aria-hidden="true">
+                    <path d="M12 19V5m-6 6 6-6 6 6"/>
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            <p id="voice-privacy-note" class="voice-privacy-note">
-              No audio is uploaded to this app's server. Your browser may use
-              its own speech service; check your browser privacy settings
-              before granting microphone access.
-            </p>
-          </details>
+            <div class="composer-footer">
+              <p id="voice-status" class="voice-status"
+                 role="status" aria-live="polite">
+                Type your question or use the microphone.
+              </p>
 
-          <div class="meta-row">
-            <span id="source-badge" class="meta-pill hidden"></span>
-            <span id="docs-badge" class="meta-pill hidden"></span>
+              <details class="voice-tools" id="voice-tools">
+                <summary>
+                  Voice settings
+                  <span id="voice-support-badge"
+                        class="voice-support-badge" role="status">
+                    Checking browser support…
+                  </span>
+                </summary>
+
+                <div class="voice-controls">
+                  <label class="voice-select-label" for="voice-language-select">
+                    Language
+                    <select id="voice-language-select" autocomplete="language">
+                      <option value="en-US">English (US)</option>
+                      <option value="zh-CN">普通话（简体中文）</option>
+                    </select>
+                  </label>
+
+                  <label class="voice-toggle-label" for="voice-reply-toggle">
+                    <input id="voice-reply-toggle" type="checkbox" />
+                    <span>Read replies aloud</span>
+                  </label>
+
+                  <button id="voice-stop-button"
+                          class="voice-btn voice-btn-secondary" type="button">
+                    Stop audio
+                  </button>
+                </div>
+
+                <p id="voice-privacy-note" class="voice-privacy-note">
+                  No audio is uploaded to this app's server. Your browser may use
+                  its own speech service; check your browser privacy settings
+                  before granting microphone access.
+                </p>
+              </details>
+
+              <div class="meta-row">
+                <span id="source-badge" class="meta-pill hidden"></span>
+                <span id="docs-badge" class="meta-pill hidden"></span>
+              </div>
+
+              <p class="chat-disclaimer">
+                This chatbot provides general program guidance only. It does not
+                access personal records, transcripts, or private academic information.
+                For individualized advising, please contact an advisor.
+              </p>
+            </div>
           </div>
-
-          <p class="chat-disclaimer">
-            This chatbot provides general program guidance only. It does not
-            access personal records, transcripts, or private academic information.
-            For individualized advising, please contact an advisor.
-          </p>
         </div>
       </section>
     </main>
   </div>
 
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
-  <script src="{{ url_for('static', filename='script.js', v='20260927-markdown') }}"></script>
+  <script src="{{ url_for('static', filename='script.js', v='20260927-welcome') }}"></script>
 </body>
 </html>

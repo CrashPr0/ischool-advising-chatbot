@@ -14,6 +14,7 @@ const activeTopicLabel = document.getElementById("active-topic-label");
 const sampleChipsArea = document.getElementById("sample-chips-area");
 const sampleChipsLabel = document.getElementById("sample-chips-label");
 const sampleChipsContainer = document.getElementById("sample-chips");
+const emptyState = document.getElementById("empty-state");
 
 const voiceTools = document.getElementById("voice-tools");
 const voiceListenButton = document.getElementById("voice-listen-button");
@@ -409,6 +410,7 @@ function showSampleChips(topic, samples) {
 
   samples.forEach((q) => {
     const chip = document.createElement("button");
+    chip.type = "button";
     chip.classList.add("sample-chip");
     chip.textContent = q;
     chip.addEventListener("click", () => {
@@ -418,6 +420,38 @@ function showSampleChips(topic, samples) {
   });
 
   sampleChipsArea.classList.remove("hidden");
+}
+
+// Welcome suggestions sit outside the transcript. Hide them once a message
+// exists, and bring them back when New chat clears the conversation.
+function hideEmptyState() {
+  if (!emptyState || !chatBox) return;
+  const active = document.activeElement;
+  const focusedInWelcome = Boolean(
+    active &&
+    typeof emptyState.contains === "function" &&
+    emptyState.contains(active)
+  );
+  emptyState.classList.add("hidden");
+  chatBox.classList.remove("is-empty");
+  if (focusedInWelcome && userInput && typeof userInput.focus === "function") {
+    userInput.focus();
+  }
+}
+
+function showEmptyState() {
+  if (!emptyState || !chatBox) return;
+  if (typeof chatBox.replaceChildren === "function") {
+    chatBox.replaceChildren();
+  } else {
+    chatBox.innerHTML = "";
+  }
+  chatBox.classList.add("is-empty");
+  emptyState.classList.remove("hidden");
+}
+
+function hideSampleChips() {
+  sampleChipsArea?.classList.add("hidden");
 }
 
 // ── MESSAGES ──
@@ -444,6 +478,7 @@ function renderMessageText(container, value, linkify = false) {
 }
 
 function addMessage(text, className, label) {
+  hideEmptyState();
   const wrapper = document.createElement("div");
   wrapper.classList.add("message", className);
 
@@ -507,6 +542,7 @@ async function sendMessage(prefilledMessage = null) {
   const message = (prefilledMessage || userInput.value).trim();
   if (!message) return;
 
+  hideSampleChips();
   addMessage(message, "user-message", "You");
 
   userInput.value = "";
@@ -570,17 +606,21 @@ function speakBotReply(responseText) {
 // and does not open the index. The index loads on the first real question.
 function setServiceStatus(state, detail) {
   if (!statusText || !providerText) return;
+  statusText.classList.remove("is-ready", "is-error", "is-unavailable");
   if (state === "ready") {
     statusText.textContent = "Ready to help";
+    statusText.classList.add("is-ready");
     providerText.textContent = "Advising support is available.";
     return;
   }
   if (state === "error") {
     statusText.textContent = "Status: error";
+    statusText.classList.add("is-error");
     providerText.textContent = detail || "Could not load status.";
     return;
   }
   statusText.textContent = "Status: unavailable";
+  statusText.classList.add("is-unavailable");
   providerText.textContent =
     detail || "Could not connect to backend status endpoint.";
 }
@@ -604,13 +644,17 @@ userInput.addEventListener("keydown", (event) => {
   }
 });
 
-clearButton.addEventListener("click", async () => {
-  chatBox.innerHTML = `
+clearButton.addEventListener("click", async (event) => {
+  if (emptyState) {
+    showEmptyState();
+  } else {
+    chatBox.innerHTML = `
     <div class="message bot-message">
       <div class="message-label">ISDA Bot</div>
       <div>Hi! I’m your ISDA advising assistant. I can help you explore degree requirements, plan your courses, and navigate registration. Choose a topic or ask me a question to get started.</div>
     </div>
   `;
+  }
 
   topicButtons.forEach((b) => {
     b.classList.remove("active");
@@ -618,12 +662,24 @@ clearButton.addEventListener("click", async () => {
   });
 
   activeBanner?.classList.add("hidden");
-  sampleChipsArea?.classList.add("hidden");
+  hideSampleChips();
   if (sampleChipsContainer) sampleChipsContainer.innerHTML = "";
   activeTopic = null;
   updateMeta({});
 
+  // A mouse click leaves the button focused, which looks stuck in a pressed state.
+  if (event && event.detail > 0 && typeof clearButton.blur === "function") {
+    clearButton.blur();
+  }
+
   await clearHistory();
+});
+
+document.querySelectorAll(".starter-chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const question = String(chip.getAttribute("data-question") || "").trim();
+    if (question) sendMessage(question);
+  });
 });
 
 if (voiceListenButton) {

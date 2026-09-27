@@ -1,6 +1,7 @@
 """Browser-script guards that do not need a model or a running server."""
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -131,10 +132,14 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "confidence: data.confidence" not in script
     assert 'id="confidence-badge"' not in template
     assert 'id="confidence-badge"' not in docs
-    assert "filename='script.js', v='20260927-markdown'" in template
-    assert "script.js?v=20260927-markdown" in docs
+    assert "filename='style.css', v='20260927-welcome'" in template
+    assert "style.css?v=20260927-welcome" in docs
+    assert "filename='script.js', v='20260927-welcome'" in template
+    assert "script.js?v=20260927-welcome" in docs
     assert "filename='markdown.js', v='20260927-mailto'" in template
     assert "markdown.js?v=20260927-mailto" in docs
+    assert "filename='script.js', v='20260927-markdown'" not in template
+    assert "script.js?v=20260927-markdown" not in docs
     assert "filename='script.js', v='20260924-composer'" not in template
     assert "script.js?v=20260924-composer" not in docs
     # The disclaimer paragraph is owned by the grounding change. Leave it.
@@ -148,6 +153,29 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "if (!voiceTools) return;" in script
     assert "activeBanner?.classList.add" in script
     assert "silent" not in script
+
+
+def test_index_welcome_chips_reuse_topic_samples():
+    """The empty state offers real buttons whose questions already exist."""
+    template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+    samples = []
+    for payload in re.findall(r"data-samples='([^']+)'", template):
+        samples.extend(json.loads(payload))
+
+    starters = re.findall(
+        r'class="starter-chip"[^>]*data-question="([^"]+)"',
+        template,
+    )
+    assert 3 <= len(starters) <= 6
+    assert len(starters) == len(set(starters))
+    assert starters
+    for question in starters:
+        assert question in samples
+        assert f">{question}</span>" in template
+
+    assert 'id="empty-state"' in template
+    assert 'role="group" aria-labelledby="starter-label"' in template
+    assert template.count('class="starter-chip"') == len(starters)
 
 
 def test_docs_page_voice_init_and_clear_do_not_throw(tmp_path):
