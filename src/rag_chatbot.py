@@ -346,6 +346,7 @@ title and link."""
         self.prompt_template = PromptTemplate(
             input_variables=[
                 "catalog_note",
+                "graduation_note",
                 "context",
                 "language_instruction",
                 "question",
@@ -353,6 +354,8 @@ title and link."""
             template=f"""{self.SYSTEM_PROMPT}
 
 {{catalog_note}}
+
+{{graduation_note}}
 
 {{context}}
 
@@ -481,6 +484,7 @@ Assistant Response:""",
             # do not.
             payload = {
                 "catalog_note": catalog_prompt_note(),
+                "graduation_note": graduation_deadline_note(context),
                 "context": context,
                 "language_instruction": self._response_language_instruction(
                     user_message
@@ -655,9 +659,14 @@ Assistant Response:""",
                 "they contact the iSchool advising team.\n"
             )
 
+        # The registrar term table has to be the first document. A later
+        # catalog chunk only says to apply about two semesters ahead, and the
+        # 512-token answer was spending itself there and on the tutorial
+        # before it reached Fall 2027.
+        ordered = _deadline_table_first(documents)
         context_parts = ["--- Retrieved advising documents ---\n"]
 
-        for i, doc in enumerate(documents, 1):
+        for i, doc in enumerate(ordered, 1):
             content = doc.page_content.strip()
             context_parts.append(f"{document_heading(i, doc.metadata)}\n{content}\n")
 
@@ -686,6 +695,55 @@ _FOLLOW_UP_PREFIX_RE = re.compile(r"(?i)^(what|how)\s+about\b|^(and|also)\b")
 _FOLLOW_UP_ANAPHORA = {"that", "those", "it", "this", "they", "them", "these", "same"}
 _MAX_PRIOR_TURNS = 4
 _PRIOR_TURN_CHARS = 800
+
+
+def graduation_deadline_note(context: str) -> str:
+    """How to read the registrar term table, or "" when it is not in context.
+
+    Deadline 1 and Deadline 2 are priority-registration dates. The cutoff is
+    the add deadline of the graduation term. The catalog-year note must not
+    replace these rows. Asking for the rows first keeps them inside the
+    512-token completion. Rules 3, 4, and 8 are unchanged.
+    """
+    if not isinstance(context, str):
+        return ""
+    required = (
+        "Planned Graduation Term: Fall 2026.",
+        "Planned Graduation Term: Spring 2027/ Summer 2027.",
+        "Planned Graduation Term: Fall 2027.",
+        "priority registration",
+        "add deadline",
+    )
+    if any(part not in context for part in required):
+        return ""
+    return (
+        "Registrar graduation dates: include every Planned Graduation Term row "
+        "before other steps. You must apply for graduation no later than the "
+        "add deadline of the term in which you wish to graduate. Deadline 1 "
+        "and Deadline 2 are the dates to apply by to receive priority "
+        "registration. Deadline 1 allows two semesters with priority "
+        "registration. Deadline 2 allows one semester with priority "
+        "registration. Do not describe Deadline 1 or Deadline 2 as the final "
+        "cutoff. The catalog sentence about applying approximately two "
+        "semesters before the anticipated term does not replace these rows."
+    )
+
+
+def _deadline_table_first(documents: List) -> List:
+    """Put the chunk that publishes every term row ahead of the other hits."""
+
+    def rank(document) -> int:
+        text = getattr(document, "page_content", "") or ""
+        complete = (
+            "Planned Graduation Term: Fall 2026." in text
+            and "Planned Graduation Term: Spring 2027/ Summer 2027." in text
+            and "Planned Graduation Term: Fall 2027." in text
+            and "priority registration" in text
+            and "add deadline" in text
+        )
+        return 0 if complete else 1
+
+    return sorted(documents, key=rank)
 
 
 def _session_turns(history: Optional[List[dict]]) -> List[dict]:

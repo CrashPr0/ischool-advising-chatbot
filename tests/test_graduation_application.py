@@ -6,10 +6,16 @@ from pathlib import Path
 
 import yaml
 
+from langchain_core.documents import Document
+
 from src.config import Config
 from src.document_processor import GRADUATION_RETRIEVAL_HEADER, DocumentProcessor
 from src.hybrid_retrieval import expand_graduation_application_query
-from src.rag_chatbot import DEFAULT_RAG_TOP_K
+from src.rag_chatbot import (
+    DEFAULT_RAG_TOP_K,
+    RAGAdvisingChatbot,
+    graduation_deadline_note,
+)
 
 DOCS = Path(__file__).resolve().parents[1] / "data" / "advising_docs"
 RETRIEVED = "2026-09-27"
@@ -229,3 +235,107 @@ def test_apply_to_graduate_questions_retrieve_steps_and_term_deadlines(
         and hit.metadata.get("catalog_year") == "2026-2027"
         for hit in prerequisites
     )
+
+
+def _deadline_chunk():
+    processor = DocumentProcessor(str(DOCS))
+    loaded = {
+        doc.metadata.get("source_url"): doc for doc in processor.load_documents()
+    }
+    url = "https://www.sjsu.edu/registrar/graduation/application-central.php"
+    chunks = processor.split_documents([loaded[url]])
+    headed = [
+        chunk
+        for chunk in chunks
+        if "Planned Graduation Term: Fall 2027." in chunk.page_content
+    ]
+    assert len(headed) == 1
+    return headed[0]
+
+
+def test_deadline_rows_follow_the_published_priority_registration_wording():
+    """Deadline 1 and Deadline 2 are not the application cutoff."""
+    text = _deadline_chunk().page_content
+    add_at = text.index(
+        "no later than the add deadline of the term in which you wish to graduate"
+    )
+    priority_at = text.index("you will receive priority registration")
+    allows_1 = text.index(
+        "Deadline 1 allows two semesters with priority registration."
+    )
+    allows_2 = text.index(
+        "Deadline 2 allows one semester with priority registration."
+    )
+    fall = text.index("Planned Graduation Term: Fall 2026.")
+    spring = text.index("Planned Graduation Term: Spring 2027/ Summer 2027.")
+    fall_2027 = text.index("Planned Graduation Term: Fall 2027.")
+    assert add_at < allows_1 < allows_2 < fall < spring < fall_2027
+    assert priority_at < fall
+    assert "the graduation application deadline" not in text
+    assert text.startswith(GRADUATION_RETRIEVAL_HEADER)
+
+
+def test_catalog_and_tutorial_are_not_labeled_with_the_term_table():
+    processor = DocumentProcessor(str(DOCS))
+    loaded = {
+        doc.metadata.get("source_url"): doc for doc in processor.load_documents()
+    }
+    catalog_url = "https://catalog.sjsu.edu/content.php?catoid=23&navoid=8473"
+    tutorial_url = "https://www.sjsu.edu/registrar/docs/GradAppOnlineTutorial.pdf"
+    for url in (catalog_url, tutorial_url):
+        chunks = processor.split_documents([loaded[url]])
+        for chunk in chunks:
+            assert "Deadline 1 allows two semesters" not in chunk.page_content
+            assert not chunk.page_content.startswith(GRADUATION_RETRIEVAL_HEADER)
+    tutorial_chunks = processor.split_documents([loaded[tutorial_url]])
+    apply_steps = [
+        chunk
+        for chunk in tutorial_chunks
+        if "Apply for graduation link" in chunk.page_content
+    ]
+    assert len(apply_steps) == 1
+    assert len(apply_steps[0].page_content) < 2000
+    assert "Update Diploma Name" not in apply_steps[0].page_content
+
+
+def test_prompt_leads_with_every_term_row_and_leaves_rules_3_4_and_8():
+    table = _deadline_chunk()
+    catalog = Document(
+        page_content=(
+            "Students should normally apply for graduation approximately two "
+            "semesters before their anticipated graduation term."
+        ),
+        metadata={
+            "source": "catalog.txt",
+            "catalog_year": "2026-2027",
+            "source_url": "https://catalog.sjsu.edu/content.php?catoid=23&navoid=8473",
+        },
+    )
+    tutorial = Document(
+        page_content="Click the Apply for graduation link.",
+        metadata={"source": "tutorial.txt"},
+    )
+    bot = RAGAdvisingChatbot.__new__(RAGAdvisingChatbot)
+    context = bot._build_context(
+        "How do I apply to graduate?", [catalog, tutorial, table]
+    )
+    assert context.index("Document 1") < context.index(
+        "Planned Graduation Term: Fall 2026."
+    )
+    assert context.index("Planned Graduation Term: Fall 2027.") < context.index(
+        "approximately two semesters"
+    )
+    note = graduation_deadline_note(context)
+    assert "include every Planned Graduation Term row before other steps" in note
+    assert "add deadline of the term in which you wish to graduate" in note
+    assert "priority registration" in note
+    assert "Do not describe Deadline 1 or Deadline 2 as the final cutoff." in note
+    assert "does not replace these rows" in note
+    assert graduation_deadline_note("ISDA 100 is a core course.") == ""
+
+    prompt = RAGAdvisingChatbot.SYSTEM_PROMPT
+    rules_3_and_4 = prompt.split("5. Keep answers", 1)[0]
+    assert "3. Answer from whatever the documents do contain" in rules_3_and_4
+    assert "4. Never invent course numbers" in rules_3_and_4
+    assert "8. When sources from different catalog years disagree" in prompt
+    assert "Deadline 1 allows two semesters" not in prompt

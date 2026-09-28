@@ -627,11 +627,18 @@ CORE_RETRIEVAL_HEADER = (
     "what classes are required for the Information Science and Data Analytics major"
 )
 # Retrieval text only, same idea as the core-list header. It mirrors how
-# students ask and names the major this bot serves. It is not an extra policy.
+# students ask and repeats the registrar's own distinction: the add deadline
+# is the cutoff, and Deadline 1 and Deadline 2 are for priority registration.
+# It is not an extra policy. Those sentences are not put on the catalog or
+# the MySJSU tutorial, which do not publish the term table.
 GRADUATION_RETRIEVAL_HEADER = (
-    "How to apply to graduate, the graduation application deadline, "
-    "and when an SJSU undergraduate should apply for graduation, "
-    "including the Information Science and Data Analytics (ISDA) major"
+    "How to apply to graduate, and when an SJSU undergraduate should apply "
+    "for graduation, including the Information Science and Data Analytics (ISDA) major. "
+    "You must apply for graduation no later than the add deadline of the term "
+    "in which you wish to graduate. "
+    "If you apply by the dates shown below, you will receive priority registration. "
+    "Deadline 1 allows two semesters with priority registration. "
+    "Deadline 2 allows one semester with priority registration."
 )
 
 
