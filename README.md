@@ -257,8 +257,10 @@ complete BS ISDA core list. A question whose words are only about applying
 to graduate also searches the registrar application terms, so "how do I
 graduate" is not answered from elective text about graduate courses. On
 Application Central, Deadline 1 and Deadline 2 are priority-registration
-dates; the cutoff is the add deadline of the graduation term. The answer
-is asked to include every published term row before the longer steps. Set
+dates; the cutoff is the add deadline of the graduation term. An
+apply-to-graduate question pins that page's eligibility rule and term
+rows into the prompt even when ranking missed them, and the MySJSU
+tutorial is shortened and placed after those rows. Set
 `HYBRID_RETRIEVAL=false` for vector-only
 search. Course codes are normalized, so `ISDA 150` and `ISDA150` hit the
 same chunks. Fusion does not call an embedding or chat API. The flag is

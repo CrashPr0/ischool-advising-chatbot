@@ -15,6 +15,7 @@ from src.rag_chatbot import (
     DEFAULT_RAG_TOP_K,
     RAGAdvisingChatbot,
     graduation_deadline_note,
+    order_graduation_prompt_docs,
 )
 
 DOCS = Path(__file__).resolve().parents[1] / "data" / "advising_docs"
@@ -113,7 +114,15 @@ def test_application_central_keeps_published_terms_and_does_not_invent_a_fee():
     )
     for row in DEADLINE_ROWS:
         assert row in text
-    assert "Earned at least 85 units (90 units for some colleges), with no more than 70 units from community colleges." in text
+    assert (
+        "- Earned at least 85 units (90 units for some colleges), with no more than 70 units from community colleges"
+        in text
+    )
+    assert text.count("Earned at least 85 units") == 1
+    assert text.index("Eligibility for Graduation") < text.index("Application Deadlines")
+    assert text.index("Planned Graduation Term: Fall 2026.") < text.index(
+        "Deadline 1 allows two semesters with priority registration."
+    )
     assert 'Locate and click the "Apply Button" in MySJSU.' in text
     assert "application fee" not in text.casefold()
     assert "no fee" not in text.casefold()
@@ -183,8 +192,14 @@ def test_retrieval_header_is_only_on_the_atomic_graduation_chunk():
     assert "Application Deadlines" in headed[0].page_content
     for row in DEADLINE_ROWS:
         assert row in headed[0].page_content
-    assert "at least 85 units" in headed[0].page_content
-    assert "Apply Button" in headed[0].page_content
+    body = headed[0].page_content.split(GRADUATION_RETRIEVAL_HEADER, 1)[-1]
+    assert body.index("Planned Graduation Term: Fall 2026.") < body.index(
+        "Deadline 1 allows two semesters with priority registration."
+    )
+    assert any(
+        "Eligibility for Graduation" in chunk.page_content and "85 units" in chunk.page_content
+        for chunk in chunks
+    )
     assert sum(chunk.page_content.count(GRADUATION_RETRIEVAL_HEADER) for chunk in chunks) == 1
 
 
@@ -200,17 +215,24 @@ def test_apply_to_graduate_questions_retrieve_steps_and_term_deadlines(
 
     for rerank in ("false", "true"):
         monkeypatch.setenv("CATALOG_RECENCY_RERANK", rerank)
+        corpus = processor.chunks_matching_source(
+            "/registrar/graduation/application-central.php"
+        )
         for question in APPLY_QUESTIONS:
             hits = processor.retrieve_relevant_docs(question, k=DEFAULT_RAG_TOP_K)
             blob = "\n".join(hit.page_content for hit in hits)
             assert "Apply for graduation link" in blob
+            # Eligibility can miss the top-k. The prompt pins Application Central.
+            prompt_docs = order_graduation_prompt_docs(question, hits, corpus)
+            prompt = "\n".join(doc.page_content for doc in prompt_docs)
+            assert "at least 85 units" in prompt
+            assert "add deadline" in prompt.casefold()
+            assert "priority registration" in prompt.casefold()
             for row in DEADLINE_ROWS:
-                assert row in blob
-            assert "at least 85 units" in blob
-            assert "Apply Button" in blob
+                assert row in prompt
             assert any(
-                "application-central.php" in (hit.metadata.get("source_url") or "")
-                for hit in hits
+                "application-central.php" in (doc.metadata.get("source_url") or "")
+                for doc in prompt_docs
             )
 
     core = processor.retrieve_relevant_docs(
@@ -254,23 +276,23 @@ def _deadline_chunk():
 
 
 def test_deadline_rows_follow_the_published_priority_registration_wording():
-    """Deadline 1 and Deadline 2 are not the application cutoff."""
+    """Deadline 1 and Deadline 2 are priority registration, after the rows."""
     text = _deadline_chunk().page_content
-    add_at = text.index(
+    body = text.split(GRADUATION_RETRIEVAL_HEADER, 1)[-1]
+    add_at = body.index(
         "no later than the add deadline of the term in which you wish to graduate"
     )
-    priority_at = text.index("you will receive priority registration")
-    allows_1 = text.index(
+    priority_at = body.index("you will receive priority registration")
+    fall = body.index("Planned Graduation Term: Fall 2026.")
+    spring = body.index("Planned Graduation Term: Spring 2027/ Summer 2027.")
+    fall_2027 = body.index("Planned Graduation Term: Fall 2027.")
+    allows_1 = body.index(
         "Deadline 1 allows two semesters with priority registration."
     )
-    allows_2 = text.index(
+    allows_2 = body.index(
         "Deadline 2 allows one semester with priority registration."
     )
-    fall = text.index("Planned Graduation Term: Fall 2026.")
-    spring = text.index("Planned Graduation Term: Spring 2027/ Summer 2027.")
-    fall_2027 = text.index("Planned Graduation Term: Fall 2027.")
-    assert add_at < allows_1 < allows_2 < fall < spring < fall_2027
-    assert priority_at < fall
+    assert add_at < priority_at < fall < spring < fall_2027 < allows_1 < allows_2
     assert "the graduation application deadline" not in text
     assert text.startswith(GRADUATION_RETRIEVAL_HEADER)
 
@@ -326,12 +348,20 @@ def test_prompt_leads_with_every_term_row_and_leaves_rules_3_4_and_8():
         "approximately two semesters"
     )
     note = graduation_deadline_note(context)
-    assert "include every Planned Graduation Term row before other steps" in note
+    assert "Quote every Planned Graduation Term row" in note
     assert "add deadline of the term in which you wish to graduate" in note
     assert "priority registration" in note
-    assert "Do not describe Deadline 1 or Deadline 2 as the final cutoff." in note
-    assert "does not replace these rows" in note
+    assert "not that cutoff" in note
+    assert "does not replace those rows" in note
+    assert "before any MySJSU tutorial steps" in note
     assert graduation_deadline_note("ISDA 100 is a core course.") == ""
+    future = (
+        "You must apply no later than the add deadline of the term. "
+        "If you apply by the dates shown below, you will receive priority registration. "
+        "Planned Graduation Term: Winter 2031. Deadline 1: January 1, 2031."
+    )
+    assert graduation_deadline_note(future)
+    assert "Fall 2027" not in graduation_deadline_note(future)
 
     prompt = RAGAdvisingChatbot.SYSTEM_PROMPT
     rules_3_and_4 = prompt.split("5. Keep answers", 1)[0]
@@ -339,3 +369,110 @@ def test_prompt_leads_with_every_term_row_and_leaves_rules_3_4_and_8():
     assert "4. Never invent course numbers" in rules_3_and_4
     assert "8. When sources from different catalog years disagree" in prompt
     assert "Deadline 1 allows two semesters" not in prompt
+
+
+CENTRAL = "https://www.sjsu.edu/registrar/graduation/application-central.php"
+TUTORIAL_URL = "https://www.sjsu.edu/registrar/docs/GradAppOnlineTutorial.pdf"
+
+
+def _central_pieces():
+    processor = DocumentProcessor(str(DOCS))
+    loaded = {
+        doc.metadata.get("source_url"): doc for doc in processor.load_documents()
+    }
+    chunks = processor.split_documents([loaded[CENTRAL]])
+    eligibility = next(
+        chunk
+        for chunk in chunks
+        if "Eligibility for Graduation" in chunk.page_content and "85 units" in chunk.page_content
+    )
+    table = next(
+        chunk
+        for chunk in chunks
+        if "Planned Graduation Term: Fall 2027." in chunk.page_content
+    )
+    return eligibility, table
+
+
+def test_apply_to_graduate_prompt_pins_application_central_when_ranking_misses_it():
+    """A top-k that is only the tutorial still gets eligibility and every term row."""
+    eligibility, table = _central_pieces()
+    tutorial = Document(
+        page_content=(
+            "How to apply to graduate in MySJSU\n"
+            "3. Review/Update your diploma name. Update Diploma Name before deadlines.\n"
+            "7. Click the Apply for graduation link.\n"
+            "9. Select Expected Graduation Term and click the button.\n"
+            "Source URL: " + TUTORIAL_URL + "\n"
+            "Retrieved: 2026-09-27\n"
+        ),
+        metadata={"source": "tutorial.txt", "source_url": TUTORIAL_URL},
+    )
+    ordered = order_graduation_prompt_docs(
+        "How do I apply to graduate?",
+        [tutorial],
+        [eligibility, table],
+    )
+    bot = RAGAdvisingChatbot.__new__(RAGAdvisingChatbot)
+    context = bot._build_context("How do I apply to graduate?", ordered)
+    assert context.index("at least 85 units") < context.index(
+        "Planned Graduation Term: Fall 2026."
+    )
+    assert context.index("Planned Graduation Term: Fall 2027.") < context.index(
+        "Apply for graduation link"
+    )
+    assert "Update Diploma Name" not in context
+    assert "add deadline" in context.casefold()
+    assert "priority registration" in context.casefold()
+    for row in DEADLINE_ROWS:
+        assert row in context
+    note = graduation_deadline_note(context)
+    assert "at least 85 units" in note
+    assert "priority registration" in note
+    assert "Quote every Planned Graduation Term row" in note
+
+
+def test_tutorial_ranked_first_is_trimmed_and_placed_after_the_table():
+    eligibility, table = _central_pieces()
+    tutorial = Document(
+        page_content="Click the Apply for graduation link.\nUpdate Diploma Name stays out.",
+        metadata={"source": "tutorial.txt", "source_url": TUTORIAL_URL},
+    )
+    ordered = order_graduation_prompt_docs(
+        "How do I apply to graduate?",
+        [tutorial, table],
+        [eligibility],
+    )
+    assert ordered[0].page_content == eligibility.page_content
+    assert ordered[1].page_content == table.page_content
+    assert ordered[-1] is not tutorial
+    assert "Apply for graduation link" in ordered[-1].page_content
+    assert "Update Diploma Name" not in ordered[-1].page_content
+
+
+def test_pinning_does_not_run_for_course_questions_and_accepts_a_new_term():
+    eligibility, table = _central_pieces()
+    untouched = [Document(page_content="ISDA 100 is required.", metadata={"source": "core.txt"})]
+    assert (
+        order_graduation_prompt_docs(
+            "What are the ISDA core courses?", untouched, [eligibility, table]
+        )
+        == untouched
+    )
+    winter = Document(
+        page_content=(
+            "You must apply for graduation no later than the add deadline of the term "
+            "in which you wish to graduate. If you apply by the dates shown below, "
+            "you will receive priority registration.\n"
+            "Planned Graduation Term: Winter 2031. Deadline 1: January 2, 2031. "
+            "Deadline 2: May 2, 2031."
+        ),
+        metadata={"source": "future.txt", "source_url": CENTRAL},
+    )
+    ordered = order_graduation_prompt_docs(
+        "how do I graduate",
+        [Document(page_content="Click the Apply for graduation link.", metadata={})],
+        [winter],
+    )
+    assert ordered[0].page_content == winter.page_content
+    assert "Winter 2031" in ordered[0].page_content

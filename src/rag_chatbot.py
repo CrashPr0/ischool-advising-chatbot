@@ -5,11 +5,13 @@ import os
 import re
 import time
 from typing import List, Optional, Dict
+from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 
 try:
     from .catalog_recency import catalog_prompt_note, document_heading
     from .config import Config
+    from .hybrid_retrieval import is_apply_to_graduate_query
     from .llm_providers import LLMFactory, REASONING_RETRY
     from .knowledge_base import get_knowledge_base
     from .document_processor import (
@@ -21,6 +23,7 @@ except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
     from catalog_recency import catalog_prompt_note, document_heading
     from config import Config
+    from hybrid_retrieval import is_apply_to_graduate_query
     from llm_providers import LLMFactory, REASONING_RETRY
     from knowledge_base import get_knowledge_base
     from document_processor import (
@@ -460,20 +463,26 @@ Assistant Response:""",
                 retrieval_query, k=top_k
             )
             metrics["retrieval_ms"] = (time.perf_counter() - retrieval_started) * 1000.0
+            # Pin Application Central for apply-to-graduate questions even when
+            # ranking missed it, and keep the long tutorial from leading.
+            corpus = _application_central_corpus(self.doc_processor, user_message)
+            prompt_docs = order_graduation_prompt_docs(
+                user_message, retrieved_docs, corpus
+            )
             response_data["retrieved_docs"] = [
                 {
                     "content": doc.page_content,
                     "source": doc.metadata.get("source", "unknown"),
                 }
-                for doc in retrieved_docs
+                for doc in prompt_docs
             ]
 
             # Step 3: Build context from retrieved documents
             context = _prior_turns_context(prior_turns) + self._build_context(
-                user_message, retrieved_docs
+                user_message, prompt_docs
             )
 
-            if not retrieved_docs:
+            if not prompt_docs:
                 response_data["response"] = self._missing_context_response(user_message)
                 response_data["source"] = "fallback"
                 response_data["confidence"] = 0.2
@@ -659,11 +668,9 @@ Assistant Response:""",
                 "they contact the iSchool advising team.\n"
             )
 
-        # The registrar term table has to be the first document. A later
-        # catalog chunk only says to apply about two semesters ahead, and the
-        # 512-token answer was spending itself there and on the tutorial
-        # before it reached Fall 2027.
-        ordered = _deadline_table_first(documents)
+        # Apply-to-graduate questions pin Application Central and put the
+        # MySJSU tutorial after it. Other questions keep retrieval order.
+        ordered = order_graduation_prompt_docs(query, documents)
         context_parts = ["--- Retrieved advising documents ---\n"]
 
         for i, doc in enumerate(ordered, 1):
@@ -697,53 +704,153 @@ _MAX_PRIOR_TURNS = 4
 _PRIOR_TURN_CHARS = 800
 
 
+# A planned-graduation row names a season and a year. The registrar's
+# current terms are not hard-coded, so a later published term still counts.
+_TERM_ROW = re.compile(
+    r"Planned Graduation Term:\s*(?:Fall|Spring|Summer|Winter)\s+\d{4}\b",
+    re.IGNORECASE,
+)
+_TUTORIAL_KEEP = re.compile(
+    r"Apply for graduation link|Expected Graduation Term|Source URL:|"
+    r"Retrieved:|Online Graduation Application Overview|"
+    r"How to apply to graduate in MySJSU",
+    re.IGNORECASE,
+)
+_APPLICATION_CENTRAL = "/registrar/graduation/application-central.php"
+_TUTORIAL_URL = "gradapponlinetutorial.pdf"
+
+
 def graduation_deadline_note(context: str) -> str:
-    """How to read the registrar term table, or "" when it is not in context.
+    """How to read Application Central, or "" when that page is not in context.
 
     Deadline 1 and Deadline 2 are priority-registration dates. The cutoff is
-    the add deadline of the graduation term. The catalog-year note must not
-    replace these rows. Asking for the rows first keeps them inside the
-    512-token completion. Rules 3, 4, and 8 are unchanged.
+    the add deadline of the graduation term. Term rows are detected by
+    season and year, not by a fixed list of terms. The catalog-year note
+    must not replace those rows. Rules 3, 4, and 8 are unchanged.
     """
-    if not isinstance(context, str):
+    if not isinstance(context, str) or not _TERM_ROW.search(context):
         return ""
-    required = (
-        "Planned Graduation Term: Fall 2026.",
-        "Planned Graduation Term: Spring 2027/ Summer 2027.",
-        "Planned Graduation Term: Fall 2027.",
-        "priority registration",
-        "add deadline",
-    )
-    if any(part not in context for part in required):
+    folded = context.casefold()
+    if "add deadline" not in folded or "priority registration" not in folded:
         return ""
-    return (
-        "Registrar graduation dates: include every Planned Graduation Term row "
-        "before other steps. You must apply for graduation no later than the "
-        "add deadline of the term in which you wish to graduate. Deadline 1 "
-        "and Deadline 2 are the dates to apply by to receive priority "
-        "registration. Deadline 1 allows two semesters with priority "
-        "registration. Deadline 2 allows one semester with priority "
-        "registration. Do not describe Deadline 1 or Deadline 2 as the final "
-        "cutoff. The catalog sentence about applying approximately two "
-        "semesters before the anticipated term does not replace these rows."
-    )
-
-
-def _deadline_table_first(documents: List) -> List:
-    """Put the chunk that publishes every term row ahead of the other hits."""
-
-    def rank(document) -> int:
-        text = getattr(document, "page_content", "") or ""
-        complete = (
-            "Planned Graduation Term: Fall 2026." in text
-            and "Planned Graduation Term: Spring 2027/ Summer 2027." in text
-            and "Planned Graduation Term: Fall 2027." in text
-            and "priority registration" in text
-            and "add deadline" in text
+    sentences = [
+        "Answer from the registrar Application Central page before any MySJSU tutorial steps.",
+        "You must apply for graduation no later than the add deadline of the term in which you wish to graduate.",
+        "Deadline 1 and Deadline 2 are the dates to apply by to receive priority registration, not that cutoff.",
+        "Deadline 1 allows two semesters with priority registration.",
+        "Deadline 2 allows one semester with priority registration.",
+        "Quote every Planned Graduation Term row in the sources before tutorial steps.",
+        "The catalog sentence about applying approximately two semesters ahead does not replace those rows.",
+    ]
+    if "85 units" in folded:
+        sentences.insert(
+            1,
+            "Include the eligibility rule: at least 85 units (90 units for some colleges).",
         )
-        return 0 if complete else 1
+    return " ".join(sentences)
 
-    return sorted(documents, key=rank)
+
+def _source_url(document) -> str:
+    metadata = getattr(document, "metadata", None) or {}
+    raw = metadata.get("source_url")
+    return raw.casefold() if isinstance(raw, str) else ""
+
+
+def _is_application_central(document) -> bool:
+    return _APPLICATION_CENTRAL in _source_url(document)
+
+
+def _is_tutorial(document) -> bool:
+    url = _source_url(document)
+    if _TUTORIAL_URL in url:
+        return True
+    text = getattr(document, "page_content", "") or ""
+    return "Apply for graduation link" in text and not _TERM_ROW.search(text)
+
+
+def _is_deadline_table(text: str) -> bool:
+    folded = (text or "").casefold()
+    return (
+        _TERM_ROW.search(text or "") is not None
+        and "add deadline" in folded
+        and "priority registration" in folded
+    )
+
+
+def _is_eligibility(text: str) -> bool:
+    body = text or ""
+    return "Eligibility for Graduation" in body and "85 units" in body.casefold()
+
+
+def _prefer(documents: List, predicate) -> Optional[Document]:
+    matches = [doc for doc in documents if predicate(getattr(doc, "page_content", "") or "")]
+    if not matches:
+        return None
+    central = [doc for doc in matches if _is_application_central(doc)]
+    pool = central or matches
+
+    def score(doc: Document) -> tuple:
+        text = doc.page_content or ""
+        return (
+            "Earned at least 85 units" in text,
+            len(_TERM_ROW.findall(text)),
+            len(text),
+        )
+
+    return max(pool, key=score)
+
+
+def _trim_tutorial(document) -> Document:
+    """Keep the MySJSU apply-link lines. Drop the long step list from the prompt."""
+    if not _is_tutorial(document):
+        return document
+    text = getattr(document, "page_content", "") or ""
+    kept = [line for line in text.splitlines() if line.strip() and _TUTORIAL_KEEP.search(line)]
+    if not kept:
+        return document
+    trimmed = "\n".join(kept).strip()
+    if trimmed == text.strip():
+        return document
+    metadata = dict(getattr(document, "metadata", None) or {})
+    return Document(page_content=trimmed, metadata=metadata)
+
+
+def order_graduation_prompt_docs(
+    query: str,
+    retrieved: Optional[List] = None,
+    corpus: Optional[List] = None,
+) -> List:
+    """Pin Application Central and place the tutorial after it.
+
+    Other questions are returned unchanged. When the indexed page is missing,
+    the retrieved list is left as it is rather than filled with invented text.
+    """
+    documents = list(retrieved or [])
+    if not is_apply_to_graduate_query(query):
+        return documents
+    pool = list(corpus or []) + documents
+    eligibility = _prefer(pool, _is_eligibility)
+    table = _prefer(pool, _is_deadline_table)
+    pinned = [doc for doc in (eligibility, table) if doc is not None]
+    pinned_text = {doc.page_content for doc in pinned}
+    rest = [doc for doc in documents if doc.page_content not in pinned_text]
+    tutorial = [_trim_tutorial(doc) for doc in rest if _is_tutorial(doc)]
+    others = [doc for doc in rest if not _is_tutorial(doc)]
+    return pinned + others + tutorial
+
+
+def _application_central_corpus(processor, query: str) -> List:
+    """Indexed Application Central chunks, or [] when this is not that question."""
+    if not is_apply_to_graduate_query(query):
+        return []
+    finder = getattr(processor, "chunks_matching_source", None)
+    if not callable(finder):
+        return []
+    try:
+        found = finder(_APPLICATION_CENTRAL)
+    except Exception:
+        return []
+    return list(found or [])
 
 
 def _session_turns(history: Optional[List[dict]]) -> List[dict]:

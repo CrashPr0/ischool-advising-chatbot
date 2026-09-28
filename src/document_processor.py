@@ -1156,6 +1156,36 @@ class DocumentProcessor:
             print(f"Error retrieving documents: {e}")
             return []
 
+    def chunks_matching_source(self, url_part: str) -> List[Document]:
+        """Return indexed chunks whose source URL contains ``url_part``.
+
+        Used to pin an official page when ranking missed it. No network call.
+        """
+        if not isinstance(url_part, str) or not url_part.strip():
+            return []
+        store, collection_id = self._snapshot_aligned_store()
+        if not store:
+            return []
+        try:
+            _enabled, _retrieve, _prime, collection_records = _hybrid_api()
+        except Exception as error:
+            print(f"Hybrid retrieval unavailable: {error}")
+            return []
+        needle = url_part.casefold()
+        found: List[Document] = []
+        try:
+            records = collection_records(store, collection_id)
+        except Exception as error:
+            print(f"Could not read indexed chunks: {error}")
+            return []
+        for _doc_id, content, metadata in records:
+            url = str((metadata or {}).get("source_url") or "").casefold()
+            if needle in url:
+                found.append(
+                    Document(page_content=content, metadata=dict(metadata or {}))
+                )
+        return found
+
     def process_and_index(self) -> Optional[Chroma]:
         """Load, split, and atomically replace the advising index."""
         with self._index_lock:
@@ -1258,17 +1288,24 @@ def _hybrid_api():
     """Import hybrid helpers lazily so vector-only chat can skip the module."""
     try:
         from .hybrid_retrieval import (
+            _collection_records,
             hybrid_retrieval_enabled,
             hybrid_retrieve,
             prime_collection_records,
         )
     except ImportError:  # pragma: no cover - src/ on sys.path
         from hybrid_retrieval import (
+            _collection_records,
             hybrid_retrieval_enabled,
             hybrid_retrieve,
             prime_collection_records,
         )
-    return hybrid_retrieval_enabled, hybrid_retrieve, prime_collection_records
+    return (
+        hybrid_retrieval_enabled,
+        hybrid_retrieve,
+        prime_collection_records,
+        _collection_records,
+    )
 
 
 def _prime_hybrid_records(vector_store, collection_id) -> None:
@@ -1279,7 +1316,7 @@ def _prime_hybrid_records(vector_store, collection_id) -> None:
     a staging swap that publishes a new id does not reuse these chunks.
     """
     try:
-        hybrid_retrieval_enabled, _hybrid_retrieve, prime_collection_records = (
+        hybrid_retrieval_enabled, _hybrid_retrieve, prime_collection_records, _records = (
             _hybrid_api()
         )
     except Exception as error:
@@ -1301,7 +1338,7 @@ def _optional_hybrid_retrieve(vector_store, query: str, k: int, collection_id=No
     on similarity_search.
     """
     try:
-        hybrid_retrieval_enabled, hybrid_retrieve, _prime = _hybrid_api()
+        hybrid_retrieval_enabled, hybrid_retrieve, _prime, _records = _hybrid_api()
     except Exception as error:
         print(f"Hybrid retrieval unavailable: {error}")
         return None
