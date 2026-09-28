@@ -61,3 +61,20 @@ https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203443
 # source URL, catalog year, and retrieval date.
 https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19052
 https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
+
+# Undergraduate apply-to-graduate, graduation evaluation, and commencement.
+# Registrar pages, the undergraduate MySJSU tutorial, commencement, and the
+# 2026-2027 catalog graduation requirements. Term deadlines stay as published.
+https://www.sjsu.edu/registrar/graduation/application-central.php
+https://www.sjsu.edu/registrar/graduation/index.php
+https://www.sjsu.edu/registrar/graduation/graduation-checklist.php
+https://www.sjsu.edu/registrar/graduation/faq.php
+https://www.sjsu.edu/registrar/graduation/graduation-date-changes.php
+https://www.sjsu.edu/registrar/graduation/diploma.php
+https://www.sjsu.edu/registrar/graduation/myprogress-graduation-status.php
+https://www.sjsu.edu/registrar/graduation/evaluators.php
+https://www.sjsu.edu/registrar/docs/GradAppOnlineTutorial.pdf
+https://catalog.sjsu.edu/content.php?catoid=23&navoid=8473
+https://www.sjsu.edu/commencement/ceremonies/index.php
+https://www.sjsu.edu/commencement/participation/tickets.php
+https://www.sjsu.edu/commencement/participation/grad-vs-comm.php

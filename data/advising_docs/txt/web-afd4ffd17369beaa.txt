@@ -1,0 +1,25 @@
+Online Graduation Application Overview
+Undergraduate Guide
+Source URL: https://www.sjsu.edu/registrar/docs/GradAppOnlineTutorial.pdf
+Retrieved: 2026-09-27
+Document version: v102023UX
+This on-line tool allows undergraduate students to apply for graduation via MySJSU.
+Note:
+- Please ensure that you follow the guidelines set by your College in applying for graduation.
+- College of Business and College of Science students must follow instructions provided by their College to apply for graduation.
+1. Login to MySJSU. On the Student Center page, click the My Academics link.
+2. Click the View my graduation status link to review the name that will be printed on your diploma and your diploma mailing address.
+3. Review/Update your diploma name. Students may use a name other than their Primary (legal) Name on their diploma. If a student adds a Diploma Name before established deadlines, that name will be used on their diploma. Otherwise, the diploma will show the Primary Name from MySJSU. To update the diploma name, click on the Update Diploma Name link.
+4. Review/Update your diploma address. Students may send their diploma to a different address. If a student adds a Diploma Address before established deadlines, that address will be used to send their diploma. Otherwise, the diploma will be mailed to the mailing address. To review/update the diploma address click on the Update Diploma Address link.
+5. You are now ready to apply for graduation. Click the Student Center link on the left navigation pane.
+6. On the Student Center page, click the My Academics link.
+7. Click the Apply for graduation link.
+8. Verify the degree and major. If this is not the correct major, please contact your success center to submit a Change of Major Advisor Request before applying for graduation. To proceed to apply, click the button.
+9. Select Expected Graduation Term and click the button. If the term you desire is not available then you are applying too early. See your major advisor. Remember: If this is not the correct major, please contact your success center to submit a Change of Major Advisor Request before applying for graduation.
+10. Verify graduation data and click the button.
+11. You have successfully applied for graduation. Click the My Academics link.
+12. Your expected grad term and graduation status have now been updated. Click the View MyProgress report link.
+13. On the My Progress page, verify your graduation term and status. Congratulations! You have completed the process to apply for graduations.
+14. Questions? Please visit the Graduation website from the Office of Registrar: https://www.sjsu.edu/registrar/graduation/index.php
+Source URL: https://www.sjsu.edu/registrar/docs/GradAppOnlineTutorial.pdf
+Retrieved: 2026-09-27

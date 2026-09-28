@@ -102,6 +102,45 @@ _REQUISITE_FORM = re.compile(
 )
 
 
+# Questions whose tokens are only these words are about applying to
+# graduate. "how do I graduate" is otherwise just the token "graduate",
+# which also appears in elective text about graduate courses.
+_GRADUATION_QUERY_TERMS = {
+    "analytics",
+    "application",
+    "apply",
+    "data",
+    "deadline",
+    "graduate",
+    "graduation",
+    "information",
+    "isda",
+    "major",
+    "science",
+    "should",
+    "sjsu",
+    "undergraduate",
+}
+_GRADUATION_QUERY_EXPANSION = "apply graduation application deadline"
+
+
+def expand_graduation_application_query(query: str) -> str:
+    """Add registrar wording to a pure apply-to-graduate question.
+
+    Course, elective, prerequisite, and requirement questions keep tokens
+    outside ``_GRADUATION_QUERY_TERMS`` and are not expanded. The added
+    words are query terms only. They are not written into the corpus.
+    """
+    if not isinstance(query, str) or not query.strip():
+        return query if isinstance(query, str) else ""
+    tokens = set(tokenize(query))
+    if not tokens or not tokens <= _GRADUATION_QUERY_TERMS:
+        return query
+    if "graduate" not in tokens and "graduation" not in tokens:
+        return query
+    return f"{query.rstrip()} {_GRADUATION_QUERY_EXPANSION}"
+
+
 def hybrid_retrieval_enabled() -> bool:
     """Return whether this process should fuse BM25 with vector search.
 
@@ -435,6 +474,7 @@ def hybrid_retrieve(
     k = _clamp_k(k)
     if vector_store is None or not isinstance(query, str) or not query.strip():
         return []
+    query = expand_graduation_application_query(query)
     try:
         records = _collection_records(vector_store, collection_id)
         if not records:

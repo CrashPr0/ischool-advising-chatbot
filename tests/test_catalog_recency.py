@@ -420,6 +420,73 @@ def test_conflicting_ischool_title_pulls_the_current_course_page():
     assert all(hit.page_content != filler.page_content for hit in pulled)
 
 
+def test_course_title_pull_does_not_drop_an_official_graduation_page():
+    """A current course page may replace filler, not the apply-to-graduate steps."""
+    program = Document(
+        page_content="Major electives include ISDA 80, 81, 150, 160, 180, and 181.",
+        metadata={
+            "source": "program.txt",
+            "source_url": "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100",
+            "title": "Information Science and Data Analytics, BS",
+            "catalog_year": "2026-2027",
+            "catoid": "23",
+            "is_current": True,
+        },
+    )
+    ischool = Document(
+        page_content=(
+            "ISDA 150 – Special Topics in Information Science and Data Analytics"
+        ),
+        metadata={
+            "source": "ischool.txt",
+            "source_url": "https://ischool.sjsu.edu/bsisda-electives",
+        },
+    )
+    graduation = Document(
+        page_content=(
+            "Locate and click the Apply Button in MySJSU. "
+            "Planned Graduation Term: Fall 2026. Deadline 1: October 10, 2025."
+        ),
+        metadata={
+            "source": "apply.txt",
+            "source_url": (
+                "https://www.sjsu.edu/registrar/graduation/application-central.php"
+            ),
+        },
+    )
+    filler = Document(
+        page_content="Office hours are posted each semester.",
+        metadata={
+            "source": "hours.txt",
+            "source_url": "https://ischool.sjsu.edu/hours",
+        },
+    )
+    current = Document(
+        page_content=CURRENT_150,
+        metadata={
+            "source": "current-150.txt",
+            "title": "ISDA 150 - Topics in Information Science and Data Analytics",
+            "source_url": ISDA_150_URL,
+        },
+    )
+    records = [
+        ("program", program.page_content, program.metadata),
+        ("ischool", ischool.page_content, ischool.metadata),
+        ("graduation", graduation.page_content, graduation.metadata),
+        ("filler", filler.page_content, filler.metadata),
+        ("current", current.page_content, current.metadata),
+    ]
+    pulled = include_authoritative_course_pages(
+        [ischool, program, graduation, filler], records, k=4
+    )
+    blob = "\n".join(hit.page_content for hit in pulled)
+    assert "ISDA 150 - Topics in Information Science and Data Analytics" in blob
+    assert "Fall 2026" in blob
+    assert "Special Topics" in blob
+    assert len(pulled) == 4
+    assert all(hit.page_content != filler.page_content for hit in pulled)
+
+
 def test_context_heading_labels_catalog_year_and_non_catalog_source_type():
     assert document_heading(
         1,
@@ -515,16 +582,20 @@ def test_real_corpus_keeps_core_graduation_and_current_isda_150(monkeypatch, tmp
     graduation = processor.retrieve_relevant_docs(
         "How do I apply to graduate?", k=DEFAULT_RAG_TOP_K
     )
-    # No older catalog snapshot competes with these hits, so preference must
-    # not reshuffle them. The top 8 includes the graduation-requirements
-    # passage and the Cal State Apply passage.
-    assert [hit.page_content for hit in graduation] == [
-        hit.page_content for hit in graduation_before
-    ]
+    # Registrar graduation pages are not an older catalog, so preference must
+    # not drop the apply-to-graduate steps or the published deadline table.
+    before_blob = "\n".join(hit.page_content for hit in graduation_before)
     graduation_blob = "\n".join(hit.page_content for hit in graduation)
-    assert "graduation requirements" in graduation_blob
-    assert "they graduate" in graduation_blob
-    assert "Apply through Cal State Apply" in graduation_blob
+    for blob in (before_blob, graduation_blob):
+        assert "Apply for graduation link" in blob
+        assert "Planned Graduation Term: Fall 2026" in blob
+        assert "Deadline 1: October 10, 2025" in blob
+        assert "Deadline 2: March 20, 2026" in blob
+        assert "Spring 2027/ Summer 2027" in blob
+    assert any(
+        "/registrar/graduation/application-central.php" in (hit.metadata.get("source_url") or "")
+        for hit in graduation
+    )
 
     electives = processor.retrieve_relevant_docs(
         "What electives can I take for the ISDA major?", k=DEFAULT_RAG_TOP_K

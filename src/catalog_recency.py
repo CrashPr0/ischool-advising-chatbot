@@ -590,6 +590,24 @@ def _is_current_catalog_document(document: Document) -> bool:
     return bool(metadata.get("catoid")) and metadata_is_current(metadata)
 
 
+def _is_official_graduation_page(document: Document) -> bool:
+    """True for registrar graduation steps and official commencement pages.
+
+    These are non-catalog, so a course-title pull must not treat them as the
+    filler slot. The check is the source URL, not words in the body.
+    """
+    metadata = getattr(document, "metadata", None) or {}
+    raw = metadata.get("source_url")
+    url = raw.strip().casefold() if isinstance(raw, str) else ""
+    if not url:
+        return False
+    return (
+        "/registrar/graduation/" in url
+        or url.endswith("/registrar/docs/gradapponlinetutorial.pdf")
+        or "/commencement/" in url
+    )
+
+
 def include_authoritative_course_pages(
     documents: Sequence[Document],
     records: Sequence[tuple[str, str, dict]],
@@ -601,7 +619,10 @@ def include_authoritative_course_pages(
     number, and a non-catalog chunk must give a different dashed title. The
     pulled page replaces the lowest non-catalog hit that is not the
     contradicting one, so the elective list and other current-catalog chunks
-    stay. ``CATALOG_RECENCY_RERANK=false`` leaves the list unchanged.
+    stay. Official registrar graduation pages, the undergraduate graduation
+    tutorial, and commencement pages are not that filler: a title conflict
+    does not drop them. ``CATALOG_RECENCY_RERANK=false`` leaves the list
+    unchanged.
     """
     chosen = list(documents)
     if not catalog_recency_rerank_enabled() or k <= 0 or not records:
@@ -653,7 +674,11 @@ def include_authoritative_course_pages(
     while len(chosen) > k:
         evict = None
         for index in range(len(chosen) - 1, -1, -1):
-            if index in protected or _is_current_catalog_document(chosen[index]):
+            if (
+                index in protected
+                or _is_current_catalog_document(chosen[index])
+                or _is_official_graduation_page(chosen[index])
+            ):
                 continue
             evict = index
             break

@@ -253,7 +253,10 @@ retention is controlled by `MAX_HISTORY_MESSAGES` and `CHAT_SESSION_TTL_SECONDS`
 `HYBRID_RETRIEVAL` defaults to on. Chat fuses the vector ranking with local
 BM25 scores using reciprocal rank fusion. The lexical side is what keeps
 keyword questions such as "core courses" and "required classes" on the
-complete BS ISDA core list. Set `HYBRID_RETRIEVAL=false` for vector-only
+complete BS ISDA core list. A question whose words are only about applying
+to graduate also searches the registrar application terms, so "how do I
+graduate" is not answered from elective text about graduate courses. Set
+`HYBRID_RETRIEVAL=false` for vector-only
 search. Course codes are normalized, so `ISDA 150` and `ISDA150` hit the
 same chunks. Fusion does not call an embedding or chat API. The flag is
 read on each query. Rebuild the index when advising documents change; the
@@ -265,9 +268,11 @@ program. `CURRENT_CATALOG_CATOID` (23) and `CURRENT_CATALOG_YEAR` (2026-2027)
 name that catalog. Registrar and iSchool pages are not reordered. If an
 iSchool or other non-catalog page in the top results gives a different title
 for a course the current catalog already lists there, that course's current
-catalog page is pulled into the result. Older catalog snapshots stay in the
-index for students on earlier catalog rights. Non-catalog context is labeled
-with its source type; catalog context is labeled with its catalog year.
+catalog page is pulled into the result. That pull does not drop an official
+registrar graduation page, the undergraduate graduation tutorial, or a
+commencement page. Older catalog snapshots stay in the index for students on
+earlier catalog rights. Non-catalog context is labeled with its source type;
+catalog context is labeled with its catalog year.
 
 ### Catalog updates
 
