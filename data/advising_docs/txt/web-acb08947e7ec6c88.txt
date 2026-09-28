@@ -21,15 +21,15 @@ Source URL: https://www.sjsu.edu/registrar/graduation/application-central.php
 Retrieved: 2026-09-27
 
 Application Deadlines
-Earned at least 85 units (90 units for some colleges), with no more than 70 units from community colleges.
-Locate and click the "Apply Button" in MySJSU.
 You must apply for graduation no later than the add deadline of the term in which you wish to graduate. The add deadline is on the registration calendar: https://www.sjsu.edu/registrar/calendar/index.php. If you do not see the "Apply" button on MySJSU, contact your graduation evaluator: https://www.sjsu.edu/registrar/graduation/evaluators.php.
 Be proactive. If you apply by the dates shown below, you will receive priority registration. These deadlines also apply to Graduation Date Change forms: https://www.sjsu.edu/registrar/graduation/graduation-date-changes.php.
+Deadline 1 allows two semesters with priority registration.
+Deadline 2 allows one semester with priority registration.
 Planned Graduation Term: Fall 2026. Deadline 1: October 10, 2025. Deadline 2: March 20, 2026.
 Planned Graduation Term: Spring 2027/ Summer 2027. Deadline 1: March 20, 2026. Deadline 2: October 9, 2026.
 Planned Graduation Term: Fall 2027. Deadline 1: October 9, 2026. Deadline 2: March 19, 2027.
-Deadline 1 allows two semesters with priority registration.
-Deadline 2 allows one semester with priority registration.
+Earned at least 85 units (90 units for some colleges), with no more than 70 units from community colleges.
+Locate and click the "Apply Button" in MySJSU.
 Be sure to follow the instructions from your college to apply for graduation. Some colleges have earlier deadlines for their internal processes.
 If you miss the application deadline, contact an advisor from your college success center: https://catalog.sjsu.edu/content.php?catoid=10&navoid=630.
 Source URL: https://www.sjsu.edu/registrar/graduation/application-central.php
