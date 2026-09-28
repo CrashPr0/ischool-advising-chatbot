@@ -463,9 +463,10 @@ Assistant Response:""",
                 retrieval_query, k=top_k
             )
             metrics["retrieval_ms"] = (time.perf_counter() - retrieval_started) * 1000.0
-            # Pin Application Central for apply-to-graduate questions even when
-            # ranking missed it, and keep the long tutorial from leading.
-            corpus = _application_central_corpus(self.doc_processor, user_message)
+            # Pin Application Central even when ranking missed it, and keep a
+            # short MySJSU navigation path after it. Login is a different
+            # chunk from the overview that usually ranks.
+            corpus = _graduation_prompt_corpus(self.doc_processor, user_message)
             prompt_docs = order_graduation_prompt_docs(
                 user_message, retrieved_docs, corpus
             )
@@ -710,12 +711,27 @@ _TERM_ROW = re.compile(
     r"Planned Graduation Term:\s*(?:Fall|Spring|Summer|Winter)\s+\d{4}\b",
     re.IGNORECASE,
 )
-_TUTORIAL_KEEP = re.compile(
-    r"Apply for graduation link|Expected Graduation Term|Source URL:|"
-    r"Retrieved:|Online Graduation Application Overview|"
-    r"How to apply to graduate in MySJSU",
-    re.IGNORECASE,
+# Official MySJSU navigation, in published order. The first matching
+# pattern owns a line, so the login sentence is not also reused as the
+# later "My Academics" step. Diploma-name lines match none of these.
+_TUTORIAL_NAV_STEPS = (
+    re.compile(r"How to apply to graduate in MySJSU", re.IGNORECASE),
+    re.compile(r"Online Graduation Application Overview", re.IGNORECASE),
+    re.compile(r"Login to MySJSU", re.IGNORECASE),
+    re.compile(r"Click the Student Center link", re.IGNORECASE),
+    re.compile(
+        r"On the Student Center page, click the My Academics link",
+        re.IGNORECASE,
+    ),
+    re.compile(r"Apply for graduation link", re.IGNORECASE),
+    re.compile(r"Expected Graduation Term", re.IGNORECASE),
+    re.compile(r"Verify graduation data", re.IGNORECASE),
+    re.compile(r"successfully applied", re.IGNORECASE),
+    re.compile(r"Source URL:", re.IGNORECASE),
+    re.compile(r"Retrieved:", re.IGNORECASE),
 )
+# Ranks that are the path itself, not the section label or the citation.
+_TUTORIAL_PATH_RANKS = frozenset(range(2, 9))
 _APPLICATION_CENTRAL = "/registrar/graduation/application-central.php"
 _TUTORIAL_URL = "gradapponlinetutorial.pdf"
 
@@ -800,19 +816,33 @@ def _prefer(documents: List, predicate) -> Optional[Document]:
     return max(pool, key=score)
 
 
-def _trim_tutorial(document) -> Document:
-    """Keep the MySJSU apply-link lines. Drop the long step list from the prompt."""
-    if not _is_tutorial(document):
-        return document
-    text = getattr(document, "page_content", "") or ""
-    kept = [line for line in text.splitlines() if line.strip() and _TUTORIAL_KEEP.search(line)]
-    if not kept:
-        return document
-    trimmed = "\n".join(kept).strip()
-    if trimmed == text.strip():
-        return document
-    metadata = dict(getattr(document, "metadata", None) or {})
-    return Document(page_content=trimmed, metadata=metadata)
+def _tutorial_navigation(documents: List) -> Optional[Document]:
+    """One short MySJSU path from tutorial chunks, or None.
+
+    Ranking usually returns the overview chunk (Student Center through
+    submit) and misses the earlier login paragraph. Lines are taken from
+    whichever tutorial chunk has them. Diploma-name steps are left out.
+    """
+    chosen: Dict[int, str] = {}
+    metadata: dict = {}
+    for document in documents:
+        if not _is_tutorial(document):
+            continue
+        meta = dict(getattr(document, "metadata", None) or {})
+        if not metadata or _TUTORIAL_URL in _source_url(document):
+            metadata = meta
+        for raw in (getattr(document, "page_content", "") or "").splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            for rank, pattern in enumerate(_TUTORIAL_NAV_STEPS):
+                if pattern.search(line):
+                    chosen.setdefault(rank, line)
+                    break
+    if not any(rank in chosen for rank in _TUTORIAL_PATH_RANKS):
+        return None
+    text = "\n".join(chosen[rank] for rank in sorted(chosen))
+    return Document(page_content=text, metadata=metadata)
 
 
 def order_graduation_prompt_docs(
@@ -820,7 +850,7 @@ def order_graduation_prompt_docs(
     retrieved: Optional[List] = None,
     corpus: Optional[List] = None,
 ) -> List:
-    """Pin Application Central and place the tutorial after it.
+    """Pin Application Central and place a short MySJSU path after it.
 
     Other questions are returned unchanged. When the indexed page is missing,
     the retrieved list is left as it is rather than filled with invented text.
@@ -834,23 +864,31 @@ def order_graduation_prompt_docs(
     pinned = [doc for doc in (eligibility, table) if doc is not None]
     pinned_text = {doc.page_content for doc in pinned}
     rest = [doc for doc in documents if doc.page_content not in pinned_text]
-    tutorial = [_trim_tutorial(doc) for doc in rest if _is_tutorial(doc)]
     others = [doc for doc in rest if not _is_tutorial(doc)]
+    tutorial_docs = [doc for doc in rest + list(corpus or []) if _is_tutorial(doc)]
+    navigation = _tutorial_navigation(tutorial_docs)
+    tutorial = [navigation] if navigation is not None else []
     return pinned + others + tutorial
 
 
-def _application_central_corpus(processor, query: str) -> List:
-    """Indexed Application Central chunks, or [] when this is not that question."""
+def _graduation_prompt_corpus(processor, query: str) -> List:
+    """Indexed Application Central and tutorial chunks, or [].
+
+    No network call. A processor without ``chunks_matching_source`` yields
+    an empty list so tests can pass documents in directly.
+    """
     if not is_apply_to_graduate_query(query):
         return []
     finder = getattr(processor, "chunks_matching_source", None)
     if not callable(finder):
         return []
-    try:
-        found = finder(_APPLICATION_CENTRAL)
-    except Exception:
-        return []
-    return list(found or [])
+    found: List = []
+    for part in (_APPLICATION_CENTRAL, _TUTORIAL_URL):
+        try:
+            found.extend(list(finder(part) or []))
+        except Exception:
+            continue
+    return found
 
 
 def _session_turns(history: Optional[List[dict]]) -> List[dict]:

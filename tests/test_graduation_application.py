@@ -14,6 +14,7 @@ from src.hybrid_retrieval import expand_graduation_application_query
 from src.rag_chatbot import (
     DEFAULT_RAG_TOP_K,
     RAGAdvisingChatbot,
+    _graduation_prompt_corpus,
     graduation_deadline_note,
     order_graduation_prompt_docs,
 )
@@ -215,19 +216,21 @@ def test_apply_to_graduate_questions_retrieve_steps_and_term_deadlines(
 
     for rerank in ("false", "true"):
         monkeypatch.setenv("CATALOG_RECENCY_RERANK", rerank)
-        corpus = processor.chunks_matching_source(
-            "/registrar/graduation/application-central.php"
-        )
         for question in APPLY_QUESTIONS:
             hits = processor.retrieve_relevant_docs(question, k=DEFAULT_RAG_TOP_K)
             blob = "\n".join(hit.page_content for hit in hits)
             assert "Apply for graduation link" in blob
-            # Eligibility can miss the top-k. The prompt pins Application Central.
+            # Eligibility can miss the top-k. Login is a different tutorial
+            # chunk from the overview. The prompt pins both.
+            corpus = _graduation_prompt_corpus(processor, question)
             prompt_docs = order_graduation_prompt_docs(question, hits, corpus)
             prompt = "\n".join(doc.page_content for doc in prompt_docs)
             assert "at least 85 units" in prompt
             assert "add deadline" in prompt.casefold()
             assert "priority registration" in prompt.casefold()
+            assert "Login to MySJSU" in prompt
+            assert "Verify graduation data" in prompt
+            assert "Update Diploma Name" not in prompt
             for row in DEADLINE_ROWS:
                 assert row in prompt
             assert any(
@@ -430,6 +433,56 @@ def test_apply_to_graduate_prompt_pins_application_central_when_ranking_misses_i
     assert "at least 85 units" in note
     assert "priority registration" in note
     assert "Quote every Planned Graduation Term row" in note
+
+
+def test_pinned_context_keeps_the_short_mysjsu_navigation_path():
+    """The overview chunk has no login line. The pinned path still includes it."""
+    eligibility, table = _central_pieces()
+    processor = DocumentProcessor(str(DOCS))
+    loaded = {
+        doc.metadata.get("source_url"): doc for doc in processor.load_documents()
+    }
+    tutorial_chunks = processor.split_documents([loaded[TUTORIAL_URL]])
+    ranked = [
+        chunk
+        for chunk in tutorial_chunks
+        if "Apply for graduation link" in chunk.page_content
+    ]
+    assert len(ranked) == 1
+    assert "Login to MySJSU" not in ranked[0].page_content
+    assert "Update Diploma Name" not in ranked[0].page_content
+    ordered = order_graduation_prompt_docs(
+        "How do I apply to graduate?",
+        ranked,
+        [eligibility, table, *tutorial_chunks],
+    )
+    bot = RAGAdvisingChatbot.__new__(RAGAdvisingChatbot)
+    context = bot._build_context("How do I apply to graduate?", ordered)
+    nav = context[context.index("Planned Graduation Term: Fall 2027.") :]
+    # The login sentence already says "My Academics", so that phrase is not
+    # a later step. Order the lines that first appear after the term rows.
+    steps = (
+        "Login to MySJSU",
+        "Click the Student Center link",
+        "Apply for graduation link",
+        "Expected Graduation Term",
+        "Verify graduation data",
+        "successfully applied",
+    )
+    position = -1
+    for phrase in steps:
+        found = nav.index(phrase)
+        assert found > position
+        position = found
+    after_center = nav[nav.index("Click the Student Center link") :]
+    assert "On the Student Center page, click the My Academics link" in after_center
+    assert "Update Diploma Name" not in context
+    assert "Update Diploma Address" not in context
+    assert "Diploma Address" not in context
+    tutorial = ordered[-1]
+    assert "Login to MySJSU" in tutorial.page_content
+    assert len(tutorial.page_content) < 1600
+    assert context.index("at least 85 units") < context.index("Login to MySJSU")
 
 
 def test_tutorial_ranked_first_is_trimmed_and_placed_after_the_table():
