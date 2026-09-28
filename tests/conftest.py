@@ -5,6 +5,19 @@ import json
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def pin_committed_catalog_snapshots(monkeypatch):
+    """Keep snapshot tests on the committed 2026-2027 catalog.
+
+    The catalog check can later change the default year in
+    ``data/catalog_identity.json``. These tests describe the snapshots already
+    in ``data/advising_docs``, which use catoid 23. A test that wants the file
+    default calls ``monkeypatch.delenv`` for these two names.
+    """
+    monkeypatch.setenv("CURRENT_CATALOG_CATOID", "23")
+    monkeypatch.setenv("CURRENT_CATALOG_YEAR", "2026-2027")
+
+
 @pytest.fixture
 def ready_chat_index(monkeypatch, tmp_path):
     """Point /api/chat at an index receipt that matches this test release.

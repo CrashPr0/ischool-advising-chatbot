@@ -8,7 +8,7 @@ from typing import List, Optional, Dict
 from langchain_core.prompts import PromptTemplate
 
 try:
-    from .catalog_recency import document_heading
+    from .catalog_recency import catalog_prompt_note, document_heading
     from .config import Config
     from .llm_providers import LLMFactory, REASONING_RETRY
     from .knowledge_base import get_knowledge_base
@@ -19,7 +19,7 @@ try:
     )
 except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
-    from catalog_recency import document_heading
+    from catalog_recency import catalog_prompt_note, document_heading
     from config import Config
     from llm_providers import LLMFactory, REASONING_RETRY
     from knowledge_base import get_knowledge_base
@@ -344,8 +344,15 @@ title and link."""
 
         # Create the prompt template
         self.prompt_template = PromptTemplate(
-            input_variables=["context", "language_instruction", "question"],
+            input_variables=[
+                "catalog_note",
+                "context",
+                "language_instruction",
+                "question",
+            ],
             template=f"""{self.SYSTEM_PROMPT}
+
+{{catalog_note}}
 
 {{context}}
 
@@ -473,6 +480,7 @@ Assistant Response:""",
             # optional fallback deployment immediately. Content-filter errors
             # do not.
             payload = {
+                "catalog_note": catalog_prompt_note(),
                 "context": context,
                 "language_instruction": self._response_language_instruction(
                     user_message
