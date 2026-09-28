@@ -124,6 +124,17 @@ _GRADUATION_QUERY_TERMS = {
 _GRADUATION_QUERY_EXPANSION = "apply graduation application deadline"
 
 
+def is_apply_to_graduate_query(query: str) -> bool:
+    """True when the question is only about applying to graduate.
+
+    Same boundary as ``expand_graduation_application_query``: course,
+    elective, prerequisite, and requirement questions are left alone.
+    """
+    if not isinstance(query, str) or not query.strip():
+        return False
+    return expand_graduation_application_query(query) != query
+
+
 def expand_graduation_application_query(query: str) -> str:
     """Add registrar wording to a pure apply-to-graduate question.
 
