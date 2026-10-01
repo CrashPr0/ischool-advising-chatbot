@@ -506,6 +506,7 @@ function addMessage(text, className, label, options) {
 
   chatBox.appendChild(wrapper);
   chatBox.scrollTop = chatBox.scrollHeight;
+  return wrapper;
 }
 
 function showTypingIndicator() {
@@ -548,76 +549,283 @@ function updateMeta(info = {}) {
   }
 }
 
+// Gradually reveal completed answers.
+// Every request and animation belongs to its original conversation.
+const replyOperations = new Map();
+const conversationDrafts = new Map();
+
+const replyStatus = document.getElementById("reply-status");
+const replyAction = document.getElementById("reply-action");
+
+function activeReplyKey() {
+  return tabsEnabled() ? getActiveConversation()?.id : "default";
+}
+
+function updateReplyControls() {
+  const operation = replyOperations.get(activeReplyKey());
+
+  sendButton.disabled = Boolean(operation);
+
+  if (replyStatus) {
+    replyStatus.textContent = operation
+      ? (operation.text ? "Writing your answer…" : "Finding an answer…")
+      : "";
+  }
+
+  if (replyAction) {
+    replyAction.hidden = !operation;
+    replyAction.textContent = operation?.text
+      ? "Show full answer"
+      : "Cancel request";
+  }
+}
+
+function cancelReply(key) {
+  const operation = replyOperations.get(key);
+  if (!operation) return;
+
+  operation.controller.abort();
+  clearTimeout(operation.timer);
+  replyOperations.delete(key);
+
+  if (key === activeReplyKey()) {
+    removeTypingIndicator();
+    updateReplyControls();
+
+    if (replyStatus) {
+      replyStatus.textContent = "Request canceled.";
+    }
+  }
+
+  renderTabs();
+}
+
+function finishReply(key, speak = true) {
+  const operation = replyOperations.get(key);
+  if (!operation?.text) return;
+
+  clearTimeout(operation.timer);
+  replyOperations.delete(key);
+
+  const visible = key === activeReplyKey();
+  const scrollTop = chatBox.scrollTop;
+  const follow =
+    chatBox.scrollHeight - scrollTop - chatBox.clientHeight < 80;
+
+  if (operation.wrapper?.isConnected && visible) {
+    operation.wrapper.remove();
+  }
+
+  deliverBotReply(
+    key === "default" ? null : key,
+    operation.text,
+    operation.meta
+  );
+
+  if (visible) {
+    if (!follow) {
+      chatBox.scrollTop = scrollTop;
+    }
+
+    updateMeta({
+      source: operation.meta?.source,
+      retrieved_docs: operation.meta?.retrievedDocs
+    });
+
+    updateReplyControls();
+
+    if (replyStatus) {
+      replyStatus.textContent = "Answer ready.";
+    }
+
+    if (speak) {
+      speakBotReply(operation.text);
+    }
+  }
+
+  renderTabs();
+}
+
+function leaveConversation() {
+  const key = activeReplyKey();
+
+  conversationDrafts.set(key, userInput.value);
+
+  // Save a completed answer in its original chat before switching.
+  finishReply(key, false);
+
+  stopVoiceInput();
+  stopVoiceOutput();
+}
+
+function revealReply(key, text, meta) {
+  const operation = replyOperations.get(key);
+  if (!operation) return;
+
+  operation.text = text;
+  operation.meta = meta;
+
+  const reducedMotion =
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+  if (key !== activeReplyKey() || reducedMotion) {
+    finishReply(key);
+    return;
+  }
+
+  removeTypingIndicator();
+
+  operation.wrapper = addMessage(
+    "",
+    "bot-message",
+    "ISDA Bot",
+    { skipRecord: true }
+  );
+
+  operation.wrapper.classList.add("is-revealing");
+
+  // Screen readers receive the completed answer once.
+  operation.wrapper.setAttribute("aria-hidden", "true");
+
+  const body = operation.wrapper.querySelector(".message-body");
+  const words = text.match(/\S+\s*|\s+/g) || [text];
+
+  let count = 0;
+
+  // Longer answers reveal in larger groups.
+  const chunk = Math.max(1, Math.ceil(words.length / 180));
+
+  updateReplyControls();
+
+  function tick() {
+    if (replyOperations.get(key) !== operation) return;
+
+    if (key !== activeReplyKey()) {
+      finishReply(key, false);
+      return;
+    }
+
+    const nearBottom =
+      chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 80;
+
+    count = Math.min(words.length, count + chunk);
+
+    // Preserve your existing safe Markdown formatting.
+    renderMessageText(
+      body,
+      words.slice(0, count).join(""),
+      true
+    );
+
+    if (nearBottom) {
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    if (count === words.length) {
+      finishReply(key);
+      return;
+    }
+
+    operation.timer = setTimeout(tick, 35);
+  }
+
+  operation.timer = setTimeout(tick, 35);
+}
+
+if (replyAction) {
+  replyAction.addEventListener("click", () => {
+    const key = activeReplyKey();
+
+    if (replyOperations.get(key)?.text) {
+      finishReply(key);
+    } else {
+      cancelReply(key);
+    }
+  });
+}
+
 // ── SEND MESSAGE ──
 async function sendMessage(prefilledMessage = null) {
   const message = (prefilledMessage || userInput.value).trim();
-  if (!message) return;
+  const key = activeReplyKey();
 
-  // Pin the tab that asked. A reply that arrives after New chat or a tab
-  // switch must land in this conversation, not the one now on screen.
-  const conversationId = tabsEnabled() ? getActiveConversation()?.id : null;
+  if (!message || replyOperations.has(key)) return;
+
+  const conversationId = key === "default" ? null : key;
+
+  const operation = {
+    controller: new AbortController(),
+    timer: null
+  };
+
+  replyOperations.set(key, operation);
 
   hideSampleChips();
   userInput.value = "";
+  conversationDrafts.delete(key);
   updateMeta({});
 
-  if (conversationId) {
-    rememberMessage(conversationId, { role: "user", text: message });
-    if (isActiveConversation(conversationId)) {
-      addMessage(message, "user-message", "You", { skipRecord: true });
-      showTypingIndicator();
-    }
-  } else {
-    addMessage(message, "user-message", "You");
-    showTypingIndicator();
-  }
+  addMessage(message, "user-message", "You");
+  showTypingIndicator();
+  updateReplyControls();
+  renderTabs();
 
-  const payload = { message: message };
-  if (conversationId) payload.conversation_id = conversationId;
+  const payload = { message };
+
+  if (conversationId) {
+    payload.conversation_id = conversationId;
+  }
 
   try {
     const response = await fetch(apiUrl("/api/chat"), {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload),
+      signal: operation.controller.signal
     });
 
     const data = await response.json();
-    if (isActiveConversation(conversationId) || !conversationId) {
-      removeTypingIndicator();
-    }
+
+    if (replyOperations.get(key) !== operation) return;
 
     if (!response.ok) {
-      const errorText = data.error || "An error occurred while contacting the chatbot.";
-      deliverBotReply(conversationId, errorText);
+      throw new Error(
+        data.error || "An error occurred while contacting the chatbot."
+      );
+    }
+
+    revealReply(
+      key,
+      data.response || "I couldn't find an answer for that question.",
+      {
+        source: data.source,
+        retrievedDocs: data.retrieved_docs
+      }
+    );
+  } catch (error) {
+    if (
+      replyOperations.get(key) !== operation ||
+      error.name === "AbortError"
+    ) {
       return;
     }
 
-    const responseText =
-      data.response || "I couldn't find an answer for that question.";
-    deliverBotReply(conversationId, responseText, {
-      source: data.source,
-      retrievedDocs: data.retrieved_docs
-    });
-    if (isActiveConversation(conversationId) || !conversationId) {
-      updateMeta({
-        source: data.source,
-        retrieved_docs: data.retrieved_docs
-      });
-      // Speech runs after the reply is on screen. A browser speech failure
-      // must not look like a lost connection.
-      speakBotReply(responseText);
-    }
-  } catch (error) {
-    if (isActiveConversation(conversationId) || !conversationId) {
+    replyOperations.delete(key);
+
+    if (key === activeReplyKey()) {
       removeTypingIndicator();
     }
+
     deliverBotReply(
       conversationId,
-      "Sorry, I couldn't connect to the chatbot backend right now."
+      "Sorry, I couldn't get an answer right now. Please try again."
     );
-    console.error("Chat error:", error);
+
+    updateReplyControls();
+    renderTabs();
   }
 }
 
@@ -711,6 +919,7 @@ function resetTopicSelection() {
 }
 
 clearButton.addEventListener("click", async (event) => {
+  if (!tabsEnabled()) cancelReply("default");
   if (tabsEnabled()) {
     startNewConversation();
   } else if (emptyState) {
@@ -886,12 +1095,24 @@ function loadStoredConversations() {
 
 function dropOldestConversation() {
   let chosen = -1;
+
   conversations.forEach((convo, index) => {
     if (convo.id === activeConversationId) return;
-    if (chosen === -1 || convo.updatedAt < conversations[chosen].updatedAt) chosen = index;
+
+    if (
+      chosen === -1 ||
+      convo.updatedAt < conversations[chosen].updatedAt
+    ) {
+      chosen = index;
+    }
   });
+
   if (chosen < 0) return;
+
   const removed = conversations.splice(chosen, 1)[0];
+
+  cancelReply(removed.id);
+  conversationDrafts.delete(removed.id);
   clearHistory(removed.id);
 }
 
@@ -915,17 +1136,23 @@ function rememberMessage(conversationId, message) {
 
 function paintConversation(convo) {
   if (!convo || !chatBox) return;
+
+  userInput.value = conversationDrafts.get(convo.id) || "";
+  updateReplyControls();
   hideSampleChips();
+
   if (typeof chatBox.replaceChildren === "function") {
     chatBox.replaceChildren();
   } else {
     chatBox.innerHTML = "";
   }
+
   if (!convo.messages.length) {
     showEmptyState();
     updateMeta({});
     return;
   }
+
   convo.messages.forEach((message) => {
     addMessage(
       message.text,
@@ -934,9 +1161,23 @@ function paintConversation(convo) {
       { skipRecord: true }
     );
   });
-  const lastBot = [...convo.messages].reverse().find((message) => message.role === "bot");
-  if (lastBot && (lastBot.source || lastBot.retrievedDocs !== null)) {
-    updateMeta({ source: lastBot.source, retrieved_docs: lastBot.retrievedDocs });
+
+  if (replyOperations.has(convo.id)) {
+    showTypingIndicator();
+  }
+
+  const lastBot = [...convo.messages]
+    .reverse()
+    .find((message) => message.role === "bot");
+
+  if (
+    lastBot &&
+    (lastBot.source || lastBot.retrievedDocs !== null)
+  ) {
+    updateMeta({
+      source: lastBot.source,
+      retrieved_docs: lastBot.retrievedDocs
+    });
   } else {
     updateMeta({});
   }
@@ -961,6 +1202,13 @@ function renderTabs(options) {
     const title = conversationTitle(convo);
     const tab = document.createElement("div");
     tab.className = "chat-tab";
+    tab.classList.toggle("is-working", replyOperations.has(convo.id));
+    tab.title = title;
+
+  tab.setAttribute(
+  "aria-label",
+  title + (replyOperations.has(convo.id) ? ", answer in progress" : "")
+);
     tab.id = `chat-tab-${convo.id}`;
     tab.dataset.conversationId = convo.id;
     tab.setAttribute("role", "tab");
@@ -979,6 +1227,8 @@ function renderTabs(options) {
     close.dataset.conversationId = convo.id;
     close.setAttribute("aria-label", `Close ${title}`);
     close.textContent = "×";
+    close.title = `Close ${title}`;
+    close.tabIndex = selected ? 0 : -1;
 
     tab.appendChild(label);
     tab.appendChild(close);
@@ -1003,13 +1253,20 @@ function renderTabs(options) {
 }
 
 function selectConversation(conversationId) {
-  const convo = conversations.find((item) => item.id === conversationId);
+  const convo = conversations.find(
+    (item) => item.id === conversationId
+  );
+
   if (!convo || convo.id === activeConversationId) {
     renderTabs({ scrollActive: true });
     return;
   }
+
+  leaveConversation();
+
   activeConversationId = convo.id;
   convo.updatedAt = Date.now();
+
   saveConversations();
   resetTopicSelection();
   paintConversation(convo);
@@ -1017,15 +1274,21 @@ function selectConversation(conversationId) {
 }
 
 function startNewConversation() {
+  leaveConversation();
+
   const current = getActiveConversation();
+
   if (current && current.messages.length === 0) {
     paintConversation(current);
     renderTabs({ scrollActive: true });
     return;
   }
+
   const convo = createConversation();
+
   conversations.push(convo);
   activeConversationId = convo.id;
+
   trimConversations();
   saveConversations();
   paintConversation(convo);
@@ -1033,24 +1296,52 @@ function startNewConversation() {
 }
 
 function closeConversation(conversationId) {
-  const index = conversations.findIndex((item) => item.id === conversationId);
+  const index = conversations.findIndex(
+    (item) => item.id === conversationId
+  );
+
   if (index < 0) return;
+
+  const closingActive = conversationId === activeConversationId;
+
+  if (closingActive) {
+    stopVoiceInput();
+    stopVoiceOutput();
+  }
+
+  cancelReply(conversationId);
+  conversationDrafts.delete(conversationId);
+
   const removed = conversations.splice(index, 1)[0];
   clearHistory(removed.id);
+
   if (!conversations.length) {
     const fresh = createConversation();
+
     conversations.push(fresh);
     activeConversationId = fresh.id;
   } else if (activeConversationId === conversationId) {
-    const neighbor = conversations[Math.min(index, conversations.length - 1)];
+    const neighbor = conversations[
+      Math.min(index, conversations.length - 1)
+    ];
+
     activeConversationId = neighbor.id;
   }
+
   saveConversations();
-  resetTopicSelection();
-  paintConversation(getActiveConversation());
+
+  if (closingActive) {
+    resetTopicSelection();
+    paintConversation(getActiveConversation());
+  }
+
   renderTabs({ scrollActive: true });
+
   const selected = chatTabs.querySelector('[aria-selected="true"]');
-  if (selected && typeof selected.focus === "function") selected.focus();
+
+  if (selected && typeof selected.focus === "function") {
+    selected.focus();
+  }
 }
 
 function tabFromTarget(target) {

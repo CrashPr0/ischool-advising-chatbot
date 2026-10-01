@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260927-tabs') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261001-reveal-tabs') }}" />
 </head>
 
 <body>
@@ -174,6 +174,10 @@
             </div>
           </div>
 
+          <p class="conversations-label">
+          Your conversations
+          <span>Saved on this browser</span>
+          </p>
           <div class="chat-tabs" id="chat-tabs" role="tablist"
                aria-label="Conversations" aria-orientation="horizontal"></div>
 
@@ -279,6 +283,13 @@
             </div>
 
             <div class="composer-footer">
+              <div class="reply-progress">
+              <span id="reply-status" role="status" aria-live="polite"></span>
+
+              <button id="reply-action" type="button" hidden>
+              Cancel request
+              </button>
+              </div>
               <p id="voice-status" class="voice-status"
                  role="status" aria-live="polite">
                 Type your question or use the microphone.
@@ -338,6 +349,6 @@
   </div>
 
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
-  <script src="{{ url_for('static', filename='script.js', v='20260927-tabs') }}"></script>
+  <script src="{{ url_for('static', filename='script.js', v='20261001-reveal-tabs') }}"></script>
 </body>
 </html>
