@@ -568,7 +568,7 @@ function updateReplyControls() {
 
   if (replyStatus) {
     replyStatus.textContent = operation
-      ? (operation.text ? "Writing your answer…" : "Finding an answer…")
+      ? (operation.text ? "Writing your answer…" : "Thinking...")
       : "";
   }
 
@@ -623,6 +623,8 @@ function finishReply(key, speak = true) {
   );
 
   if (visible) {
+    removeTypingIndicator();
+  
     if (!follow) {
       chatBox.scrollTop = scrollTop;
     }
@@ -658,18 +660,72 @@ function leaveConversation() {
   stopVoiceOutput();
 }
 
+function characterRevealPlan(body, text) {
+  // Format the complete answer once, then reveal its text.
+  renderMessageText(body, text, true);
+
+  const walker = document.createTreeWalker(
+    body,
+    NodeFilter.SHOW_TEXT
+  );
+
+  const plan = [];
+
+  const segmenter = typeof Intl.Segmenter === "function"
+    ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+    : null;
+
+  let node;
+
+  while ((node = walker.nextNode())) {
+    const characters = segmenter
+      ? Array.from(
+          segmenter.segment(node.data),
+          (part) => part.segment
+        )
+      : Array.from(node.data);
+
+    if (characters.length) {
+      plan.push({ node, characters });
+    }
+  }
+
+  // Hide formatted elements until their text begins appearing.
+  body.querySelectorAll("*").forEach((element) => {
+    element.hidden = true;
+  });
+
+  plan.forEach((part) => {
+    part.node.data = "";
+  });
+
+  return plan;
+}
+
 function revealReply(key, text, meta) {
   const operation = replyOperations.get(key);
   if (!operation) return;
 
+  // Keep "Thinking..." visible for at least 450 milliseconds.
+  const wait = Math.max(
+    0,
+    450 - (Date.now() - operation.startedAt)
+  );
+
+  if (wait && key === activeReplyKey()) {
+    operation.timer = setTimeout(
+      () => revealReply(key, text, meta),
+      wait
+    );
+    return;
+  }
+
   operation.text = text;
   operation.meta = meta;
 
-  const reducedMotion =
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
-  if (key !== activeReplyKey() || reducedMotion) {
-    finishReply(key);
+  // Keep background replies in their original conversation.
+  if (key !== activeReplyKey()) {
+    finishReply(key, false);
     return;
   }
 
@@ -684,16 +740,14 @@ function revealReply(key, text, meta) {
 
   operation.wrapper.classList.add("is-revealing");
 
-  // Screen readers receive the completed answer once.
+  // Screen readers receive the finished answer once.
   operation.wrapper.setAttribute("aria-hidden", "true");
 
   const body = operation.wrapper.querySelector(".message-body");
-  const words = text.match(/\S+\s*|\s+/g) || [text];
+  const plan = characterRevealPlan(body, text);
 
-  let count = 0;
-
-  // Longer answers reveal in larger groups.
-  const chunk = Math.max(1, Math.ceil(words.length / 180));
+  let partIndex = 0;
+  let characterIndex = 0;
 
   updateReplyControls();
 
@@ -705,31 +759,48 @@ function revealReply(key, text, meta) {
       return;
     }
 
+    const part = plan[partIndex];
+
+    if (!part) {
+      finishReply(key);
+      return;
+    }
+
     const nearBottom =
-      chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 80;
+      chatBox.scrollHeight -
+      chatBox.scrollTop -
+      chatBox.clientHeight < 80;
 
-    count = Math.min(words.length, count + chunk);
+    // Reveal the formatting around the current character.
+    let parent = part.node.parentElement;
 
-    // Preserve your existing safe Markdown formatting.
-    renderMessageText(
-      body,
-      words.slice(0, count).join(""),
-      true
-    );
+    while (parent && parent !== body) {
+      parent.hidden = false;
+      parent = parent.parentElement;
+    }
+
+    // Add exactly one visible character.
+    part.node.appendData(part.characters[characterIndex]);
+    characterIndex++;
+
+    if (characterIndex === part.characters.length) {
+      partIndex++;
+      characterIndex = 0;
+    }
 
     if (nearBottom) {
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    if (count === words.length) {
+    if (partIndex === plan.length) {
       finishReply(key);
       return;
     }
 
-    operation.timer = setTimeout(tick, 35);
+    operation.timer = setTimeout(tick, 12);
   }
 
-  operation.timer = setTimeout(tick, 35);
+  operation.timer = setTimeout(tick, 12);
 }
 
 if (replyAction) {
@@ -755,6 +826,7 @@ async function sendMessage(prefilledMessage = null) {
 
   const operation = {
     controller: new AbortController(),
+    startedAt: Date.now(),
     timer: null
   };
 
