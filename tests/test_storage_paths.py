@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import durable_storage
 from durable_storage import (
     AZURE_EVAL_DB_PATH,
+    AZURE_STRIPPED_LINK_LOG_PATH,
     AZURE_VECTOR_STORE_PATH,
     LEGACY_VECTOR_STORE_PATH,
     LOCAL_VECTOR_STORE_PATH,
@@ -20,6 +21,7 @@ from durable_storage import (
     copy_reviews_database_if_needed,
     prepare_eval_db_path,
     resolve_eval_db_path,
+    resolve_stripped_link_log_path,
     resolve_vector_store_path,
 )
 from config import resolve_vector_store_path as config_resolve_vector_store_path
@@ -63,6 +65,34 @@ class TestPathResolution:
                 environ={"WEBSITE_SITE_NAME": "ischooladvisingchatbot-dx4ynl"},
             )
             == "/tmp/chroma"
+        )
+
+    def test_azure_stripped_link_log_uses_the_same_persistent_directory(self):
+        assert (
+            resolve_stripped_link_log_path(
+                environ={"WEBSITE_SITE_NAME": "ischooladvisingchatbot-dx4ynl"}
+            )
+            == AZURE_STRIPPED_LINK_LOG_PATH
+        )
+        assert AZURE_STRIPPED_LINK_LOG_PATH == (
+            "/home/data/evaluation/stripped_links.sqlite3"
+        )
+
+    def test_local_stripped_link_log_sits_beside_the_reviews_database(self):
+        assert resolve_stripped_link_log_path(environ={}, app_dir="/app") == (
+            os.path.join("/app", "evals", "stripped_links.sqlite3")
+        )
+
+    def test_explicit_stripped_link_log_path_wins(self):
+        assert (
+            resolve_stripped_link_log_path(
+                "/tmp/custom-links.sqlite3",
+                environ={
+                    "WEBSITE_SITE_NAME": "ischooladvisingchatbot-dx4ynl",
+                    "STRIPPED_LINK_LOG_PATH": "/other.sqlite3",
+                },
+            )
+            == "/tmp/custom-links.sqlite3"
         )
 
     def test_azure_defaults_to_persistent_home_even_if_missing(self, monkeypatch):

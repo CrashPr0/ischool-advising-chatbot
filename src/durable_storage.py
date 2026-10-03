@@ -35,6 +35,9 @@ LEGACY_VECTOR_STORE_PATH = "/home/site/wwwroot/data/chroma"
 
 AZURE_EVAL_DB_PATH = "/home/data/evaluation/reviews.sqlite3"
 LEGACY_WWWROOT_EVAL_DB_PATH = "/home/site/wwwroot/evals/reviews.sqlite3"
+# Invented-link records sit beside the reviews database on the same
+# persistent share. They are not review scores, so they stay in their own file.
+AZURE_STRIPPED_LINK_LOG_PATH = "/home/data/evaluation/stripped_links.sqlite3"
 INDEX_RECEIPT_FILENAME = "index_build.json"
 DEPLOYMENT_VERSION_FILENAME = "deployment_version.txt"
 
@@ -74,6 +77,35 @@ def default_local_eval_db_path(app_dir: str | None = None) -> str:
     if app_dir:
         return os.path.join(app_dir, "evals", "reviews.sqlite3")
     return os.path.join("evals", "reviews.sqlite3")
+
+
+def default_local_stripped_link_log_path(app_dir: str | None = None) -> str:
+    """Repo-relative invented-link log, beside the local reviews database."""
+    if app_dir:
+        return os.path.join(app_dir, "evals", "stripped_links.sqlite3")
+    return os.path.join("evals", "stripped_links.sqlite3")
+
+
+def resolve_stripped_link_log_path(
+    configured_path: str | None = None,
+    *,
+    app_dir: str | None = None,
+    environ: Mapping[str, str] | None = None,
+) -> str:
+    """Use ``STRIPPED_LINK_LOG_PATH``, then Azure's persistent file, then local.
+
+    On App Service the file is ``/home/data/evaluation/stripped_links.sqlite3``,
+    the same directory that keeps the reviews database across restarts.
+    """
+    env = os.environ if environ is None else environ
+    if configured_path is None:
+        configured_path = env.get("STRIPPED_LINK_LOG_PATH", "")
+    explicit = str(configured_path or "").strip()
+    if explicit:
+        return explicit
+    if running_on_azure_app_service(env):
+        return AZURE_STRIPPED_LINK_LOG_PATH
+    return default_local_stripped_link_log_path(app_dir)
 
 
 def resolve_eval_db_path(

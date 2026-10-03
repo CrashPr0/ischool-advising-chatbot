@@ -21,6 +21,11 @@ try:
         _is_rate_limit,
         chat_request_metrics,
     )
+    from .stripped_link_log import (
+        OUTCOME_EDITED,
+        OUTCOME_FALLBACK,
+        record_stripped_links,
+    )
 except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
     from catalog_recency import catalog_prompt_note, document_heading
@@ -33,6 +38,7 @@ except ImportError:  # pragma: no cover
         _is_rate_limit,
         chat_request_metrics,
     )
+    from stripped_link_log import OUTCOME_EDITED, OUTCOME_FALLBACK, record_stripped_links
 
 
 logger = logging.getLogger(__name__)
@@ -489,28 +495,34 @@ def _allowed_url_keys(documents: Optional[List]) -> set:
     return keys
 
 
-def _plain_label(label: str, allowed: set) -> str:
-    """Keep a markdown label only when it is not itself a disallowed link."""
+def _plain_label(label: str, allowed: set) -> tuple:
+    """Keep a markdown label only when it is not itself a disallowed link.
+
+    The second value lists URLs removed from the label.
+    """
     if not label:
-        return ""
+        return "", []
     if _link_spans(label):
-        cleaned, dropped = _replace_disallowed_once(label, allowed)
+        cleaned, dropped, urls = _replace_disallowed_once(label, allowed)
         if not dropped:
-            return cleaned
+            return cleaned, []
         cleaned = _tidy_dropped_link_text(cleaned)
-        return cleaned if _reply_has_substance(cleaned) else ""
+        if not _reply_has_substance(cleaned):
+            return "", urls
+        return cleaned, urls
     if _url_key(label):
-        return ""
-    return label
+        return "", []
+    return label, []
 
 
 def _replace_disallowed_once(text: str, allowed: set) -> tuple:
     spans = _link_spans(text)
     if not spans:
-        return text, 0
+        return text, 0, []
     parts: List[str] = []
     cursor = 0
     dropped = 0
+    removed: List[str] = []
     for start, end, kind, label, url in spans:
         if start < cursor:
             continue
@@ -520,15 +532,51 @@ def _replace_disallowed_once(text: str, allowed: set) -> tuple:
             parts.append(text[start:end])
         else:
             dropped += 1
+            if url:
+                removed.append(url)
             if kind == "markdown":
-                kept = _plain_label(label, allowed)
+                kept, label_urls = _plain_label(label, allowed)
+                for extra in label_urls:
+                    if extra and extra != url:
+                        removed.append(extra)
                 if kept:
                     parts.append(kept)
         cursor = end
     parts.append(text[cursor:])
     if not dropped:
-        return text, 0
-    return "".join(parts), dropped
+        return text, 0, []
+    return "".join(parts), dropped, removed
+
+
+def _apply_link_allowlist(
+    text: str, documents: Optional[List] = None
+) -> tuple:
+    """Return cleaned text, how many links were removed, and those URLs.
+
+    Allowed links are copied unchanged, including a real ``source_url``.
+    The original string is returned as-is when nothing is removed.
+    """
+    if not isinstance(text, str) or not text:
+        return text or "", 0, []
+    allowed = _allowed_url_keys(documents)
+    current = text
+    total = 0
+    removed: List[str] = []
+    for _ in range(4):
+        current, dropped, urls = _replace_disallowed_once(current, allowed)
+        total += dropped
+        removed.extend(urls)
+        if not dropped:
+            break
+    if not total:
+        return text, 0, []
+    unique: List[str] = []
+    seen: set = set()
+    for url in removed:
+        if url and url not in seen:
+            seen.add(url)
+            unique.append(url)
+    return _tidy_dropped_link_text(current), total, unique
 
 
 def _restrict_reply_links(text: str, documents: Optional[List] = None) -> tuple:
@@ -539,19 +587,8 @@ def _restrict_reply_links(text: str, documents: Optional[List] = None) -> tuple:
     caller substitutes the missing-context fallback when the remainder
     has no words left.
     """
-    if not isinstance(text, str) or not text:
-        return text or "", 0
-    allowed = _allowed_url_keys(documents)
-    current = text
-    total = 0
-    for _ in range(4):
-        current, dropped = _replace_disallowed_once(current, allowed)
-        total += dropped
-        if not dropped:
-            break
-    if not total:
-        return text, 0
-    return _tidy_dropped_link_text(current), total
+    cleaned, dropped, _removed = _apply_link_allowlist(text, documents)
+    return cleaned, dropped
 
 
 class RAGAdvisingChatbot:
@@ -794,7 +831,7 @@ Assistant Response:""",
                 # the model) are not passed through this filter.
                 # prompt_docs includes pages pinned into this turn. retrieved_docs
                 # keeps a source_url from a chunk that ordering summarized.
-                cleaned, dropped = _restrict_reply_links(
+                cleaned, dropped, stripped_urls = _apply_link_allowlist(
                     str(response_text)[:response_limit],
                     list(prompt_docs) + list(retrieved_docs),
                 )
@@ -806,10 +843,17 @@ Assistant Response:""",
                     )
                     response_data["source"] = "fallback"
                     response_data["confidence"] = 0.2
+                    link_outcome = OUTCOME_FALLBACK
                 else:
                     response_data["response"] = cleaned
                     response_data["source"] = "rag" if retrieved_docs else "llm"
                     response_data["confidence"] = 0.7 if retrieved_docs else 0.5
+                    link_outcome = OUTCOME_EDITED
+                # This turn's question only. Kept links are not included.
+                # Knowledge-base, busy, content-filter, and crisis replies
+                # never reach this call.
+                if dropped:
+                    record_stripped_links(user_message, stripped_urls, link_outcome)
             except _Filtered as filtered:
                 metrics["filter_category"] = filtered.category
                 response_data["response"] = self._filtered_text(user_message)

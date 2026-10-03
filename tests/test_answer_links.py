@@ -2,12 +2,15 @@
 
 import logging
 import os
+import sqlite3
 import sys
+from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from knowledge_base import get_knowledge_base
 from rag_chatbot import RAGAdvisingChatbot, _restrict_reply_links
+from stripped_link_log import StrippedLinkLog
 
 REAL_SOURCE = (
     "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203201"
@@ -36,9 +39,47 @@ class _Processor:
 class _Chain:
     def __init__(self, content):
         self.content = content
+        self.calls = 0
 
     def invoke(self, payload):
+        self.calls += 1
         return type("Reply", (), {"content": self.content})()
+
+
+class _RaisingChain:
+    def __init__(self, error):
+        self.error = error
+        self.calls = 0
+
+    def invoke(self, payload):
+        self.calls += 1
+        raise self.error
+
+
+class _RateLimit(Exception):
+    def __init__(self):
+        super().__init__("Error code: 429")
+        self.status_code = 429
+
+
+class _ContentFilter(Exception):
+    def __init__(self):
+        super().__init__("The response was filtered")
+        self.status_code = 400
+        self.code = "content_filter"
+        self.body = {
+            "error": {
+                "code": "content_filter",
+                "innererror": {"code": "ResponsibleAIPolicyViolation"},
+            }
+        }
+
+
+def _records():
+    path = os.environ["STRIPPED_LINK_LOG_PATH"]
+    if not os.path.exists(path):
+        return []
+    return StrippedLinkLog(path).records()
 
 
 class _SilentKnowledgeBase:
@@ -232,3 +273,121 @@ def test_dropped_invented_link_is_logged_and_not_stored(caplog):
     assert len(lines) == 1
     assert "dropped_links=1" in lines[0]
     assert "source=rag" in lines[0]
+
+
+def test_a_stripped_url_is_recorded_and_a_kept_url_is_not():
+    other = "https://evil.example/isda-form"
+    reply = (
+        f"ISDA 150 is Special Topics (3 units). Catalog: {REAL_SOURCE}. "
+        f"Also see {INVENTED} and {other}."
+    )
+    history = [
+        {
+            "user": "Where was last semester's form?",
+            "assistant": "Try https://evil.example/old-form",
+        }
+    ]
+    result = _bot([_page()], reply).chat(QUESTION, history=list(history))
+    assert INVENTED not in result["response"]
+    assert other not in result["response"]
+    assert REAL_SOURCE in result["response"]
+    rows = _records()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["question"] == QUESTION
+    assert "Where was last semester's form?" not in row["question"]
+    assert row["outcome"] == "edited"
+    assert row["stripped_urls"] == [INVENTED, other]
+    assert REAL_SOURCE not in row["stripped_urls"]
+    assert "https://evil.example/old-form" not in row["stripped_urls"]
+    datetime.fromisoformat(row["created_at"])
+    assert set(row) == {"created_at", "question", "outcome", "stripped_urls"}
+
+
+def test_a_kept_source_url_alone_is_not_recorded():
+    reply = f"ISDA 150 is Special Topics (3 units). {REAL_SOURCE}"
+    result = _bot([_page()], reply).chat(QUESTION)
+    assert result["response"] == reply
+    assert _records() == []
+
+
+def test_fallback_replacement_is_recorded_as_fallback():
+    result = _bot([_page()], INVENTED).chat(QUESTION)
+    assert result["source"] == "fallback"
+    assert result["response"] == RAGAdvisingChatbot._missing_context_response(QUESTION)
+    rows = _records()
+    assert len(rows) == 1
+    assert rows[0]["outcome"] == "fallback"
+    assert rows[0]["question"] == QUESTION
+    assert rows[0]["stripped_urls"] == [INVENTED]
+    assert ADVISING not in rows[0]["stripped_urls"]
+
+
+def test_stripped_link_record_is_still_there_after_the_connection_closes():
+    _bot([_page()], f"ISDA 150 is Special Topics. See {INVENTED}.").chat(QUESTION)
+    path = os.environ["STRIPPED_LINK_LOG_PATH"]
+    again = StrippedLinkLog(path).records()
+    assert len(again) == 1
+    assert again[0]["stripped_urls"] == [INVENTED]
+    connection = sqlite3.connect(path)
+    try:
+        columns = [
+            row[1] for row in connection.execute("PRAGMA table_info(stripped_link_checks)")
+        ]
+    finally:
+        connection.close()
+    assert columns == ["id", "created_at", "question", "outcome", "stripped_urls"]
+
+
+def test_template_and_crisis_turns_are_not_recorded():
+    crisis = _bot([_page()], f"See {INVENTED}")
+
+    class _CrisisTemplates:
+        @staticmethod
+        def find_answer(message):
+            return {
+                "answer": (
+                    "I'm glad you told me. You do not have to handle this alone. "
+                    "https://988lifeline.org/"
+                ),
+                "matched_question": "crisis",
+                "confidence": 1.0,
+            }
+
+    crisis.knowledge_base = _CrisisTemplates()
+    crisis_result = crisis.chat("I want to die")
+    assert crisis_result["source"] == "knowledge_base"
+    assert crisis.chain.calls == 0
+    assert "https://988lifeline.org/" in crisis_result["response"]
+
+    greeting = _bot([], "unused")
+    greeting.knowledge_base = get_knowledge_base()
+    greeting_result = greeting.chat("hello")
+    assert greeting_result["source"] == "knowledge_base"
+    assert greeting.chain.calls == 0
+
+    filtered = _bot([_page()], f"See {INVENTED}")
+    filtered.chain = _RaisingChain(_ContentFilter())
+    filtered_result = filtered.chat(QUESTION)
+    assert filtered_result["source"] == "filtered"
+    assert ADVISING in filtered_result["response"]
+
+    busy = _bot([_page()], f"See {INVENTED}")
+    busy.chain = _RaisingChain(_RateLimit())
+    busy_result = busy.chat(QUESTION)
+    assert busy_result["source"] == "busy"
+
+    assert _records() == []
+
+
+def test_a_log_write_failure_still_returns_the_filtered_reply(monkeypatch):
+    def explode(self, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(StrippedLinkLog, "record", explode)
+    reply = f"ISDA 150 is Special Topics (3 units). See {INVENTED}."
+    result = _bot([_page()], reply).chat(QUESTION)
+    assert INVENTED not in result["response"]
+    assert "Special Topics" in result["response"]
+    assert result["source"] == "rag"
+    assert _records() == []
