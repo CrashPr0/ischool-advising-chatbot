@@ -6,6 +6,18 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def isolated_stripped_link_log(monkeypatch, tmp_path):
+    """Keep invented-link records out of the repo during tests.
+
+    Chat writes that log when a model URL is removed. The default file would
+    otherwise appear under ``evals/`` in the working tree.
+    """
+    monkeypatch.setenv(
+        "STRIPPED_LINK_LOG_PATH", str(tmp_path / "stripped_links.sqlite3")
+    )
+
+
+@pytest.fixture(autouse=True)
 def pin_committed_catalog_snapshots(monkeypatch):
     """Keep snapshot tests on the committed 2026-2027 catalog.
 

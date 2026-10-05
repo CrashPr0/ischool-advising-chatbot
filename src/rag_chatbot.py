@@ -5,6 +5,8 @@ import os
 import re
 import time
 from typing import List, Optional, Dict
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
+
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 
@@ -19,6 +21,11 @@ try:
         _is_rate_limit,
         chat_request_metrics,
     )
+    from .stripped_link_log import (
+        OUTCOME_EDITED,
+        OUTCOME_FALLBACK,
+        record_stripped_links,
+    )
 except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
     from catalog_recency import catalog_prompt_note, document_heading
@@ -31,6 +38,7 @@ except ImportError:  # pragma: no cover
         _is_rate_limit,
         chat_request_metrics,
     )
+    from stripped_link_log import OUTCOME_EDITED, OUTCOME_FALLBACK, record_stripped_links
 
 
 logger = logging.getLogger(__name__)
@@ -274,6 +282,315 @@ def _bounded_env_int(name: str, default: int, minimum: int, maximum: int) -> int
     return max(minimum, min(value, maximum))
 
 
+# Links the model may repeat. A match is the same http(s), mailto, or tel
+# target after scheme/host case, default port, trailing slash, and query
+# order are normalized. A different path, query value, or host is a rewrite
+# and is not allowed. Fragments are part of the target.
+_MARKDOWN_LINK_RE = re.compile(
+    r"\[([^\]\n]*)\]\(\s*<?\s*((?:https?|mailto|tel):[^)\s>]+)\s*>?\s*\)",
+    re.IGNORECASE,
+)
+_BARE_LINK_RE = re.compile(r"(?i)((?:https?|mailto|tel):[^\s<>\[\]`]+)")
+_WWW_LINK_RE = re.compile(r"(?i)(?<![A-Za-z0-9_./:@])(www\.[^\s<>\[\]`]+)")
+_TRAILING_URL_PUNCT = ".,;:!?\"'`"
+_LINK_SCHEMES = {"http", "https", "mailto", "tel"}
+
+
+def _trim_url_suffix(raw: str) -> str:
+    """Remove wrapping brackets and trailing punctuation that is not the URL."""
+    text = (raw or "").strip()
+    if text.startswith("<") and text.endswith(">") and len(text) > 2:
+        text = text[1:-1].strip()
+    changed = True
+    while changed and text:
+        changed = False
+        if text[-1] in _TRAILING_URL_PUNCT:
+            text = text[:-1]
+            changed = True
+            continue
+        if text.endswith(")") and text.count("(") < text.count(")"):
+            text = text[:-1]
+            changed = True
+            continue
+        if text.endswith("]") and text.count("[") < text.count("]"):
+            text = text[:-1]
+            changed = True
+    return text
+
+
+def _url_key(raw: str) -> str:
+    """Canonical key for an allowlist check, or "" when *raw* is not a link."""
+    text = _trim_url_suffix(raw)
+    if not text:
+        return ""
+    if text.lower().startswith("www."):
+        text = "https://" + text
+    if "\\" in text or any(
+        ord(char) < 32 or char in "\u200b\u200c\u200d\ufeff" for char in text
+    ):
+        return ""
+    try:
+        parts = urlsplit(text)
+        scheme = parts.scheme.lower()
+        if scheme not in _LINK_SCHEMES:
+            return ""
+        if parts.username or parts.password:
+            return ""
+        port = parts.port
+        host = (parts.hostname or "").casefold()
+    except ValueError:
+        return ""
+    if scheme in {"mailto", "tel"}:
+        target = unquote(parts.path or "").strip().casefold()
+        return f"{scheme}:{target}" if target else ""
+    if not host:
+        return ""
+    netloc = host
+    if port and not (
+        (scheme == "http" and port == 80) or (scheme == "https" and port == 443)
+    ):
+        netloc = f"{host}:{port}"
+    path = unquote(parts.path or "")
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/")
+    if not path:
+        path = "/"
+    query_pairs = [
+        (unquote(key), unquote(value))
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+    ]
+    query = urlencode(sorted(query_pairs), quote_via=quote)
+    fragment = unquote(parts.fragment)
+    return urlunsplit((scheme, netloc, path, query, fragment))
+
+
+def _link_spans(text: str) -> List[tuple]:
+    """Markdown links, then bare URLs that are not already inside one.
+
+    Each item is ``(start, end, kind, label, url)``. ``end`` stops before
+    trailing punctuation so a following period stays in the sentence.
+    """
+    if not isinstance(text, str) or not text:
+        return []
+    occupied: List[tuple] = []
+    found: List[tuple] = []
+
+    def covered(start: int, end: int) -> bool:
+        return any(start < stop and end > begin for begin, stop in occupied)
+
+    for match in _MARKDOWN_LINK_RE.finditer(text):
+        url = _trim_url_suffix(match.group(2))
+        if not url:
+            continue
+        found.append((match.start(), match.end(), "markdown", match.group(1), url))
+        occupied.append((match.start(), match.end()))
+    for pattern, kind in ((_BARE_LINK_RE, "bare"), (_WWW_LINK_RE, "www")):
+        for match in pattern.finditer(text):
+            raw = match.group(1)
+            trimmed = _trim_url_suffix(raw)
+            if not trimmed or not raw.startswith(trimmed):
+                continue
+            start = match.start(1)
+            end = start + len(trimmed)
+            if covered(start, end):
+                continue
+            found.append((start, end, kind, "", trimmed))
+            occupied.append((start, end))
+    found.sort(key=lambda item: item[0])
+    return found
+
+
+def _reply_has_substance(text: str) -> bool:
+    """True when the student would still see words or numbers."""
+    return bool(re.search(r"[^\W_]", text or "", flags=re.UNICODE))
+
+
+def _tidy_dropped_link_text(text: str) -> str:
+    """Close the gaps left after a link is removed."""
+    cleaned = text.replace("\u00a0", " ")
+    cleaned = re.sub(r"<\s*>", "", cleaned)
+    cleaned = re.sub(r"`\s*`", "", cleaned)
+    cleaned = re.sub(r"\(\s*\)", "", cleaned)
+    cleaned = re.sub(r"[ \t]+([.,;:!?])", r"\1", cleaned)
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
+def _safety_template_texts() -> List[str]:
+    """Crisis and distress templates, when this checkout includes them.
+
+    Those replies are returned before the model. The strings are collected
+    so a vetted safety URL is still allowed if it is ever placed in a reply
+    the link filter sees.
+    """
+    try:
+        try:
+            from . import safety as safety_mod
+        except ImportError:
+            import safety as safety_mod
+    except ImportError:
+        return []
+    texts: List[str] = []
+
+    def walk(value) -> None:
+        if isinstance(value, str):
+            texts.append(value)
+        elif isinstance(value, dict):
+            for item in value.values():
+                walk(item)
+        elif isinstance(value, (list, tuple)):
+            for item in value:
+                walk(item)
+
+    for name, value in vars(safety_mod).items():
+        if not name.startswith("_"):
+            walk(value)
+    return texts
+
+
+def _vetted_template_texts() -> List[str]:
+    """Repo-owned replies and prompt lines that may name a real link."""
+    texts = [
+        RAGAdvisingChatbot.SYSTEM_PROMPT,
+        FILTERED_RESPONSE,
+        FILTERED_RESPONSE_ZH,
+        BUSY_RESPONSE,
+        BUSY_RESPONSE_ZH,
+        _ERROR_RESPONSE,
+        RAGAdvisingChatbot._missing_context_response("help"),
+        RAGAdvisingChatbot._missing_context_response("帮助"),
+    ]
+    for item in type(get_knowledge_base()).COMMON_QA.values():
+        answer = item.get("answer") if isinstance(item, dict) else None
+        if isinstance(answer, str):
+            texts.append(answer)
+    texts.extend(_safety_template_texts())
+    return texts
+
+
+def _url_keys_in(text: str) -> set:
+    keys = set()
+    for _start, _end, _kind, _label, url in _link_spans(text):
+        key = _url_key(url)
+        if key:
+            keys.add(key)
+    return keys
+
+
+def _allowed_url_keys(documents: Optional[List]) -> set:
+    """Links from this turn's pages, their source_url values, and templates."""
+    keys = set()
+    for text in _vetted_template_texts():
+        keys.update(_url_keys_in(text))
+    for document in documents or []:
+        keys.update(_url_keys_in(getattr(document, "page_content", "") or ""))
+        metadata = getattr(document, "metadata", None) or {}
+        raw = metadata.get("source_url") if isinstance(metadata, dict) else None
+        if isinstance(raw, str):
+            key = _url_key(raw)
+            if key:
+                keys.add(key)
+    return keys
+
+
+def _plain_label(label: str, allowed: set) -> tuple:
+    """Keep a markdown label only when it is not itself a disallowed link.
+
+    The second value lists URLs removed from the label.
+    """
+    if not label:
+        return "", []
+    if _link_spans(label):
+        cleaned, dropped, urls = _replace_disallowed_once(label, allowed)
+        if not dropped:
+            return cleaned, []
+        cleaned = _tidy_dropped_link_text(cleaned)
+        if not _reply_has_substance(cleaned):
+            return "", urls
+        return cleaned, urls
+    if _url_key(label):
+        return "", []
+    return label, []
+
+
+def _replace_disallowed_once(text: str, allowed: set) -> tuple:
+    spans = _link_spans(text)
+    if not spans:
+        return text, 0, []
+    parts: List[str] = []
+    cursor = 0
+    dropped = 0
+    removed: List[str] = []
+    for start, end, kind, label, url in spans:
+        if start < cursor:
+            continue
+        parts.append(text[cursor:start])
+        key = _url_key(url)
+        if key and key in allowed:
+            parts.append(text[start:end])
+        else:
+            dropped += 1
+            if url:
+                removed.append(url)
+            if kind == "markdown":
+                kept, label_urls = _plain_label(label, allowed)
+                for extra in label_urls:
+                    if extra and extra != url:
+                        removed.append(extra)
+                if kept:
+                    parts.append(kept)
+        cursor = end
+    parts.append(text[cursor:])
+    if not dropped:
+        return text, 0, []
+    return "".join(parts), dropped, removed
+
+
+def _apply_link_allowlist(
+    text: str, documents: Optional[List] = None
+) -> tuple:
+    """Return cleaned text, how many links were removed, and those URLs.
+
+    Allowed links are copied unchanged, including a real ``source_url``.
+    The original string is returned as-is when nothing is removed.
+    """
+    if not isinstance(text, str) or not text:
+        return text or "", 0, []
+    allowed = _allowed_url_keys(documents)
+    current = text
+    total = 0
+    removed: List[str] = []
+    for _ in range(4):
+        current, dropped, urls = _replace_disallowed_once(current, allowed)
+        total += dropped
+        removed.extend(urls)
+        if not dropped:
+            break
+    if not total:
+        return text, 0, []
+    unique: List[str] = []
+    seen: set = set()
+    for url in removed:
+        if url and url not in seen:
+            seen.add(url)
+            unique.append(url)
+    return _tidy_dropped_link_text(current), total, unique
+
+
+def _restrict_reply_links(text: str, documents: Optional[List] = None) -> tuple:
+    """Drop links that are not in *documents* or a vetted template.
+
+    Allowed links are copied unchanged, including a real ``source_url``.
+    The original string is returned as-is when nothing is removed. The
+    caller substitutes the missing-context fallback when the remainder
+    has no words left.
+    """
+    cleaned, dropped, _removed = _apply_link_allowlist(text, documents)
+    return cleaned, dropped
+
+
 class RAGAdvisingChatbot:
     """
     Retrieval Augmented Generation (RAG) chatbot for iSchool advising.
@@ -393,6 +710,7 @@ Assistant Response:""",
         1. Check knowledge base for hardcoded answers
         2. If not found, retrieve relevant documents
         3. Use LLM with document context to generate response
+        4. Drop any link that is not in those pages or a vetted template
 
         Args:
             user_message: The student's question
@@ -507,9 +825,35 @@ Assistant Response:""",
                 response_limit = _bounded_env_int(
                     "RAG_RESPONSE_MAX_CHARS", 12_000, 500, 50_000
                 )
-                response_data["response"] = str(response_text)[:response_limit]
-                response_data["source"] = "rag" if retrieved_docs else "llm"
-                response_data["confidence"] = 0.7 if retrieved_docs else 0.5
+                # Model text only. Knowledge-base answers, the busy and
+                # content-filter templates, the missing-context fallback,
+                # and crisis replies (a vetted template, returned before
+                # the model) are not passed through this filter.
+                # prompt_docs includes pages pinned into this turn. retrieved_docs
+                # keeps a source_url from a chunk that ordering summarized.
+                cleaned, dropped, stripped_urls = _apply_link_allowlist(
+                    str(response_text)[:response_limit],
+                    list(prompt_docs) + list(retrieved_docs),
+                )
+                if dropped:
+                    metrics["dropped_links"] = dropped
+                if dropped and not _reply_has_substance(cleaned):
+                    response_data["response"] = self._missing_context_response(
+                        user_message
+                    )
+                    response_data["source"] = "fallback"
+                    response_data["confidence"] = 0.2
+                    link_outcome = OUTCOME_FALLBACK
+                else:
+                    response_data["response"] = cleaned
+                    response_data["source"] = "rag" if retrieved_docs else "llm"
+                    response_data["confidence"] = 0.7 if retrieved_docs else 0.5
+                    link_outcome = OUTCOME_EDITED
+                # This turn's question only. Kept links are not included.
+                # Knowledge-base, busy, content-filter, and crisis replies
+                # never reach this call.
+                if dropped:
+                    record_stripped_links(user_message, stripped_urls, link_outcome)
             except _Filtered as filtered:
                 metrics["filter_category"] = filtered.category
                 response_data["response"] = self._filtered_text(user_message)
@@ -571,6 +915,9 @@ Assistant Response:""",
         category = str(metrics.get("filter_category") or "").strip().replace(" ", "_")
         if source == "filtered" and category:
             message += f" filter_category={category}"
+        dropped = int(metrics.get("dropped_links", 0) or 0)
+        if dropped:
+            message += f" dropped_links={dropped}"
         logger.info(message)
 
     def _generate(self, payload: dict, metrics: dict) -> str:
