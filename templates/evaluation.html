@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light" />
   <title>Model Review Workspace · SJSU iSchool</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css', v='20261010-report-breakdown') }}" />
 </head>
 <body>
   <header class="review-header">
@@ -265,9 +265,12 @@
       <p class="issue-reports__note">
         A report includes the conversation only when the student opted in.
         Signed-in reviewers can see every report. Reports stay in the reviews
-        database until that file is deleted.
+        database for the configured retention period (90 days by default).
       </p>
-      <div id="issue-reports-status" class="issue-reports-status" role="status"></div>
+      <div id="issue-reports-summary" class="issue-reports-summary" aria-label="Reports by reason"></div>
+      <div id="issue-reports-filters" class="issue-reports-filters" role="group" aria-label="Filter reports by reason"></div>
+      <p id="issue-reports-limit" class="issue-reports__note"></p>
+      <div id="issue-reports-status" class="issue-reports-status" role="status" aria-live="polite"></div>
       <div id="issue-reports-list" class="issue-reports-list"></div>
     </section>
   </main>
@@ -291,6 +294,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="{{ url_for('static', filename='evaluation.js') }}"></script>
+  <script src="{{ url_for('static', filename='evaluation.js', v='20261010-report-breakdown') }}"></script>
 </body>
 </html>

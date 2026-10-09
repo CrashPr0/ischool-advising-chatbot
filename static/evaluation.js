@@ -20,6 +20,9 @@ const state = {
   csrf: null,
   reviewer: null,
   workspace: null,
+  issueReports: [],
+  issueReportTotal: 0,
+  issueReportReason: "all",
   currentIndex: 0,
   selectedScores: { A: emptyScores(), B: emptyScores() }
 };
@@ -60,6 +63,9 @@ const elements = {
   toast: document.getElementById("toast"),
   issueReports: document.getElementById("issue-reports"),
   issueReportsList: document.getElementById("issue-reports-list"),
+  issueReportsSummary: document.getElementById("issue-reports-summary"),
+  issueReportsFilters: document.getElementById("issue-reports-filters"),
+  issueReportsLimit: document.getElementById("issue-reports-limit"),
   issueReportsStatus: document.getElementById("issue-reports-status"),
   refreshReportsButton: document.getElementById("refresh-reports-button")
 };
@@ -185,13 +191,58 @@ function appendLabeledText(parent, label, value) {
   parent.appendChild(block);
 }
 
+function renderIssueReportSummary(summary) {
+  elements.issueReportsSummary.replaceChildren();
+  elements.issueReportsFilters.replaceChildren();
+  summary.reasons.forEach((reason, index) => {
+    const card = document.createElement("div");
+    card.className = "issue-reports-summary__reason";
+    const label = document.createElement("span");
+    label.textContent = reason.label;
+    const count = document.createElement("strong");
+    count.textContent = String(reason.count);
+    card.append(label, count);
+    if (index === 0 && reason.count > 0) {
+      card.classList.add("issue-reports-summary__reason--top");
+      const badge = document.createElement("span");
+      badge.textContent = "Most reported";
+      card.appendChild(badge);
+    }
+    elements.issueReportsSummary.appendChild(card);
+  });
+  [{ key: "all", label: "All" }, ...summary.reasons].forEach((reason) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button button--secondary";
+    button.textContent = reason.label;
+    button.dataset.reason = reason.key;
+    button.setAttribute("aria-pressed", String(state.issueReportReason === reason.key));
+    button.addEventListener("click", () => {
+      state.issueReportReason = reason.key;
+      renderFilteredIssueReports();
+    });
+    elements.issueReportsFilters.appendChild(button);
+  });
+}
+
+function renderFilteredIssueReports() {
+  const reports = state.issueReports.filter((report) =>
+    state.issueReportReason === "all" || report.reason === state.issueReportReason
+  );
+  Array.from(elements.issueReportsFilters.children).forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.reason === state.issueReportReason));
+  });
+  renderIssueReports(reports);
+  elements.issueReportsStatus.textContent = `Showing ${reports.length} of ${state.issueReportTotal} reports`;
+}
+
 function renderIssueReports(reports) {
   const list = elements.issueReportsList;
   if (!list) return;
   list.replaceChildren();
   if (!reports.length) {
     const empty = document.createElement("p");
-    empty.textContent = "No student reports yet.";
+    empty.textContent = state.issueReportReason === "all" ? "No student reports yet." : "No loaded reports for this reason.";
     list.appendChild(empty);
     return;
   }
@@ -221,9 +272,10 @@ function renderIssueReports(reports) {
     }
     article.appendChild(meta);
 
+    appendLabeledText(article, report.reason === "other" ? "Student's description" : "Comment", report.comment);
+    article.lastChild.className = "issue-report__comment";
     appendLabeledText(article, "Question", report.question);
     appendLabeledText(article, "Answer", report.answer);
-    if (report.comment) appendLabeledText(article, "Comment", report.comment);
     if (report.include_conversation && Array.isArray(report.citations) && report.citations.length) {
       appendLabeledText(article, "Links in the answer", report.citations.join("\n"));
     }
@@ -251,8 +303,13 @@ async function loadIssueReports() {
   if (elements.issueReportsStatus) elements.issueReportsStatus.textContent = "Loading reports…";
   try {
     const data = await api("/api/evaluation/issue-reports");
-    renderIssueReports(Array.isArray(data.reports) ? data.reports : []);
-    if (elements.issueReportsStatus) elements.issueReportsStatus.textContent = "";
+    state.issueReports = Array.isArray(data.reports) ? data.reports : [];
+    state.issueReportTotal = data.summary.total;
+    elements.issueReportsLimit.textContent = state.issueReportTotal > state.issueReports.length
+      ? `Filters apply to the ${state.issueReports.length} newest loaded reports. Counts include all retained reports.`
+      : "";
+    renderIssueReportSummary(data.summary);
+    renderFilteredIssueReports();
   } catch (error) {
     if (elements.issueReportsStatus) {
       elements.issueReportsStatus.textContent = error.message || "Unable to load reports.";
@@ -578,10 +635,16 @@ async function signOut() {
     state.csrf = null;
     state.reviewer = null;
     state.workspace = null;
+    state.issueReports = [];
+    state.issueReportTotal = 0;
+    state.issueReportReason = "all";
     elements.app.classList.add("hidden");
     elements.summaryPanel.classList.add("hidden");
     if (elements.issueReports) elements.issueReports.classList.add("hidden");
     if (elements.issueReportsList) elements.issueReportsList.replaceChildren();
+    if (elements.issueReportsSummary) elements.issueReportsSummary.replaceChildren();
+    if (elements.issueReportsFilters) elements.issueReportsFilters.replaceChildren();
+    if (elements.issueReportsLimit) elements.issueReportsLimit.textContent = "";
     if (elements.issueReportsStatus) elements.issueReportsStatus.textContent = "";
     elements.reviewerChip.textContent = "Not signed in";
     elements.reviewerName.value = "";
