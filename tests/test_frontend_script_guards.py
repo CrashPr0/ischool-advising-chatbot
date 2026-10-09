@@ -132,10 +132,24 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "confidence: data.confidence" not in script
     assert 'id="confidence-badge"' not in template
     assert 'id="confidence-badge"' not in docs
-    assert "filename='style.css', v='20261001-reveal-tabs'" in template
-    assert "style.css?v=20260927-tabs" in docs
-    assert "filename='script.js', v='20261002-letter-reveal'" in template
-    assert "script.js?v=20261002-letter-reveal" in docs
+    assert "filename='style.css', v='20261009-report-issue'" in template
+    assert "style.css?v=20261009-report-issue" in docs
+    assert "filename='script.js', v='20261009-report-issue'" in template
+    assert "script.js?v=20261009-report-issue" in docs
+    assert "20261001-reveal-tabs" not in template
+    assert "20260927-tabs" not in docs
+    assert "20261002-letter-reveal" not in template
+    assert "20261002-letter-reveal" not in docs
+    assert "Report issue" in script
+    assert "Include this conversation so the team can review it" in script
+    assert (
+        "Only the reason, your comment, and this answer are saved unless you include the conversation."
+        in script
+    )
+    assert "include_conversation" in script
+    assert 'id="issue-reports"' in (ROOT / "templates" / "evaluation.html").read_text(
+        encoding="utf-8"
+    )
     assert "20260927-welcome" not in template
     assert "20260927-welcome" not in docs
     assert 'id="chat-tabs"' in template

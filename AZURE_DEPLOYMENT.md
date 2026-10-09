@@ -36,7 +36,7 @@ With the variables unset, App Service uses:
 | Data | Path |
 | --- | --- |
 | Chroma index and `index_build.json` | `/home/data/chroma` |
-| Reviews SQLite database | `/home/data/evaluation/reviews.sqlite3` |
+| Reviews SQLite database (also student answer reports) | `/home/data/evaluation/reviews.sqlite3` |
 
 Local development, with the same variables unset, keeps using `./data/chroma`
 and `evals/reviews.sqlite3` beside the app.

@@ -456,6 +456,10 @@ function hideSampleChips() {
 }
 
 // ── MESSAGES ──
+// Transcript used when this page has no conversation tabs (the static docs
+// fallback). Tabbed chats keep the same text in localStorage.
+let plainTranscript = [];
+
 function renderMessageText(container, value, linkify = false) {
   const text = String(value ?? "");
   // User messages stay plain text. Only bot replies opt into Markdown.
@@ -486,8 +490,21 @@ function addMessage(text, className, label, options) {
     if (current) {
       rememberMessage(current.id, {
         role: className === "user-message" ? "user" : "bot",
-        text: text
+        text: text,
+        provider: options && options.report ? options.report.provider : null,
+        model: options && options.report ? options.report.model : null
       });
+    }
+  }
+  if (!tabsEnabled() && !skipRecord) {
+    plainTranscript.push({
+      role: className === "user-message" ? "user" : "bot",
+      text: String(text ?? ""),
+      provider: options && options.report ? options.report.provider : null,
+      model: options && options.report ? options.report.model : null
+    });
+    if (plainTranscript.length > MAX_STORED_MESSAGES) {
+      plainTranscript.splice(0, plainTranscript.length - MAX_STORED_MESSAGES);
     }
   }
   const wrapper = document.createElement("div");
@@ -503,6 +520,9 @@ function addMessage(text, className, label, options) {
 
   wrapper.appendChild(labelDiv);
   wrapper.appendChild(textDiv);
+  if (options && options.reportable && options.report) {
+    attachReportControl(wrapper, options.report);
+  }
 
   chatBox.appendChild(wrapper);
   chatBox.scrollTop = chatBox.scrollHeight;
@@ -874,7 +894,9 @@ async function sendMessage(prefilledMessage = null) {
       data.response || "I couldn't find an answer for that question.",
       {
         source: data.source,
-        retrievedDocs: data.retrieved_docs
+        retrievedDocs: data.retrieved_docs,
+        provider: data.provider || null,
+        model: data.model || null
       }
     );
   } catch (error) {
@@ -901,17 +923,308 @@ async function sendMessage(prefilledMessage = null) {
   }
 }
 
-function deliverBotReply(conversationId, text, meta) {
-  if (conversationId) {
-    rememberMessage(conversationId, {
-      role: "bot",
-      text: text,
-      source: meta && meta.source,
-      retrievedDocs: meta ? meta.retrievedDocs : null
+function reportContext(messages, index, conversationId) {
+  const message = messages && messages[index];
+  if (!message || message.role === "user") return null;
+  const answer = String(message.text || "").trim();
+  let question = "";
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const earlier = messages[cursor];
+    if (earlier && earlier.role === "user" && String(earlier.text || "").trim()) {
+      question = String(earlier.text);
+      break;
+    }
+  }
+  if (!question.trim() || !answer) return null;
+  return {
+    question,
+    answer: String(message.text),
+    conversationId: conversationId || null,
+    provider: message.provider || null,
+    model: message.model || null,
+    turns: messages.slice(0, index + 1).map((item) => ({
+      role: item.role === "user" ? "user" : "assistant",
+      text: String(item.text || "")
+    }))
+  };
+}
+
+function attachReportControl(wrapper, report) {
+  if (!report || !String(report.question || "").trim() || !String(report.answer || "").trim()) {
+    return;
+  }
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "report-issue-button";
+  button.textContent = "Report issue";
+  button.setAttribute("aria-label", "Report an issue with this answer");
+  button.addEventListener("click", () => openReportDialog(button, report));
+  wrapper.appendChild(button);
+}
+
+const REPORT_LIMITS = {
+  question: 4000,
+  answer: 12000,
+  comment: 1000,
+  turn: 4000,
+  turns: 40
+};
+
+function clipReportText(value, limit) {
+  const text = String(value ?? "");
+  return text.length > limit ? text.slice(0, limit) : text;
+}
+
+let reportDialog = null;
+let reportReturnFocus = null;
+let pendingReport = null;
+
+function ensureReportDialog() {
+  if (reportDialog) return reportDialog;
+  const dialog = document.createElement("dialog");
+  dialog.id = "report-issue-dialog";
+  dialog.className = "report-dialog";
+  dialog.setAttribute("aria-labelledby", "report-issue-title");
+
+  const form = document.createElement("form");
+  form.id = "report-issue-form";
+  form.noValidate = true;
+
+  const title = document.createElement("h2");
+  title.id = "report-issue-title";
+  title.tabIndex = -1;
+  title.textContent = "Report an issue";
+
+  const privacy = document.createElement("p");
+  privacy.id = "report-issue-privacy";
+  privacy.className = "report-privacy";
+  privacy.textContent =
+    "Only the reason, your comment, and this answer are saved unless you include the conversation.";
+
+  const fieldset = document.createElement("fieldset");
+  fieldset.className = "report-reasons";
+  const legend = document.createElement("legend");
+  legend.textContent = "Reason";
+  fieldset.appendChild(legend);
+  [
+    ["incorrect_info", "Incorrect information"],
+    ["made_up", "Made-up link or course"],
+    ["outdated", "Outdated information"],
+    ["other", "Other"]
+  ].forEach(([value, labelText], index) => {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "report-reason";
+    input.value = value;
+    if (index === 0) input.id = "report-reason-incorrect";
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(labelText));
+    fieldset.appendChild(label);
+  });
+
+  const commentLabel = document.createElement("label");
+  commentLabel.htmlFor = "report-issue-comment";
+  commentLabel.textContent = "Comment (optional)";
+
+  const comment = document.createElement("textarea");
+  comment.id = "report-issue-comment";
+  comment.maxLength = REPORT_LIMITS.comment;
+  comment.rows = 3;
+
+  const toggleLabel = document.createElement("label");
+  toggleLabel.className = "report-toggle";
+  toggleLabel.htmlFor = "report-include-conversation";
+  const toggle = document.createElement("input");
+  toggle.type = "checkbox";
+  toggle.id = "report-include-conversation";
+  const toggleText = document.createElement("span");
+  toggleText.textContent = "Include this conversation so the team can review it";
+  toggleLabel.append(toggle, toggleText);
+
+  const error = document.createElement("p");
+  error.id = "report-issue-error";
+  error.className = "report-error";
+  error.setAttribute("role", "alert");
+
+  const actions = document.createElement("div");
+  actions.className = "report-actions";
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.id = "report-issue-cancel";
+  cancel.className = "report-secondary";
+  cancel.textContent = "Cancel";
+  const submit = document.createElement("button");
+  submit.type = "submit";
+  submit.id = "report-issue-submit";
+  submit.className = "report-primary";
+  submit.textContent = "Submit report";
+  actions.append(cancel, submit);
+
+  form.append(title, privacy, fieldset, commentLabel, comment, toggleLabel, error, actions);
+
+  const thanks = document.createElement("div");
+  thanks.id = "report-issue-thanks";
+  thanks.hidden = true;
+  const thanksTitle = document.createElement("h2");
+  thanksTitle.id = "report-issue-thanks-title";
+  thanksTitle.tabIndex = -1;
+  thanksTitle.textContent = "Thanks, your report was sent.";
+  const thanksCopy = document.createElement("p");
+  thanksCopy.textContent = "The advising team can review it from the evaluation workspace.";
+  const done = document.createElement("button");
+  done.type = "button";
+  done.id = "report-issue-done";
+  done.className = "report-primary";
+  done.textContent = "Done";
+  thanks.append(thanksTitle, thanksCopy, done);
+
+  dialog.append(form, thanks);
+  document.body.appendChild(dialog);
+
+  cancel.addEventListener("click", () => dialog.close());
+  done.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    const target = reportReturnFocus;
+    reportReturnFocus = null;
+    pendingReport = null;
+    if (target && typeof target.focus === "function") target.focus();
+  });
+  dialog.addEventListener("cancel", () => {
+    // Native Escape closes the dialog and then the close handler restores focus.
+  });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitIssueReport(form);
+  });
+
+  reportDialog = dialog;
+  return dialog;
+}
+
+function resetReportDialog(dialog) {
+  const form = dialog.querySelector("#report-issue-form");
+  const thanks = dialog.querySelector("#report-issue-thanks");
+  form.hidden = false;
+  thanks.hidden = true;
+  dialog.setAttribute("aria-labelledby", "report-issue-title");
+  form.reset();
+  const toggle = dialog.querySelector("#report-include-conversation");
+  if (toggle) toggle.checked = false;
+  const error = dialog.querySelector("#report-issue-error");
+  if (error) error.textContent = "";
+  const submit = dialog.querySelector("#report-issue-submit");
+  if (submit) submit.disabled = false;
+}
+
+function openReportDialog(button, report) {
+  const dialog = ensureReportDialog();
+  if (typeof dialog.showModal !== "function") return;
+  pendingReport = report;
+  reportReturnFocus = button;
+  resetReportDialog(dialog);
+  if (!dialog.open) dialog.showModal();
+  const title = dialog.querySelector("#report-issue-title");
+  if (title && typeof title.focus === "function") title.focus();
+}
+
+function reportPayload(report, form) {
+  const selected = form.querySelector("input[name='report-reason']:checked");
+  const comment = form.querySelector("#report-issue-comment");
+  const toggle = form.querySelector("#report-include-conversation");
+  const include = Boolean(toggle && toggle.checked);
+  const payload = {
+    reason: selected ? selected.value : "",
+    comment: clipReportText(comment ? comment.value : "", REPORT_LIMITS.comment).trim(),
+    question: clipReportText(report.question, REPORT_LIMITS.question),
+    answer: clipReportText(report.answer, REPORT_LIMITS.answer),
+    include_conversation: include
+  };
+  if (!include) return payload;
+  const turns = Array.isArray(report.turns) ? report.turns.slice(-REPORT_LIMITS.turns) : [];
+  payload.turns = turns.map((turn) => ({
+    role: turn.role === "user" ? "user" : "assistant",
+    text: clipReportText(turn.text, REPORT_LIMITS.turn)
+  })).filter((turn) => turn.text.trim());
+  if (report.conversationId) payload.conversation_id = report.conversationId;
+  if (report.provider) payload.provider = String(report.provider).slice(0, 120);
+  if (report.model) payload.model = String(report.model).slice(0, 120);
+  return payload;
+}
+
+async function submitIssueReport(form) {
+  const dialog = reportDialog;
+  const error = dialog.querySelector("#report-issue-error");
+  const submit = dialog.querySelector("#report-issue-submit");
+  const selected = form.querySelector("input[name='report-reason']:checked");
+  if (!pendingReport) return;
+  if (!selected) {
+    error.textContent = "Choose a reason.";
+    const first = form.querySelector("input[name='report-reason']");
+    if (first && typeof first.focus === "function") first.focus();
+    return;
+  }
+  error.textContent = "";
+  submit.disabled = true;
+  try {
+    const csrfResponse = await fetch(apiUrl("/api/issue-reports/csrf"), {
+      method: "GET",
+      credentials: "include"
     });
+    const csrfBody = await csrfResponse.json();
+    if (!csrfResponse.ok || !csrfBody.csrf) {
+      throw new Error(csrfBody.error || "The report could not be sent. Please try again.");
+    }
+    const response = await fetch(apiUrl("/api/issue-reports"), {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Issue-Report-CSRF": csrfBody.csrf
+      },
+      body: JSON.stringify(reportPayload(pendingReport, form))
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body.error || "The report could not be sent. Please try again.");
+    }
+    form.hidden = true;
+    const thanks = dialog.querySelector("#report-issue-thanks");
+    thanks.hidden = false;
+    dialog.setAttribute("aria-labelledby", "report-issue-thanks-title");
+    const thanksTitle = dialog.querySelector("#report-issue-thanks-title");
+    if (thanksTitle && typeof thanksTitle.focus === "function") thanksTitle.focus();
+  } catch (sendError) {
+    error.textContent = sendError.message || "The report could not be sent. Please try again.";
+    submit.disabled = false;
+  }
+}
+
+function deliverBotReply(conversationId, text, meta) {
+  const stored = {
+    role: "bot",
+    text: text,
+    source: meta && meta.source,
+    retrievedDocs: meta ? meta.retrievedDocs : null,
+    provider: meta && meta.provider ? meta.provider : null,
+    model: meta && meta.model ? meta.model : null
+  };
+  let messages = plainTranscript;
+  if (conversationId) {
+    rememberMessage(conversationId, stored);
+    const convo = conversations.find((item) => item.id === conversationId);
+    messages = convo ? convo.messages : [];
     if (!isActiveConversation(conversationId)) return;
   }
-  addMessage(text, "bot-message", "ISDA Bot", { skipRecord: Boolean(conversationId) });
+  const index = Math.max(0, messages.length - (conversationId ? 1 : 0));
+  const reportMessages = conversationId
+    ? messages.slice(0, index + 1)
+    : messages.concat([stored]);
+  addMessage(text, "bot-message", "ISDA Bot", {
+    skipRecord: Boolean(conversationId),
+    reportable: true,
+    report: reportContext(reportMessages, reportMessages.length - 1, conversationId)
+  });
 }
 
 function speakBotReply(responseText) {
@@ -991,6 +1304,7 @@ function resetTopicSelection() {
 }
 
 clearButton.addEventListener("click", async (event) => {
+  plainTranscript = [];
   if (!tabsEnabled()) cancelReply("default");
   if (tabsEnabled()) {
     startNewConversation();
@@ -1106,12 +1420,19 @@ function conversationTitle(convo) {
 function normalizeMessage(message) {
   if (!message || (message.role !== "user" && message.role !== "bot")) return null;
   if (typeof message.text !== "string") return null;
-  return {
+  const normalized = {
     role: message.role,
     text: message.text,
     source: typeof message.source === "string" ? message.source : null,
     retrievedDocs: Number.isFinite(message.retrievedDocs) ? message.retrievedDocs : null
   };
+  if (typeof message.provider === "string" && message.provider) {
+    normalized.provider = message.provider.slice(0, 120);
+  }
+  if (typeof message.model === "string" && message.model) {
+    normalized.model = message.model.slice(0, 120);
+  }
+  return normalized;
 }
 
 function normalizeConversation(raw) {
@@ -1225,12 +1546,17 @@ function paintConversation(convo) {
     return;
   }
 
-  convo.messages.forEach((message) => {
+  convo.messages.forEach((message, index) => {
+    const isBot = message.role === "bot";
     addMessage(
       message.text,
-      message.role === "user" ? "user-message" : "bot-message",
-      message.role === "user" ? "You" : "ISDA Bot",
-      { skipRecord: true }
+      isBot ? "bot-message" : "user-message",
+      isBot ? "ISDA Bot" : "You",
+      {
+        skipRecord: true,
+        reportable: isBot,
+        report: isBot ? reportContext(convo.messages, index, convo.id) : null
+      }
     );
   });
 
