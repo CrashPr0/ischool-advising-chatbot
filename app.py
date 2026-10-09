@@ -53,6 +53,11 @@ from evaluation_store import (
     EvaluationStore,
     EvaluationValidationError,
 )
+from issue_reports import (
+    IssueReportStore,
+    IssueReportValidationError,
+    build_issue_report,
+)
 from voice_config import get_voice_config
 
 # Setup logging
@@ -307,7 +312,13 @@ class _SessionHistoryStore:
         while len(self._sessions) > self.max_sessions:
             self._sessions.popitem(last=False)
 
-    def snapshot(self, session_id: str) -> list[dict]:
+    def snapshot(self, session_id: str, *, include_model: bool = False) -> list[dict]:
+        """Return a copy of one session's turns.
+
+        The public history payload stays ``user``, ``assistant``, and
+        ``source``. ``include_model`` is only for an opted-in issue report
+        that needs the provider and model recorded on that turn.
+        """
         now = time.monotonic()
         with self._lock:
             self._purge(now)
@@ -316,7 +327,19 @@ class _SessionHistoryStore:
                 return []
             self._sessions.move_to_end(session_id)
             self._sessions[session_id] = (now, record[1])
-            return [dict(entry) for entry in record[1]]
+            copied = []
+            for entry in record[1]:
+                if include_model:
+                    copied.append(dict(entry))
+                    continue
+                copied.append(
+                    {
+                        "user": entry.get("user"),
+                        "assistant": entry.get("assistant"),
+                        "source": entry.get("source"),
+                    }
+                )
+            return copied
 
     def append(self, session_id: str, result: dict) -> None:
         now = time.monotonic()
@@ -325,6 +348,12 @@ class _SessionHistoryStore:
             "assistant": str(result.get("response", "")),
             "source": result.get("source"),
         }
+        provider = result.get("provider")
+        model = result.get("model")
+        if isinstance(provider, str) and provider.strip():
+            entry["provider"] = provider.strip()[:120]
+        if isinstance(model, str) and model.strip():
+            entry["model"] = model.strip()[:120]
         with self._lock:
             self._purge(now)
             history = self._sessions.setdefault(session_id, (now, []))[1]
@@ -408,6 +437,40 @@ def _history_key(conversation_id: str | None) -> str:
     return f"{session_id}:{conversation_id}"
 
 
+def _configured_chat_model() -> tuple[str, str]:
+    """Provider and model this process will call. Empty strings if unknown."""
+    try:
+        from config import Config
+
+        provider = Config.normalize_provider(Config.DEFAULT_LLM_PROVIDER)
+    except Exception:
+        return "", ""
+    model_attr = {
+        "azure_openai": "AZURE_OPENAI_DEPLOYMENT",
+        "openai": "OPENAI_MODEL",
+        "anthropic": "ANTHROPIC_MODEL",
+        "huggingface": "HUGGINGFACE_MODEL",
+        "openai_compatible": "OPENAI_COMPATIBLE_MODEL",
+        "deepseek": "DEEPSEEK_MODEL",
+        "qwen": "QWEN_MODEL",
+        "zhipu": "ZHIPU_MODEL",
+    }.get(provider, "")
+    model = ""
+    if model_attr:
+        model = str(getattr(Config, model_attr, "") or "").strip()
+    return provider[:120], model[:120]
+
+
+def _stamp_chat_model(result: dict) -> tuple[str, str]:
+    """Record the configured model on a chat result so a later report can cite it."""
+    provider, model = _configured_chat_model()
+    if provider:
+        result["provider"] = provider
+    if model:
+        result["model"] = model
+    return provider, model
+
+
 def _client_key() -> str:
     """Return the address used as a rate-limit bucket.
 
@@ -475,6 +538,9 @@ _DOCS_INDEX_START_DELAY_SECONDS = 1.0
 _evaluation_store = None
 _evaluation_store_key = None
 _evaluation_store_lock = threading.Lock()
+_issue_report_store = None
+_issue_report_store_key = None
+_issue_report_store_lock = threading.Lock()
 
 
 def get_chatbot():
@@ -523,6 +589,21 @@ def get_evaluation_store():
                 _evaluation_store = EvaluationStore(*store_key)
                 _evaluation_store_key = store_key
     return _evaluation_store
+
+
+def get_issue_report_store() -> IssueReportStore:
+    """Open the answer-report table in the same database as reviewer scores."""
+    global _issue_report_store, _issue_report_store_key
+    from durable_storage import prepare_eval_db_path
+
+    database_path = prepare_eval_db_path(os.getenv("EVAL_DB_PATH"), app_dir=_BASE_DIR)
+    store_key = os.path.abspath(database_path)
+    if _issue_report_store is None or _issue_report_store_key != store_key:
+        with _issue_report_store_lock:
+            if _issue_report_store is None or _issue_report_store_key != store_key:
+                _issue_report_store = IssueReportStore(store_key)
+                _issue_report_store_key = store_key
+    return _issue_report_store
 
 
 def _evaluation_token() -> str:
@@ -934,6 +1015,7 @@ def chat():
         chatbot_instance = get_chatbot()
         prior_turns = _history_store.snapshot(session_id)
         result = chatbot_instance.chat(user_message, history=prior_turns)
+        provider, model = _stamp_chat_model(result)
         if result.get("safety_tier") != "crisis":
             _history_store.append(session_id, result)
 
@@ -943,6 +1025,10 @@ def chat():
             "confidence": result["confidence"],
             "retrieved_docs": len(result["retrieved_docs"]),
         }
+        if provider:
+            payload["provider"] = provider
+        if model:
+            payload["model"] = model
         # Absent until the safety layer adds it. Include it only then so
         # older chatbot builds keep the previous JSON shape.
         if "safety_tier" in result:
@@ -1325,6 +1411,120 @@ def clear_history():
     except Exception:
         logger.exception("Unable to clear conversation history")
         return jsonify({"error": "Unable to clear conversation history"}), 500
+
+
+def _issue_report_csrf_token() -> str:
+    """Mint the session token a student must send back when filing a report."""
+    token = session.get("issue_report_csrf")
+    if not isinstance(token, str) or len(token) < 20:
+        token = secrets.token_urlsafe(32)
+        session["issue_report_csrf"] = token
+    return token
+
+
+def _issue_report_csrf_error():
+    """Require the cookie session and a matching CSRF header on report writes."""
+    expected = session.get("issue_report_csrf", "")
+    provided = request.headers.get("X-Issue-Report-CSRF", "")
+    if (
+        not isinstance(expected, str)
+        or not expected
+        or not provided
+        or not hmac.compare_digest(provided, expected)
+    ):
+        return jsonify({"error": "Invalid report session token"}), 403
+    return None
+
+
+def _matched_turn_model(
+    conversation_id: str | None, question: str, answer: str
+) -> tuple[str, str]:
+    """Return the model this server stored for the flagged turn, if it is still in memory."""
+    try:
+        history = _history_store.snapshot(
+            _history_key(conversation_id), include_model=True
+        )
+    except Exception:
+        logger.exception("Unable to read history while matching an issue report")
+        return "", ""
+    for entry in reversed(history):
+        if str(entry.get("user", "")).strip() != question:
+            continue
+        if str(entry.get("assistant", "")).strip() != answer:
+            continue
+        return (
+            str(entry.get("provider") or "").strip(),
+            str(entry.get("model") or "").strip(),
+        )
+    return "", ""
+
+
+@app.route("/api/issue-reports/csrf", methods=["GET"])
+def issue_report_csrf():
+    """Issue a same-session token for POST /api/issue-reports."""
+    allowed, retry_after = _rate_limiter.allow(
+        f"issue-report-csrf:{_client_key()}", 30, 60
+    )
+    if not allowed:
+        response = jsonify({"error": "Too many report requests; please try again later"})
+        response.headers["Retry-After"] = str(retry_after)
+        return response, 429
+    return jsonify({"csrf": _issue_report_csrf_token()})
+
+
+@app.route("/api/issue-reports", methods=["POST"])
+def create_issue_report():
+    """Store one student report. Transcript fields are kept only when opted in."""
+    csrf_error = _issue_report_csrf_error()
+    if csrf_error:
+        return csrf_error
+    allowed, retry_after = _rate_limiter.allow(
+        f"issue-report:{_client_key()}",
+        _env_int("ISSUE_REPORT_RATE_LIMIT", 10, 1, 100),
+        _env_int("ISSUE_REPORT_RATE_WINDOW_SECONDS", 600, 10, 86_400),
+    )
+    if not allowed:
+        response = jsonify({"error": "Too many report requests; please try again later"})
+        response.headers["Retry-After"] = str(retry_after)
+        return response, 429
+
+    data = request.get_json(silent=True)
+    fallback_provider, fallback_model = _configured_chat_model()
+    try:
+        record = build_issue_report(
+            data,
+            history_lookup=_matched_turn_model,
+            fallback_provider=fallback_provider,
+            fallback_model=fallback_model,
+        )
+        report_id = get_issue_report_store().save(record)
+    except IssueReportValidationError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        logger.exception("Unable to store an answer issue report")
+        return jsonify({"error": "Unable to store this report"}), 500
+
+    logger.info(
+        "Stored answer issue report id=%s reason=%s include_conversation=%s",
+        report_id,
+        record["reason"],
+        record["include_conversation"],
+    )
+    return jsonify({"ok": True, "id": report_id})
+
+
+@app.route("/api/evaluation/issue-reports", methods=["GET"])
+def list_issue_reports():
+    """List stored reports for a signed-in reviewer. Students cannot call this."""
+    auth_error = _evaluation_auth_error()
+    if auth_error:
+        return auth_error
+    try:
+        reports = get_issue_report_store().list_reports()
+    except Exception:
+        logger.exception("Unable to list answer issue reports")
+        return jsonify({"error": "Unable to list issue reports"}), 500
+    return jsonify({"reports": reports})
 
 
 @app.route("/api/load-docs", methods=["POST"])

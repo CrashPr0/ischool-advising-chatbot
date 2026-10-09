@@ -1080,6 +1080,166 @@ button.clear-btn:active {
   background: #e3eef9;
 }
 
+.report-issue-button {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 10px;
+  padding: 4px 2px;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--sjsu-blue);
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+.report-issue-button:hover { text-decoration: underline; }
+
+.report-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(640px, calc(100vh - 32px));
+  padding: 0;
+  border: 1px solid #d5e0ec;
+  border-radius: 16px;
+  color: var(--text-main);
+  background: #fff;
+  box-shadow: var(--card-shadow);
+}
+
+.report-dialog::backdrop {
+  background: rgba(23, 43, 67, 0.45);
+}
+
+.report-dialog form,
+.report-dialog #report-issue-thanks {
+  padding: 22px 22px 18px;
+}
+
+.report-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.report-privacy {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: .88rem;
+  line-height: 1.45;
+}
+
+.report-reasons {
+  margin: 0 0 14px;
+  padding: 12px 14px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.report-reasons legend {
+  padding: 0 4px;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.report-reasons label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: .95rem;
+  line-height: 1.35;
+}
+
+.report-dialog textarea {
+  display: block;
+  width: 100%;
+  margin: 6px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #c5d4e4;
+  border-radius: 10px;
+  resize: vertical;
+  min-height: 72px;
+  color: var(--text-main);
+  background: #fff;
+}
+
+.report-dialog form > label[for="report-issue-comment"] {
+  font-size: .84rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.report-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: .92rem;
+  line-height: 1.4;
+}
+
+.report-error {
+  min-height: 1.2em;
+  margin: 0 0 8px;
+  color: #9f1d1d;
+  font-size: .86rem;
+}
+
+.report-error:empty { display: none; }
+
+.report-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.report-primary,
+.report-secondary,
+#report-issue-done {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: .88rem;
+  font-weight: 700;
+}
+
+.report-secondary {
+  border: 1px solid #c5d2e2;
+  background: #fff;
+  color: var(--sjsu-blue-dark);
+}
+
+.report-primary,
+#report-issue-done {
+  border: 0;
+  background: var(--sjsu-blue);
+  color: #fff;
+}
+
+.report-primary:hover:not(:disabled),
+#report-issue-done:hover {
+  background: var(--sjsu-blue-dark);
+}
+
+#report-issue-thanks p {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .report-dialog form,
+  .report-dialog #report-issue-thanks { padding: 18px 16px 16px; }
+  .report-actions { flex-direction: column-reverse; }
+  .report-primary,
+  .report-secondary,
+  #report-issue-done { width: 100%; }
+}
+
 /* Cursor while the answer appears */
 .is-revealing .message-body::after {
   content: '';

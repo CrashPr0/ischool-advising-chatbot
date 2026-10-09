@@ -506,6 +506,22 @@ or deletes the original. Opening `/evaluation` against a missing durable file
 creates an empty database, and a later copy will not overwrite it. The backup
 taken before that path became the live file is recorded in `docs/ops-log.md`.
 
+Students can report a wrong answer from the chat. Each report is a row in
+`answer_issue_reports` in that same SQLite file. The row stores the reason,
+optional comment, and the flagged question and answer. The conversation id,
+model, earlier turns, and links from the answer are stored only when the
+student turns on "Include this conversation so the team can review it".
+Signed-in reviewers see the list on `/evaluation` and at
+`GET /api/evaluation/issue-reports`. Reports, including opted-in transcripts,
+are automatically deleted after 90 days. Set `ISSUE_REPORT_RETENTION_DAYS`
+to a positive integer to override this window; invalid values fall back to 90.
+Cleanup runs when the report store initializes, then on writes or lists at most
+once per hour per worker, without a separate scheduler. Only deletion counts
+are logged, never report contents. Saving a student's own chat
+copy is tracked separately in
+[issue #35](https://github.com/SJSU-CMPE-195/group-project-team-22/issues/35)
+and is not part of this report flow.
+
 Localhost can use the workspace without a shared secret. On a public deploy,
 sign-in needs `EVAL_ACCESS_TOKEN`, `EVAL_ALLOWED_REVIEWERS`, or Easy Auth;
 otherwise the app returns 503. `EVAL_ACCESS_TOKEN` is not set on the current

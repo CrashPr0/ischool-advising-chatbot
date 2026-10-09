@@ -57,7 +57,11 @@ const elements = {
   reviewerCount: document.getElementById("reviewer-count"),
   exportButton: document.getElementById("export-button"),
   logoutButton: document.getElementById("logout-button"),
-  toast: document.getElementById("toast")
+  toast: document.getElementById("toast"),
+  issueReports: document.getElementById("issue-reports"),
+  issueReportsList: document.getElementById("issue-reports-list"),
+  issueReportsStatus: document.getElementById("issue-reports-status"),
+  refreshReportsButton: document.getElementById("refresh-reports-button")
 };
 
 function apiUrl(path) {
@@ -163,6 +167,97 @@ function showAuthenticatedSession(sessionData) {
   state.reviewer = sessionData.reviewer;
   elements.reviewerChip.textContent = sessionData.reviewer;
   if (elements.authDialog.open) elements.authDialog.close();
+  if (elements.issueReports) {
+    elements.issueReports.classList.remove("hidden");
+    loadIssueReports();
+  }
+}
+
+function appendLabeledText(parent, label, value) {
+  const block = document.createElement("p");
+  const caption = document.createElement("span");
+  caption.className = "issue-report__label";
+  caption.textContent = label;
+  const body = document.createElement("span");
+  body.className = "issue-report__answer";
+  body.textContent = value || "—";
+  block.append(caption, body);
+  parent.appendChild(block);
+}
+
+function renderIssueReports(reports) {
+  const list = elements.issueReportsList;
+  if (!list) return;
+  list.replaceChildren();
+  if (!reports.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No student reports yet.";
+    list.appendChild(empty);
+    return;
+  }
+  reports.forEach((report) => {
+    const article = document.createElement("article");
+    article.className = "issue-report";
+    const heading = document.createElement("h3");
+    heading.textContent = report.reason_label || report.reason || "Report";
+    article.appendChild(heading);
+
+    const meta = document.createElement("div");
+    meta.className = "issue-report__meta";
+    const when = document.createElement("span");
+    when.textContent = formatDate(report.created_at);
+    const scope = document.createElement("span");
+    scope.textContent = report.include_conversation ? "Conversation included" : "Answer only";
+    meta.append(when, scope);
+    if (report.include_conversation && (report.provider || report.model)) {
+      const model = document.createElement("span");
+      model.textContent = [report.provider, report.model].filter(Boolean).join(" · ");
+      meta.appendChild(model);
+    }
+    if (report.conversation_id) {
+      const conversation = document.createElement("span");
+      conversation.textContent = `Conversation ${report.conversation_id}`;
+      meta.appendChild(conversation);
+    }
+    article.appendChild(meta);
+
+    appendLabeledText(article, "Question", report.question);
+    appendLabeledText(article, "Answer", report.answer);
+    if (report.comment) appendLabeledText(article, "Comment", report.comment);
+    if (report.include_conversation && Array.isArray(report.citations) && report.citations.length) {
+      appendLabeledText(article, "Links in the answer", report.citations.join("\n"));
+    }
+    if (report.include_conversation && Array.isArray(report.turns) && report.turns.length) {
+      const transcript = document.createElement("div");
+      const caption = document.createElement("span");
+      caption.className = "issue-report__label";
+      caption.textContent = "Conversation";
+      transcript.appendChild(caption);
+      report.turns.forEach((turn) => {
+        const line = document.createElement("p");
+        line.className = "issue-report__turn";
+        const who = turn.role === "user" ? "Student" : "Assistant";
+        line.textContent = `${who}: ${turn.text || ""}`;
+        transcript.appendChild(line);
+      });
+      article.appendChild(transcript);
+    }
+    list.appendChild(article);
+  });
+}
+
+async function loadIssueReports() {
+  if (!elements.issueReports || !state.reviewer) return;
+  if (elements.issueReportsStatus) elements.issueReportsStatus.textContent = "Loading reports…";
+  try {
+    const data = await api("/api/evaluation/issue-reports");
+    renderIssueReports(Array.isArray(data.reports) ? data.reports : []);
+    if (elements.issueReportsStatus) elements.issueReportsStatus.textContent = "";
+  } catch (error) {
+    if (elements.issueReportsStatus) {
+      elements.issueReportsStatus.textContent = error.message || "Unable to load reports.";
+    }
+  }
 }
 
 async function initializeSession() {
@@ -485,6 +580,9 @@ async function signOut() {
     state.workspace = null;
     elements.app.classList.add("hidden");
     elements.summaryPanel.classList.add("hidden");
+    if (elements.issueReports) elements.issueReports.classList.add("hidden");
+    if (elements.issueReportsList) elements.issueReportsList.replaceChildren();
+    if (elements.issueReportsStatus) elements.issueReportsStatus.textContent = "";
     elements.reviewerChip.textContent = "Not signed in";
     elements.reviewerName.value = "";
     elements.authDialog.showModal();
@@ -519,6 +617,9 @@ elements.nextButton.addEventListener("click", () => navigateTo(state.currentInde
 elements.nextIncompleteButton.addEventListener("click", nextIncomplete);
 elements.exportButton.addEventListener("click", exportCsv);
 elements.logoutButton.addEventListener("click", signOut);
+if (elements.refreshReportsButton) {
+  elements.refreshReportsButton.addEventListener("click", () => loadIssueReports());
+}
 
 initializeSession();
 
