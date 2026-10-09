@@ -65,18 +65,6 @@ an atomic SQLite deletion. Logs record the number of deleted rows without
 report contents. Keep the dialog's 90-day privacy note aligned if you change
 the deployment's retention window.
 
-Opt-in saved conversations use `saved_chats` in the same private reviews
-SQLite file. Students must explicitly confirm each save; the server copies
-only their own session history and no client transcript or identity metadata.
-Reviewers retrieve copies from **Saved conversations** on `/evaluation`.
-`SAVED_CHAT_RETENTION_DAYS` defaults to 90 (invalid values fall back to 90),
-with the same hourly purge on initialization, writes, and reviewer lists.
-`SAVED_CHAT_RATE_LIMIT` (10) and `SAVED_CHAT_RATE_WINDOW_SECONDS` (600)
-control submissions. Keep the privacy note aligned with any retention override.
-Limit database and backup access to the existing bot operations team; do not
-serve these files publicly or add them to the repository. Logs contain only
-row ids, message counts, and purge counts.
-
 ## Reviews database backup
 
 The live reviews file is `/home/data/evaluation/reviews.sqlite3`. The copy

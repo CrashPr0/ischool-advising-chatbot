@@ -12,7 +12,6 @@ import sys
 import threading
 import time
 from collections import OrderedDict
-from datetime import datetime, timezone
 
 try:
     import fcntl
@@ -59,7 +58,6 @@ from issue_reports import (
     IssueReportValidationError,
     build_issue_report,
 )
-from saved_chats import SavedChatStore, SavedChatValidationError, build_transcript
 from voice_config import get_voice_config
 
 # Setup logging
@@ -349,7 +347,6 @@ class _SessionHistoryStore:
             "user": str(result.get("user_message", "")),
             "assistant": str(result.get("response", "")),
             "source": result.get("source"),
-            "time": datetime.now(timezone.utc).isoformat(),
         }
         provider = result.get("provider")
         model = result.get("model")
@@ -360,11 +357,6 @@ class _SessionHistoryStore:
         with self._lock:
             self._purge(now)
             history = self._sessions.setdefault(session_id, (now, []))[1]
-            # A random copy id belongs to this history bucket, not a browser identity.
-            # Keep it stable when the bounded history drops its oldest entries.
-            entry["saved_chat_id"] = (
-                history[-1]["saved_chat_id"] if history else secrets.token_urlsafe(24)
-            )
             history.append(entry)
             del history[: -self.max_messages]
             self._sessions.move_to_end(session_id)
@@ -549,9 +541,6 @@ _evaluation_store_lock = threading.Lock()
 _issue_report_store = None
 _issue_report_store_key = None
 _issue_report_store_lock = threading.Lock()
-_saved_chat_store = None
-_saved_chat_store_key = None
-_saved_chat_store_lock = threading.Lock()
 
 
 def get_chatbot():
@@ -615,21 +604,6 @@ def get_issue_report_store() -> IssueReportStore:
                 _issue_report_store = IssueReportStore(store_key)
                 _issue_report_store_key = store_key
     return _issue_report_store
-
-
-def get_saved_chat_store() -> SavedChatStore:
-    """Open the saved-chat table in the same database as reviewer scores."""
-    global _saved_chat_store, _saved_chat_store_key
-    from durable_storage import prepare_eval_db_path
-
-    database_path = prepare_eval_db_path(os.getenv("EVAL_DB_PATH"), app_dir=_BASE_DIR)
-    store_key = os.path.abspath(database_path)
-    if _saved_chat_store is None or _saved_chat_store_key != store_key:
-        with _saved_chat_store_lock:
-            if _saved_chat_store is None or _saved_chat_store_key != store_key:
-                _saved_chat_store = SavedChatStore(store_key)
-                _saved_chat_store_key = store_key
-    return _saved_chat_store
 
 
 def _evaluation_token() -> str:
@@ -1551,70 +1525,6 @@ def list_issue_reports():
         logger.exception("Unable to list answer issue reports")
         return jsonify({"error": "Unable to list issue reports"}), 500
     return jsonify({"reports": reports})
-
-
-@app.route("/api/saved-chats/csrf", methods=["GET"])
-def saved_chat_csrf():
-    """Reuse the student report's same-session CSRF token."""
-    allowed, retry_after = _rate_limiter.allow(
-        f"saved-chat-csrf:{_client_key()}", 30, 60
-    )
-    if not allowed:
-        response = jsonify({"error": "Too many save requests; please try again later"})
-        response.headers["Retry-After"] = str(retry_after)
-        return response, 429
-    return jsonify({"csrf": _issue_report_csrf_token()})
-
-
-@app.route("/api/saved-chats", methods=["POST"])
-def create_saved_chat():
-    csrf_error = _issue_report_csrf_error()
-    if csrf_error:
-        return csrf_error
-    allowed, retry_after = _rate_limiter.allow(
-        f"saved-chat:{_client_key()}",
-        _env_int("SAVED_CHAT_RATE_LIMIT", 10, 1, 100),
-        _env_int("SAVED_CHAT_RATE_WINDOW_SECONDS", 600, 10, 86_400),
-    )
-    if not allowed:
-        response = jsonify({"error": "Too many save requests; please try again later"})
-        response.headers["Retry-After"] = str(retry_after)
-        return response, 429
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return jsonify({"error": "Request body must be a JSON object"}), 400
-    if data.get("consent") is not True:
-        return jsonify({"ok": True, "saved": False})
-    try:
-        conversation_id = _optional_conversation_id(data)
-        if conversation_id is None:
-            return jsonify({"error": "conversation_id is required"}), 400
-        history = _history_store.snapshot(_history_key(conversation_id), include_model=True)
-        transcript = build_transcript(history)
-        chat_id = get_saved_chat_store().save(
-            conversation_id, transcript, chat_id=history[0]["saved_chat_id"]
-        )
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception:
-        # Exception details may contain student text; never log them here.
-        logger.error("Unable to store a saved conversation")
-        return jsonify({"error": "Unable to save this conversation"}), 500
-    logger.info("Stored saved chat id=%s turns=%s", chat_id, len(transcript))
-    return jsonify({"ok": True, "saved": True, "id": chat_id})
-
-
-@app.route("/api/evaluation/saved-chats", methods=["GET"])
-def list_saved_chats():
-    auth_error = _evaluation_auth_error()
-    if auth_error:
-        return auth_error
-    try:
-        chats = get_saved_chat_store().list_chats()
-    except Exception:
-        logger.error("Unable to list saved conversations")
-        return jsonify({"error": "Unable to list saved conversations"}), 500
-    return jsonify({"chats": chats})
 
 
 @app.route("/api/load-docs", methods=["POST"])

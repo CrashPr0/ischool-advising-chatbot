@@ -1372,8 +1372,7 @@ if (voiceLanguageSelect) {
 }
 
 // ── CONVERSATION TABS ──
-// Transcripts stay in this browser unless a student explicitly saves a copy.
-// The server keeps model context,
+// Transcripts stay in this browser. The server only keeps model context,
 // keyed by conversation_id under the existing session cookie.
 const CONVERSATION_STORAGE_KEY = "isda-chat-conversations-v1";
 const MAX_CONVERSATIONS = 10;
@@ -1583,7 +1582,7 @@ function paintConversation(convo) {
 }
 
 function renderTabs(options) {
-  updateSaveCopyControl();
+  updateExportChatControl();
   if (!chatTabs) return;
   const activeElement = document.activeElement;
   const focusId = activeElement && activeElement.dataset
@@ -1820,98 +1819,68 @@ function initConversations() {
   chatTabs.addEventListener("keydown", onTabKeydown);
 }
 
+// Export only the active browser transcript; printing requires no server request.
+const exportChatButton = document.getElementById("export-chat-button");
+const exportChatStatus = document.getElementById("export-chat-status");
+let chatPrintView = null;
+let titleBeforeExport = null;
 
-// A saved copy always requires a fresh explicit yes for the selected conversation.
-const saveCopyButton = document.getElementById("save-copy-button");
-const saveCopyStatus = document.getElementById("save-copy-status");
-let saveCopyDialog = null;
-let pendingSaveConversation = null;
-
-function updateSaveCopyControl() {
-  if (!saveCopyButton) return;
+function updateExportChatControl() {
+  if (!exportChatButton) return;
   const convo = getActiveConversation();
-  saveCopyButton.disabled = !convo || !convo.messages.some((message) => message.role === "bot");
+  exportChatButton.disabled = !convo || !convo.messages.some((message) => message.role === "bot");
+  if (exportChatStatus) exportChatStatus.textContent = "";
 }
 
-function ensureSaveCopyDialog() {
-  if (saveCopyDialog) return saveCopyDialog;
-  const dialog = document.createElement("dialog");
-  dialog.id = "save-copy-dialog";
-  dialog.className = "report-dialog";
-  dialog.setAttribute("aria-labelledby", "save-copy-title");
-  dialog.setAttribute("aria-describedby", "save-copy-privacy");
-  const form = document.createElement("form");
-  const title = document.createElement("h2");
-  title.id = "save-copy-title";
-  title.textContent = "Save a copy of this conversation?";
-  const privacy = document.createElement("p");
-  privacy.id = "save-copy-privacy";
-  privacy.className = "report-privacy";
-  privacy.textContent = "The copy contains only this chat's questions and answers with times. It is kept privately for the advising team to review, is not linked to your name or email unless you typed it into the chat, and is deleted automatically after 90 days.";
-  const error = document.createElement("p");
-  error.className = "report-error";
-  error.setAttribute("role", "alert");
-  const actions = document.createElement("div");
-  actions.className = "report-actions";
-  const decline = document.createElement("button");
-  decline.type = "button";
-  decline.className = "report-secondary";
-  decline.textContent = "No thanks";
-  const yes = document.createElement("button");
-  yes.type = "submit";
-  yes.className = "report-primary";
-  yes.textContent = "Yes, save a copy";
-  actions.append(decline, yes);
-  form.append(title, privacy, error, actions);
-  dialog.appendChild(form);
-  document.body.appendChild(dialog);
-  decline.addEventListener("click", () => dialog.close());
-  dialog.addEventListener("close", () => {
-    pendingSaveConversation = null;
-    if (saveCopyButton && saveCopyButton.isConnected) saveCopyButton.focus();
-  });
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!pendingSaveConversation || yes.disabled) return;
-    const conversationId = pendingSaveConversation;
-    yes.disabled = true;
-    error.textContent = "";
-    try {
-      const tokenResponse = await fetch(apiUrl("/api/saved-chats/csrf"), {
-        credentials: "include", cache: "no-store"
-      });
-      const token = await tokenResponse.json();
-      if (!tokenResponse.ok || !token.csrf) throw new Error(token.error || "Unable to save this conversation.");
-      const response = await fetch(apiUrl("/api/saved-chats"), {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json", "X-Issue-Report-CSRF": token.csrf },
-        body: JSON.stringify({ conversation_id: conversationId, consent: true })
-      });
-      const body = await response.json();
-      if (!response.ok || !body.saved) throw new Error(body.error || "Unable to save this conversation.");
-      if (saveCopyStatus) saveCopyStatus.textContent = "A copy of your conversation was saved privately for the advising team.";
-      dialog.close();
-    } catch (saveError) {
-      error.textContent = saveError.message || "Unable to save this conversation. Please try again.";
-    } finally {
-      yes.disabled = false;
-    }
-  });
-  saveCopyDialog = dialog;
-  return dialog;
+function cleanupChatPrintView() {
+  if (chatPrintView) chatPrintView.remove();
+  chatPrintView = null;
+  if (titleBeforeExport !== null) document.title = titleBeforeExport;
+  titleBeforeExport = null;
 }
 
-if (saveCopyButton) {
-  saveCopyButton.addEventListener("click", () => {
+if (exportChatButton) {
+  window.addEventListener("afterprint", cleanupChatPrintView);
+  exportChatButton.addEventListener("click", () => {
     const convo = getActiveConversation();
-    if (!convo || saveCopyButton.disabled) return;
-    const dialog = ensureSaveCopyDialog();
-    if (typeof dialog.showModal !== "function") return;
-    pendingSaveConversation = convo.id;
-    dialog.querySelector(".report-error").textContent = "";
-    if (!dialog.open) dialog.showModal();
-    // Declining is the default; it makes no request and saves nothing.
-    dialog.querySelector(".report-secondary").focus();
+    if (!convo || exportChatButton.disabled) return;
+    cleanupChatPrintView();
+    const exportedAt = new Date();
+    const view = document.createElement("article");
+    view.id = "chat-print-view";
+    const heading = document.createElement("h1");
+    heading.textContent = "SJSU iSchool Advising Chatbot - conversation";
+    const timestamp = document.createElement("p");
+    timestamp.textContent = "Exported: " + exportedAt.toLocaleString();
+    view.append(heading, timestamp);
+    convo.messages.forEach((message) => {
+      const turn = document.createElement("section");
+      const label = document.createElement("h2");
+      label.textContent = message.role === "bot" ? "Advising assistant" : "You";
+      const body = document.createElement("div");
+      body.className = "chat-print-message";
+      renderMessageText(body, message.text, message.role === "bot");
+      turn.append(label, body);
+      view.appendChild(turn);
+    });
+    const footer = document.createElement("footer");
+    footer.textContent = "This copy was created on your device. The advising chatbot does not keep it. Verify important details with an iSchool advisor.";
+    view.appendChild(footer);
+    document.body.appendChild(view);
+    chatPrintView = view;
+    titleBeforeExport = document.title;
+    const date = [exportedAt.getFullYear(), String(exportedAt.getMonth() + 1).padStart(2, "0"),
+      String(exportedAt.getDate()).padStart(2, "0")].join("-");
+    document.title = "SJSU-advising-chat-" + date;
+    if (exportChatStatus) {
+      exportChatStatus.textContent = "Choose “Save as PDF” in the print dialog to keep a copy.";
+    }
+    try {
+      window.print();
+    } catch (error) {
+      cleanupChatPrintView();
+      throw error;
+    }
   });
 }
 
