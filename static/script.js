@@ -1827,6 +1827,45 @@ const exportChatButton = document.getElementById("export-chat-button");
 const exportChatStatus = document.getElementById("export-chat-status");
 let chatPrintView = null;
 let titleBeforeExport = null;
+let chatPdfLoadPromise = null;
+
+function loadChatPdfLibrary() {
+  if (typeof window.jspdf?.jsPDF === "function") return Promise.resolve();
+  if (!chatPdfLoadPromise) {
+    chatPdfLoadPromise = new Promise((resolve, reject) => {
+      const path = exportChatButton?.dataset?.jspdfSrc;
+      if (typeof path !== "string" || !path) {
+        reject(new Error("PDF library URL unavailable"));
+        return;
+      }
+      const url = new URL(path, window.location.href);
+      if (url.origin !== window.location.origin) {
+        reject(new Error("PDF library must be same-origin"));
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = url.href;
+      script.onload = () => {
+        if (typeof window.jspdf?.jsPDF === "function") resolve();
+        else reject(new Error("PDF library unavailable"));
+      };
+      script.onerror = () => reject(new Error("PDF library failed to load"));
+      document.head.appendChild(script);
+    });
+  }
+  return chatPdfLoadPromise;
+}
+
+function chatExportProgramLabel(convo) {
+  const program = convo?.program;
+  if (typeof program !== "string") return null;
+  switch (program) {
+    case "isda": return "ISDA";
+    case "mlis": return "MLIS";
+    case "both": return "Not sure / both";
+    default: return null;
+  }
+}
 
 function updateExportChatControl() {
   if (!exportChatButton) return;
@@ -1886,6 +1925,8 @@ function downloadChatPdf(convo, exportedAt) {
     y += 8;
   }
   write("SJSU iSchool Advising Chatbot - conversation", 16, true);
+  const program = chatExportProgramLabel(convo);
+  if (program) write("Program: " + program, 10);
   write("Exported: " + exportedAt.toLocaleString(), 10);
   convo.messages.forEach((message) => {
     write(chatExportMessageLabel(message), 11, true);
@@ -1897,18 +1938,20 @@ function downloadChatPdf(convo, exportedAt) {
 
 if (exportChatButton) {
   window.addEventListener("afterprint", cleanupChatPrintView);
-  exportChatButton.addEventListener("click", () => {
+  exportChatButton.addEventListener("click", async () => {
     const convo = getActiveConversation();
     if (!convo || exportChatButton.disabled) return;
     cleanupChatPrintView();
     const exportedAt = new Date();
     try {
+      await loadChatPdfLibrary();
       downloadChatPdf(convo, exportedAt);
       if (exportChatStatus) exportChatStatus.textContent = "PDF downloaded.";
       return;
     } catch (_error) {
       // A missing library or PDF failure retains the browser print fallback.
     }
+    cleanupChatPrintView();
     const view = document.createElement("article");
     view.id = "chat-print-view";
     const heading = document.createElement("h1");
@@ -1916,6 +1959,12 @@ if (exportChatButton) {
     const timestamp = document.createElement("p");
     timestamp.textContent = "Exported: " + exportedAt.toLocaleString();
     view.append(heading, timestamp);
+    const program = chatExportProgramLabel(convo);
+    if (program) {
+      const programHeader = document.createElement("p");
+      programHeader.textContent = "Program: " + program;
+      view.appendChild(programHeader);
+    }
     convo.messages.forEach((message) => {
       const turn = document.createElement("section");
       const label = document.createElement("h2");

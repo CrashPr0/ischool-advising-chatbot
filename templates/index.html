@@ -168,7 +168,7 @@
             </div>
 
             <div class="header-actions">
-              <button id="export-chat-button" class="clear-btn" type="button" title="Download this conversation as a PDF" disabled>Export chat</button>
+              <button id="export-chat-button" class="clear-btn" type="button" title="Download this conversation as a PDF" data-jspdf-src="{{ url_for('static', filename='vendor/jspdf/jspdf.umd.min.js', v='4.2.1') }}" disabled>Export chat</button>
               <button id="clear-button" class="clear-btn" type="button">
                 New chat
               </button>
@@ -351,6 +351,5 @@
   </div>
 
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
-  <script src="{{ url_for('static', filename='vendor/jspdf/jspdf.umd.min.js', v='4.2.1') }}"></script>
   <script src="{{ url_for('static', filename='script.js', v='20261010-pdf-download') }}"></script></body>
 </html>

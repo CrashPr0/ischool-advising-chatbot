@@ -4,6 +4,7 @@ import csv
 import io
 import json
 import logging
+import re
 
 import pytest
 
@@ -308,7 +309,8 @@ def test_security_headers_and_healthz_stay_lightweight(monkeypatch):
 def test_pdf_vendor_is_served_locally_under_existing_csp():
     client = app_module.app.test_client()
     page = client.get("/")
-    assert b"/static/vendor/jspdf/jspdf.umd.min.js?v=4.2.1" in page.data
+    assert b'data-jspdf-src="/static/vendor/jspdf/jspdf.umd.min.js?v=4.2.1"' in page.data
+    assert not re.search(rb"<script\b[^>]*jspdf", page.data, re.I)
     policy = page.headers["Content-Security-Policy"]
     script_policy = next(
         part.strip()
