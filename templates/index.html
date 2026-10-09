@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261010-mlis') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261010-mlis-program') }}" />
 </head>
 
 <body>
@@ -274,6 +274,15 @@
           </div>
 
           <div class="composer">
+            <div class="program-control">
+              <label for="program-select">Program</label>
+              <select id="program-select" name="program">
+                <option value="both">Not sure / both</option>
+                <option value="isda">BS Information Science &amp; Data Analytics (ISDA)</option>
+                <option value="mlis">MLIS</option>
+              </select>
+            </div>
+
             <div class="input-row-wrapper">
               <div class="input-container">
                 <label class="sr-only" for="user-input">
@@ -381,5 +390,5 @@
   </div>
 
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
-  <script src="{{ url_for('static', filename='script.js', v='20261010-mlis') }}"></script></body>
+  <script src="{{ url_for('static', filename='script.js', v='20261010-mlis-program') }}"></script></body>
 </html>

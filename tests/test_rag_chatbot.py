@@ -433,3 +433,32 @@ def test_unrelated_question_without_evidence_uses_existing_fallback():
     assert answer["source"] == "fallback"
     assert "couldn't find enough information" in answer["response"]
     assert bot.chain.payloads == []
+
+
+def test_selected_program_is_passed_to_retrieval_and_prompt():
+    for program in ("isda", "mlis", "both"):
+        bot = _bare_bot()
+        seen = {}
+
+        def retrieve(query, k, program=None):
+            seen.update(query=query, program=program)
+            return [_Doc("Official advising requirements.")]
+
+        bot.doc_processor.retrieve_relevant_docs = retrieve
+        result = bot.chat("What are the master's core courses?", program=program)
+        assert result["source"] == "rag"
+        assert seen["program"] == program
+        context = bot.chain.payloads[-1]["context"]
+        if program != "both":
+            assert f"Selected Program: {program.upper()}" in context
+            assert "takes precedence" in context
+        else:
+            assert "Selected Program:" not in context
+
+
+def test_invalid_chat_program_is_ignored():
+    for program in ("invalid", [], {}, 1, None):
+        bot = _bare_bot()
+        result = bot.chat("What are the required courses?", program=program)
+        assert result["source"] == "rag"
+        assert "Selected Program:" not in bot.chain.payloads[-1]["context"]

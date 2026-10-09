@@ -33,9 +33,19 @@ except ImportError:  # pragma: no cover - src/ on sys.path
     )
 
 try:
-    from .program_scope import metadata_programs, prefer_program_documents, query_programs
+    from .program_scope import (
+        metadata_programs,
+        normalize_program,
+        prefer_program_documents,
+        selected_programs,
+    )
 except ImportError:  # pragma: no cover
-    from program_scope import metadata_programs, prefer_program_documents, query_programs
+    from program_scope import (
+        metadata_programs,
+        normalize_program,
+        prefer_program_documents,
+        selected_programs,
+    )
 
 
 # Cormack, Clarke, and Buettcher, SIGIR 2009. Rank is 1-based.
@@ -478,8 +488,8 @@ def _vector_ids(
     return chosen
 
 
-def _prefer_program_ids(ids, by_id, query):
-    wanted = query_programs(query)
+def _prefer_program_ids(ids, by_id, query, program=None):
+    wanted = selected_programs(query, program)
     if len(wanted) != 1:
         return ids
 
@@ -491,7 +501,11 @@ def _prefer_program_ids(ids, by_id, query):
 
 
 def hybrid_retrieve(
-    vector_store, query: str, k: int = 3, collection_id: Optional[str] = None
+    vector_store,
+    query: str,
+    k: int = 3,
+    collection_id: Optional[str] = None,
+    program=None,
 ) -> list[Document]:
     """Return the fused top-k chunks for one query.
 
@@ -500,6 +514,7 @@ def hybrid_retrieve(
     embedding itself fails (429, timeout), return the BM25 ranking instead
     of failing the request.
     """
+    program = normalize_program(program)
     k = _clamp_k(k)
     if vector_store is None or not isinstance(query, str) or not query.strip():
         return []
@@ -507,7 +522,7 @@ def hybrid_retrieve(
     try:
         records = _collection_records(vector_store, collection_id)
         if not records:
-            return _program_vector_search(vector_store, query, k)
+            return _program_vector_search(vector_store, query, k, program)
         pool = min(len(records), max(k, CANDIDATE_POOL))
         index = _bm25_for(vector_store, records)
         bm25_positions = index.top_indices(tokenize(query), pool)
@@ -524,7 +539,11 @@ def hybrid_retrieve(
             # The lexical list is already the candidate pool. Prefer the
             # current catalog inside that pool, then cut to k.
             lexical = _documents_for_ids(
-                _prefer_program_ids(reorder_ids(bm25_ids, by_id), by_id, query), by_id, k
+                _prefer_program_ids(
+                    reorder_ids(bm25_ids, by_id), by_id, query, program
+                ),
+                by_id,
+                k,
             )
             return include_authoritative_course_pages(lexical, records, k)
         # Fuse the whole candidate pool, then let the current catalog take
@@ -539,18 +558,22 @@ def hybrid_retrieve(
         )
         if catalog_recency_rerank_enabled():
             fused = reorder_ids(fused, by_id)
-        fused = _prefer_program_ids(fused, by_id, query)
+        fused = _prefer_program_ids(fused, by_id, query, program)
         fused_hits = _documents_for_ids(fused, by_id, k)
         return include_authoritative_course_pages(fused_hits, records, k)
     except Exception as error:
         print(f"Hybrid retrieval failed; using vector search: {error}")
         try:
-            return _program_vector_search(vector_store, query, k)
+            return _program_vector_search(vector_store, query, k, program)
         except Exception as inner:
             print(f"Error retrieving documents: {inner}")
             return []
 
 
-def _program_vector_search(vector_store, query, k):
-    documents = reorder_documents(vector_store.similarity_search(query, k=k))
-    return prefer_program_documents(documents, query)[:k]
+def _program_vector_search(vector_store, query, k, program=None):
+    documents = reorder_documents(
+        vector_store.similarity_search(
+            query, k=max(k, 40) if program in {"isda", "mlis"} else k
+        )
+    )
+    return prefer_program_documents(documents, query, program)[:k]

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
- <link rel="stylesheet" href="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/style.css?v=20261010-mlis" />
+ <link rel="stylesheet" href="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/style.css?v=20261010-mlis-program" />
 
 <style>
   .header-image {
@@ -141,7 +141,15 @@
             </div>
           </div>
 
-          <div class="input-container">
+          <div class="program-control">
+              <label for="program-select">Program</label>
+              <select id="program-select" name="program">
+                <option value="both">Not sure / both</option>
+                <option value="isda">BS Information Science &amp; Data Analytics (ISDA)</option>
+                <option value="mlis">MLIS</option>
+              </select>
+            </div>
+            <div class="input-container">
             <input
               type="text"
               id="user-input"
@@ -169,5 +177,5 @@
   window.API_BASE = "https://ischooladvisingchatbot-dx4ynl.azurewebsites.net";
 </script>
 <script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/markdown.js?v=20260927-mailto"></script>
-<script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/script.js?v=20261010-mlis"></script></body>
+<script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/script.js?v=20261010-mlis-program"></script></body>
 </html>

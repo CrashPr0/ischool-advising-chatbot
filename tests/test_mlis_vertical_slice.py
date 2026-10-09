@@ -101,7 +101,7 @@ def test_both_pages_offer_mlis_topics_and_keep_isda():
         assert "How do I apply to the MLIS program?" in text
         assert "What is the MLIS e-portfolio?" in text
         assert "MLIS advising" in text
-        assert "20261010-mlis" in text
+        assert "20261010-mlis-program" in text
 
 
 def test_mlis_retrieval_survives_query_embedding_failure(corpus_processor, monkeypatch):
@@ -112,3 +112,68 @@ def test_mlis_retrieval_survives_query_embedding_failure(corpus_processor, monke
     hits = corpus_processor.retrieve_relevant_docs("What are the MLIS core courses?", k=8)
     assert any("/mlis-required-courses" in hit.metadata.get("source_url", "") for hit in hits)
     assert hits[0].metadata["programs"] == ["MLIS"]
+
+
+@pytest.mark.parametrize("program,expected", [("isda", "ISDA"), ("mlis", "MLIS")])
+def test_selected_program_controls_ambiguous_retrieval(
+    corpus_processor, program, expected
+):
+    hits = corpus_processor.retrieve_relevant_docs(
+        "What are the core courses?", k=8, program=program
+    )
+    assert hits[0].metadata["programs"] == [expected]
+
+
+@pytest.mark.parametrize("program", [None, "bogus", [], {}, 42, "MLIS"])
+def test_invalid_selection_uses_keyword_fallback(program):
+    isda = Document(page_content="ISDA", metadata={"programs": ["ISDA"]})
+    mlis = Document(page_content="MLIS", metadata={"programs": ["MLIS"]})
+    assert prefer_program_documents([isda, mlis], "master's core courses", program) == [
+        mlis,
+        isda,
+    ]
+
+
+def test_explicit_selection_overrides_masters_heuristic():
+    isda = Document(page_content="ISDA", metadata={"programs": ["ISDA"]})
+    mlis = Document(page_content="MLIS", metadata={"programs": ["MLIS"]})
+    assert prefer_program_documents([mlis, isda], "master's core courses", "isda") == [
+        isda,
+        mlis,
+    ]
+    # "Not sure / both" falls back to the keyword heuristic.
+    assert prefer_program_documents([isda, mlis], "master's core courses", "both") == [
+        mlis,
+        isda,
+    ]
+    assert prefer_program_documents([isda, mlis], "core courses", "both") == [isda, mlis]
+
+
+@pytest.mark.parametrize("mode", ["hybrid", "vector", "lexical"])
+@pytest.mark.parametrize("program,expected", [("isda", "ISDA"), ("mlis", "MLIS")])
+def test_selection_overrides_query_in_each_retrieval_path(
+    corpus_processor, monkeypatch, mode, program, expected
+):
+    monkeypatch.setenv("HYBRID_RETRIEVAL", "false" if mode == "vector" else "true")
+    if mode == "lexical":
+
+        def unavailable(*args, **kwargs):
+            raise RuntimeError("Embedding service unavailable")
+
+        monkeypatch.setattr(
+            corpus_processor.vector_store, "similarity_search", unavailable
+        )
+    hits = corpus_processor.retrieve_relevant_docs(
+        "What are the master's core courses?", k=8, program=program
+    )
+    assert hits[0].metadata["programs"] == [expected]
+
+
+def test_invalid_retrieval_program_matches_no_selection(corpus_processor):
+    query = "What are the master's core courses?"
+    expected = corpus_processor.retrieve_relevant_docs(query, k=8)
+    for invalid in ("invalid", {}, []):
+        assert (
+            corpus_processor.retrieve_relevant_docs(query, k=8, program=invalid)
+            == expected
+        )

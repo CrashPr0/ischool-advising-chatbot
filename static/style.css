@@ -651,6 +651,32 @@ button.clear-btn:active {
 }
 
 .composer { margin-top: 12px; }
+.program-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 10px;
+  color: var(--sjsu-blue-dark);
+  font-size: .84rem;
+}
+.program-control label { font-weight: 600; }
+.program-control select {
+  flex: 1 1 240px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #c6d1df;
+  border-radius: 10px;
+  background: white;
+  color: inherit;
+  font: inherit;
+}
+.program-control select:focus-visible {
+  outline: 3px solid rgba(0, 85, 162, 0.4);
+  outline-offset: 2px;
+}
 .input-row-wrapper { margin: 0; }
 
 .input-container {

@@ -1,4 +1,5 @@
 const chatBox = document.getElementById("chat-box");
+const programSelect = document.getElementById("program-select");
 const userInput = document.getElementById("user-input");
 const sendButton = document.getElementById("send-button");
 const clearButton = document.getElementById("clear-button");
@@ -862,7 +863,7 @@ async function sendMessage(prefilledMessage = null) {
   updateReplyControls();
   renderTabs();
 
-  const payload = { message };
+  const payload = { message, program: normalizeProgram(programSelect ? programSelect.value : lastSelectedProgram) };
 
   if (conversationId) {
     payload.conversation_id = conversationId;
@@ -1381,6 +1382,21 @@ const CONVERSATION_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 let conversations = [];
 let activeConversationId = null;
+let lastSelectedProgram = "both";
+
+function normalizeProgram(value) {
+  return ["isda", "mlis", "both"].includes(value) ? value : "both";
+}
+
+function onProgramChange() {
+  lastSelectedProgram = normalizeProgram(programSelect.value);
+  const convo = tabsEnabled() ? getActiveConversation() : null;
+  if (convo) {
+    convo.program = lastSelectedProgram;
+    convo.updatedAt = Date.now();
+  }
+  saveConversations();
+}
 
 function tabsEnabled() {
   return Boolean(chatTabs && emptyState);
@@ -1408,7 +1424,7 @@ function newConversationId() {
 
 function createConversation() {
   const now = Date.now();
-  return { id: newConversationId(), createdAt: now, updatedAt: now, messages: [] };
+  return { id: newConversationId(), createdAt: now, updatedAt: now, messages: [], program: lastSelectedProgram };
 }
 
 function conversationTitle(convo) {
@@ -1442,7 +1458,7 @@ function normalizeConversation(raw) {
     : [];
   const createdAt = Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now();
   const updatedAt = Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
-  return { id: raw.id, createdAt, updatedAt, messages };
+  return { id: raw.id, createdAt, updatedAt, messages, program: normalizeProgram(raw.program) };
 }
 
 function getActiveConversation() {
@@ -1461,6 +1477,7 @@ function saveConversations() {
   try {
     store.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify({
       activeId: activeConversationId,
+      lastSelectedProgram,
       conversations: conversations
     }));
   } catch (_error) {
@@ -1475,6 +1492,7 @@ function loadStoredConversations() {
     const raw = store.getItem(CONVERSATION_STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
+    lastSelectedProgram = normalizeProgram(parsed.lastSelectedProgram);
     const stored = Array.isArray(parsed.conversations)
       ? parsed.conversations.map(normalizeConversation).filter(Boolean)
       : [];
@@ -1530,6 +1548,7 @@ function rememberMessage(conversationId, message) {
 function paintConversation(convo) {
   if (!convo || !chatBox) return;
 
+  if (programSelect) programSelect.value = normalizeProgram(convo.program);
   userInput.value = conversationDrafts.get(convo.id) || "";
   updateReplyControls();
   hideSampleChips();
@@ -1677,6 +1696,8 @@ function startNewConversation() {
   const current = getActiveConversation();
 
   if (current && current.messages.length === 0) {
+    current.program = lastSelectedProgram;
+    saveConversations();
     paintConversation(current);
     renderTabs({ scrollActive: true });
     return;
@@ -1804,8 +1825,9 @@ function onTabKeydown(event) {
 }
 
 function initConversations() {
-  if (!tabsEnabled()) return;
   loadStoredConversations();
+  if (programSelect) programSelect.value = lastSelectedProgram;
+  if (!tabsEnabled()) return;
   if (!conversations.length) conversations = [createConversation()];
   if (!conversations.some((item) => item.id === activeConversationId)) {
     activeConversationId = conversations[conversations.length - 1].id;
@@ -1819,4 +1841,5 @@ function initConversations() {
 }
 
 initConversations();
+if (programSelect) programSelect.addEventListener("change", onProgramChange);
 loadVoiceConfig();
