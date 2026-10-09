@@ -380,18 +380,36 @@ class IssueReportStore:
             return None
         return _row_to_report(row)
 
-    def list_reports(self, *, limit: int = LIST_DEFAULT) -> list[dict[str, Any]]:
+    def reason_counts(self) -> dict[str, Any]:
+        """Count all retained reports, with ties in the order defined by REASONS."""
+        self._purge_expired()
+        with self._connect() as connection:
+            counts = dict(
+                connection.execute(
+                    "SELECT reason, COUNT(*) FROM answer_issue_reports GROUP BY reason"
+                ).fetchall()
+            )
+        reasons = [
+            {"key": key, "label": label, "count": counts.get(key, 0)}
+            for key, label in REASONS
+        ]
+        reasons.sort(key=lambda reason: -reason["count"])
+        return {"total": sum(reason["count"] for reason in reasons), "reasons": reasons}
+
+    def list_reports(
+        self, *, limit: int = LIST_DEFAULT, reason: str | None = None
+    ) -> list[dict[str, Any]]:
         """Return the newest reports, capped so one response stays bounded."""
+        if reason is not None and reason not in REASON_LABELS:
+            raise IssueReportValidationError("Unknown report reason")
         self._purge_expired()
         capped = max(1, min(int(limit), LIST_DEFAULT))
+        where = " WHERE reason = ?" if reason is not None else ""
+        parameters = (reason, capped) if reason is not None else (capped,)
         with self._connect() as connection:
             rows = connection.execute(
-                """
-                SELECT * FROM answer_issue_reports
-                ORDER BY id DESC
-                LIMIT ?
-                """,
-                (capped,),
+                "SELECT * FROM answer_issue_reports" + where + " ORDER BY id DESC LIMIT ?",
+                parameters,
             ).fetchall()
         return [_row_to_report(row) for row in rows]
 

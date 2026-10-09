@@ -499,6 +499,29 @@ button { cursor: pointer; }
 
 .issue-reports-status:empty { display: none; }
 
+.issue-reports-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.issue-reports-summary__reason {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #dce4ed;
+  border-radius: 10px;
+}
+
+.issue-reports-summary__reason strong { font-size: 1.5rem; }
+.issue-reports-summary__reason--top { background: #fff5d9; border-color: #b17b09; }
+.issue-reports-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.issue-reports-filters [aria-pressed="true"] { background: var(--navy-900); color: white; }
+.issue-reports__note:empty { display: none; }
+.issue-report__comment { padding: 12px; background: #f0f5fa; border-radius: 8px; overflow-wrap: anywhere; }
+
 .issue-report {
   padding: 14px 0;
   border-top: 1px solid #e6edf4;
