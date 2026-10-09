@@ -1,5 +1,8 @@
 """Browser-script guards that do not need a model or a running server."""
 
+import base64
+import hashlib
+import io
 import json
 import re
 import subprocess
@@ -132,10 +135,10 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "confidence: data.confidence" not in script
     assert 'id="confidence-badge"' not in template
     assert 'id="confidence-badge"' not in docs
-    assert "filename='style.css', v='20261009-report-retention'" in template
-    assert "style.css?v=20261009-report-retention" in docs
-    assert "filename='script.js', v='20261009-report-retention'" in template
-    assert "script.js?v=20261009-report-retention" in docs
+    assert "filename='style.css', v='20261010-pdf-download'" in template
+    assert "style.css?v=20261010-pdf-download" in docs
+    assert "filename='script.js', v='20261010-pdf-download'" in template
+    assert "script.js?v=20261010-pdf-download" in docs
     assert "20261001-reveal-tabs" not in template
     assert "20260927-tabs" not in docs
     assert "20261002-letter-reveal" not in template
@@ -233,6 +236,331 @@ def test_docs_page_voice_init_and_clear_do_not_throw(tmp_path):
     )
 
 
+def test_export_chat_download_and_print_fallback_without_network_requests(tmp_path):
+    runner = _PAGE_RUNNER.split("(async () => {")[0]
+    runner = runner.replace(
+        "    appendChild() {},",
+        """    children: [],
+    appendChild(child) { child.parent = this; this.children.push(child); },
+    append(...children) { children.forEach(child => this.appendChild(child)); },
+    replaceChildren() { this.children = []; },""",
+    )
+    runner = runner.replace(
+        "    remove() {},",
+        """    remove() {
+      if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this);
+    },""",
+    )
+    runner = runner.replace(
+        "      getElementById(id)",
+        """      title: "Original chatbot title",
+      body: makeElement(),
+      getElementById(id)""",
+    )
+    runner = runner.replace(
+        "    window: {},",
+        """    URL,
+    window: {
+      handlers: {},
+      addEventListener(type, fn) { this.handlers[type] = fn; },
+      print() { this.printCalls = (this.printCalls || 0) + 1; },
+    },""",
+    )
+    runner = runner.replace(
+        "  vm.runInContext(source, sandbox);",
+        """  vm.runInContext(fs.readFileSync(process.argv[3], "utf8"), sandbox);
+  vm.runInContext(source, sandbox);""",
+    )
+    runner = runner.replace("resolve(elements)", "resolve({ elements, sandbox })")
+    runner += r"""
+(async () => {
+  const { elements, sandbox } = await runPage(docsIds.concat([
+    "export-chat-button", "export-chat-status", "chat-tabs", "empty-state"
+  ]), null);
+  const button = elements["export-chat-button"];
+  const status = elements["export-chat-status"];
+  const click = button.handlers.click[0];
+  if (!button.disabled) throw new Error("Empty conversation can be exported");
+  await click();
+  if (sandbox.window.printCalls) throw new Error("Empty conversation opened print dialog");
+  vm.runInContext(`rememberMessage(activeConversationId, { role: "user", text: "Question <img onerror=bad>" });`, sandbox);
+  if (!button.disabled) throw new Error("Question alone enables export");
+  vm.runInContext(`rememberMessage(activeConversationId, {
+    role: "bot", text: "Answer **with emphasis** [Citation](https://ischool.sjsu.edu/) <img onerror=bad>"
+  });`, sandbox);
+  if (button.disabled) throw new Error("Answer did not enable export");
+  let requests = 0;
+  sandbox.fetch = async () => { requests++; throw new Error("Export made a request"); };
+  await click();
+  if (sandbox.window.printCalls !== 1) throw new Error("Export did not call window.print");
+  if (requests) throw new Error("Export fetched data");
+  const view = sandbox.document.body.children.find(child => child.id === "chat-print-view");
+  if (!view) throw new Error("Print view missing");
+  const texts = node => [node.textContent, ...node.children.flatMap(texts)];
+  const text = texts(view).join("\n");
+  for (const expected of ["SJSU iSchool Advising Chatbot - conversation", "Exported:",
+      "You", "Advising assistant", "Question <img onerror=bad>",
+      "This copy was created on your device. The advising chatbot does not keep it."]) {
+    if (!text.includes(expected)) throw new Error("Missing print text: " + expected);
+  }
+  if (text.includes("Program:")) throw new Error("Invented program header");
+  const question = view.children[2].children[1];
+  if (question.innerHTML) throw new Error("Question inserted as HTML");
+  const answer = view.children[3].children[1].innerHTML;
+  if (!answer.includes("Answer") || !answer.includes("<strong>with emphasis</strong>") ||
+      !answer.includes('href="https://ischool.sjsu.edu/"') || !answer.includes("Citation")) {
+    throw new Error("Answer formatting or citation lost: " + answer);
+  }
+  if (answer.includes("<img")) throw new Error("Unsanitized answer HTML");
+  if (!/^SJSU-advising-chat-\d{4}-\d{2}-\d{2}$/.test(sandbox.document.title)) {
+    throw new Error("Missing PDF filename title");
+  }
+  if (status.textContent !== "Choose “Save as PDF” in the print dialog to keep a copy.") {
+    throw new Error("Missing export status");
+  }
+  sandbox.window.handlers.afterprint();
+  if (sandbox.document.body.children.includes(view)) throw new Error("Print view was not removed");
+  if (sandbox.document.title !== "Original chatbot title") throw new Error("Title was not restored");
+  // New chat and tab switching must refresh the enabled state.
+  vm.runInContext("startNewConversation()", sandbox);
+  if (!button.disabled || status.textContent) throw new Error("New chat did not reset export");
+  vm.runInContext("selectConversation(conversations[0].id)", sandbox);
+  if (button.disabled) throw new Error("Switching to answered chat did not enable export");
+  await click();
+  if (sandbox.window.printCalls !== 2) throw new Error("Repeat export failed");
+  sandbox.window.handlers.afterprint();
+  vm.runInContext("selectConversation(conversations[1].id)", sandbox);
+  if (!button.disabled) throw new Error("Switching to empty chat did not disable export");
+  vm.runInContext("selectConversation(conversations[0].id)", sandbox);
+  vm.runInContext('getActiveConversation().program = "mlis"', sandbox);
+  // Both constructor and save failures must open the existing print fallback.
+  sandbox.window.jspdf = { jsPDF: class { constructor() { throw new Error("broken PDF"); } } };
+  await click();
+  if (sandbox.window.printCalls !== 3) throw new Error("Constructor failure did not fall back");
+  const programView = sandbox.document.body.children.find(child => child.id === "chat-print-view");
+  if (!texts(programView).includes("Program: MLIS")) throw new Error("Print program missing");
+  sandbox.window.handlers.afterprint();
+  // Load the UMD browser global with eval disabled, as required by the CSP.
+  const browser = {
+    navigator: { userAgent: "test" }, document: { createElement: () => ({}) },
+    atob, btoa, TextEncoder, TextDecoder,
+  };
+  browser.window = browser;
+  vm.createContext(browser, { codeGeneration: { strings: false, wasm: false } });
+  vm.runInContext(fs.readFileSync(process.argv[4], "utf8"), browser);
+  const { jsPDF } = browser.jspdf;
+  sandbox.window.jspdf = { jsPDF: function(options) {
+    const pdf = new jsPDF(options);
+    pdf.save = () => { throw new Error("save failed"); };
+    return pdf;
+  } };
+  await click();
+  if (sandbox.window.printCalls !== 4) throw new Error("Save failure did not fall back");
+  sandbox.window.handlers.afterprint();
+  let saved;
+  sandbox.window.jspdf = { jsPDF: function(options) {
+    const pdf = new jsPDF(options);
+    const text = pdf.text.bind(pdf);
+    pdf.text = (line, x, y) => {
+      if (x < 48 || y < 48 || y > pdf.internal.pageSize.getHeight() - 48) {
+        throw new Error("Text outside page margins");
+      }
+      if (pdf.getTextWidth(line) > pdf.internal.pageSize.getWidth() - 96 + 0.1) {
+        throw new Error("Text was not wrapped");
+      }
+      return text(line, x, y);
+    };
+    pdf.save = filename => {
+      saved = { filename, pdf: Buffer.from(pdf.output(), "binary").toString("base64") };
+    };
+    return pdf;
+  } };
+  vm.runInContext(`
+    for (const [value, expected] of [["isda", "ISDA"], ["mlis", "MLIS"],
+        ["both", "Not sure / both"], [undefined, null], [null, null],
+        [42, null], [{}, null], ["unknown", null], ["toString", null]]) {
+      if (chatExportProgramLabel({ program: value }) !== expected) throw new Error("Invalid program label");
+    }
+    if (chatExportProgramLabel(null) !== null || chatExportProgramLabel() !== null) {
+      throw new Error("Missing chat caused a program error");
+    }
+    getActiveConversation().program = "both";
+    const recordedAt = Date.UTC(2026, 9, 9, 12, 30);
+    rememberMessage(activeConversationId, { role: "user", text: "Long question", timestamp: recordedAt });
+    rememberMessage(activeConversationId, {
+      role: "bot", text: "Wrapped paragraph ".repeat(2000) + "\\n" + "x".repeat(1000) +
+        "\\nFinal answer [Citation](https://ischool.sjsu.edu/) [Email](mailto:advisor@sjsu.edu)",
+      timestamp: recordedAt
+    });
+    const restored = normalizeConversation(getActiveConversation());
+    if (restored.messages.at(-1).timestamp !== recordedAt) throw new Error("Timestamp not preserved");
+    if (normalizeMessage({role: "bot", text: "old"}).timestamp !== null) throw new Error("Invented old timestamp");
+    if (!Number.isFinite(restored.messages[0].timestamp)) throw new Error("New turn timestamp missing");
+    // An old saved message must export without inventing its timestamp.
+    getActiveConversation().messages[0].timestamp = null;
+    const other = createConversation();
+    conversations.push(other);
+    rememberMessage(other.id, { role: "bot", text: "Other conversation secret" });
+  `, sandbox);
+  await click();
+  if (!saved || !/^SJSU-advising-chat-\d{4}-\d{2}-\d{2}\.pdf$/.test(saved.filename)) {
+    throw new Error("PDF download or filename missing");
+  }
+  if (sandbox.window.printCalls !== 4) throw new Error("Successful PDF opened print dialog");
+  if (requests) throw new Error("PDF export fetched data");
+  if (status.textContent !== "PDF downloaded.") throw new Error("PDF status missing");
+  if (sandbox.document.title !== "Original chatbot title" || sandbox.document.body.children.length) {
+    throw new Error("PDF export changed document or left print view");
+  }
+  saved.timestamp = vm.runInContext("new Date(recordedAt).toLocaleString()", sandbox);
+  for (const outcome of ["success", "error", "missing", "cross-origin"]) {
+    const page = await runPage(docsIds.concat([
+      "export-chat-button", "export-chat-status", "chat-tabs", "empty-state"
+    ]), null);
+    const target = page.sandbox;
+    target.window.location = { href: "https://example.test/", origin: "https://example.test" };
+    target.document.head = makeElement();
+    const exportButton = page.elements["export-chat-button"];
+    exportButton.dataset.jspdfSrc = outcome === "cross-origin"
+      ? "https://other.test/jspdf.js" : "/static/vendor/jspdf/jspdf.umd.min.js?v=4.2.1";
+    vm.runInContext('rememberMessage(activeConversationId, { role: "bot", text: "Answer" })', target);
+    if (target.document.head.children.length) throw new Error("Eager PDF library load");
+    const exportClick = exportButton.handlers.click[0];
+    const pending = exportClick();
+    const repeated = exportClick();
+    const scripts = target.document.head.children;
+    if (outcome === "cross-origin") {
+      if (scripts.length) throw new Error("Cross-origin script inserted");
+    } else {
+      if (scripts.length !== 1) throw new Error("Load promise not shared");
+      if (scripts[0].src !== "https://example.test/static/vendor/jspdf/jspdf.umd.min.js?v=4.2.1") {
+        throw new Error("Wrong library URL");
+      }
+      if (outcome === "success") {
+        target.window.jspdf = { jsPDF: function(options) {
+          const pdf = new jsPDF(options);
+          pdf.save = () => {};
+          return pdf;
+        } };
+        scripts[0].onload();
+      } else if (outcome === "error") scripts[0].onerror();
+      else scripts[0].onload();
+    }
+    await Promise.all([pending, repeated]);
+    if (outcome === "success") {
+      if (target.window.printCalls) throw new Error("Loaded PDF fell back to print");
+    } else if (target.window.printCalls !== 2) throw new Error("Load failure did not print");
+    if (target.document.body.children.length !== (outcome === "success" ? 0 : 1)) {
+      throw new Error("Repeated export left stale print views");
+    }
+    await exportClick();
+    if (scripts.length !== (outcome === "cross-origin" ? 0 : 1)) throw new Error("Library loaded again");
+  }
+  console.log(JSON.stringify(saved));
+})().catch(error => { console.error(error.stack || error); process.exit(1); });
+"""
+    path = tmp_path / "check_export_chat.js"
+    path.write_text(runner, encoding="utf-8")
+    completed = subprocess.run(
+        [
+            "node",
+            str(path),
+            str(ROOT / "static" / "script.js"),
+            str(ROOT / "static" / "markdown.js"),
+            str(ROOT / "static" / "vendor" / "jspdf" / "jspdf.umd.min.js"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr + completed.stdout
+    from pypdf import PdfReader
+
+    report = json.loads(completed.stdout)
+    pdf = PdfReader(io.BytesIO(base64.b64decode(report["pdf"])))
+    assert len(pdf.pages) > 2
+    text = "\n".join(page.extract_text() for page in pdf.pages)
+    for expected in (
+        "SJSU iSchool Advising Chatbot - conversation",
+        "Exported:",
+        "Program: Not sure / both",
+        "You - Timestamp unavailable",
+        "Advising assistant -",
+        "Long question",
+        "Final answer",
+        "Citation (https://ischool.sjsu.edu/)",
+        "Email (mailto:advisor@sjsu.edu)",
+        "with emphasis",
+    ):
+        assert expected in text
+    assert "You - " + report["timestamp"] in text
+    assert "Advising assistant - " + report["timestamp"] in text
+    assert "Other conversation secret" not in text
+    assert all(not page.get("/Annots") for page in pdf.pages)
+
+
+def test_jspdf_vendor_license_and_local_template_reference():
+    vendor = ROOT / "static" / "vendor" / "jspdf"
+    build = (vendor / "jspdf.umd.min.js").read_bytes()
+    assert b"Version 4.2.1" in build
+    # Exact upstream build, including its bundled license notices.
+    assert (
+        hashlib.sha256(build).hexdigest()
+        == "e6551fcdc32f09d6853b2c5126d18d01d9447e0da618a41a11ebeee0f6c20d54"
+    )
+    license_text = (vendor / "LICENSE").read_text()
+    assert "Permission is hereby granted, free of charge" in license_text
+    assert "James Hall" in license_text
+    assert "4.2.1" in (vendor / "README.txt").read_text()
+    template = (ROOT / "templates" / "index.html").read_text()
+    reference = "filename='vendor/jspdf/jspdf.umd.min.js', v='4.2.1'"
+    assert reference in template
+    assert re.search(r'<button[^>]+data-jspdf-src="[^"\n]*' + re.escape(reference), template)
+    assert not re.search(r'<script[^>]+jspdf', template, re.I)
+    script = (ROOT / "static" / "script.js").read_text()
+    assert "await loadChatPdfLibrary()" in script
+    assert "if (!chatPdfLoadPromise)" in script
+    assert 'document.createElement("script")' in script
+    assert "url.origin !== window.location.origin" in script
+    assert "convo?.program" in script
+    assert 'typeof program !== "string"' in script
+    assert not re.search(r'<script[^>]+src="https?://[^\"]*jspdf', template, re.I)
+
+
+def test_export_chat_accessibility_and_print_styles():
+    template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+    styles = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
+    evaluation = (ROOT / "templates" / "evaluation.html").read_text(encoding="utf-8")
+    assert re.search(r'<button id="export-chat-button"[^>]*type="button"[^>]*disabled>', template)
+    assert "Download this conversation as a PDF" in template
+    assert 'id="export-chat-status" class="export-chat-status" role="status" aria-live="polite"' in template
+    assert "button.clear-btn:focus-visible" in styles
+    assert "#chat-print-view { display: none; }" in styles
+    assert "@media print" in styles
+    assert "body > :not(#chat-print-view) { display: none !important; }" in styles
+    assert "filename='evaluation.css'" in evaluation
+    assert "filename='evaluation.js'" in evaluation
+    assert 'id="saved-chats"' not in evaluation
+
+
+def test_app_has_no_saved_chat_routes():
+    import ast
+
+    tree = ast.parse((ROOT / "app.py").read_text(encoding="utf-8"))
+    routes = [
+        decorator.args[0].value
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        for decorator in node.decorator_list
+        if isinstance(decorator, ast.Call)
+        and isinstance(decorator.func, ast.Attribute)
+        and decorator.func.attr == "route"
+        and decorator.args
+        and isinstance(decorator.args[0], ast.Constant)
+        and isinstance(decorator.args[0].value, str)
+    ]
+    assert routes
+    assert all("saved-chat" not in route for route in routes)
 _EVALUATION_RUNNER = r"""
 const fs = require('fs');
 const vm = require('vm');

@@ -521,10 +521,14 @@ are automatically deleted after 90 days. Set `ISSUE_REPORT_RETENTION_DAYS`
 to a positive integer to override this window; invalid values fall back to 90.
 Cleanup runs when the report store initializes, then on writes or lists at most
 once per hour per worker, without a separate scheduler. Only deletion counts
-are logged, never report contents. Saving a student's own chat
-copy is tracked separately in
-[issue #35](https://github.com/SJSU-CMPE-195/group-project-team-22/issues/35)
-and is not part of this report flow.
+are logged, never report contents.
+
+Students can use **Export chat** to keep the current conversation on their
+own device with a one-click PDF download. The locally vendored jsPDF 4.2.1
+build creates the export entirely client-side, sends no network request, and
+stores nothing on the server. If PDF generation is unavailable, choose
+**Save as PDF** in the browser's fallback print dialog. Older saved turns
+without recorded timestamps show **Timestamp unavailable**.
 
 Localhost can use the workspace without a shared secret. On a public deploy,
 sign-in needs `EVAL_ACCESS_TOKEN`, `EVAL_ALLOWED_REVIEWERS`, or Easy Auth;

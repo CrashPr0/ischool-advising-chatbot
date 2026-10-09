@@ -1284,3 +1284,26 @@ button.clear-btn:active {
     animation: none;
   }
 }
+
+.export-chat-status { margin: 0 18px; color: var(--text-muted); font-size: .88rem; }
+.export-chat-status:empty { display: none; }
+#export-chat-button:disabled { opacity: .5; cursor: default; }
+#chat-print-view { display: none; }
+
+@media print {
+  body > :not(#chat-print-view) { display: none !important; }
+  html, body { background: white; color: black; height: auto; overflow: visible; }
+  #chat-print-view {
+    display: block;
+    font: 12pt/1.5 sans-serif;
+    color: black;
+    overflow-wrap: anywhere;
+  }
+  #chat-print-view h1 { font-size: 18pt; }
+  #chat-print-view h2 { font-size: 13pt; margin-bottom: 4pt; break-after: avoid; }
+  #chat-print-view section { margin: 16pt 0; }
+  .chat-print-message { white-space: pre-wrap; }
+  #chat-print-view a { color: black; text-decoration: underline; }
+  #chat-print-view a[href]::after { content: " (" attr(href) ")"; }
+  #chat-print-view footer { border-top: 1px solid #888; padding-top: 10pt; font-size: 10pt; }
+}

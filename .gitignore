@@ -58,6 +58,12 @@ build/
 out/
 *.min.js
 *.min.css
+# Checked-in browser dependencies, including official minified builds.
+!/static/vendor/
+!/static/vendor/jspdf/
+!/static/vendor/jspdf/jspdf.umd.min.js
+!/static/vendor/jspdf/LICENSE
+!/static/vendor/jspdf/README.txt
 .next/
 .nuxt/
 .output/
