@@ -438,9 +438,9 @@ def test_export_chat_download_and_print_fallback_without_network_requests(tmp_pa
     if (!text.includes(expected)) throw new Error("Missing print text: " + expected);
   }
   if (!text.includes("Program: Not sure / both")) throw new Error("Default program header missing");
-  const question = view.children[2].children[1];
+  const question = view.children[3].children[1];
   if (question.innerHTML) throw new Error("Question inserted as HTML");
-  const answer = view.children[3].children[1].innerHTML;
+  const answer = view.children[4].children[1].innerHTML;
   if (!answer.includes("Answer") || !answer.includes("<strong>with emphasis</strong>") ||
       !answer.includes('href="https://ischool.sjsu.edu/"') || !answer.includes("Citation")) {
     throw new Error("Answer formatting or citation lost: " + answer);
