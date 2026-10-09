@@ -10,6 +10,8 @@ A LangChain-based advising chatbot for SJSU iSchool students. It supports:
 
 The chatbot takes in student questions and makes an answer based on what it knows. This is to make sure that students get answers faster than emailing students, which should also decrease the workloads of advisors.
 
+See the [faculty-facing architecture diagram](docs/architecture.md) for how the chatbot works.
+
 ---
 
 ## Team
