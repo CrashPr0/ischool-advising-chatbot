@@ -1,0 +1,159 @@
+MLIS Electives
+MLIS students may choose up to 9 units of their 27 elective units from choices other than INFO electives, such as: the [MARA](/master-archives-and-records-administration) program, SJSU World Languages classes, or Informatics electives. This limit includes only up to 6 units of Informatics classes. MLIS students must fill in this [request form](/pod/infm-permission-number-request-form) for permission numbers to take INFM classes. MARA and MS in Informatics courses only run in special session.
+Note that the maximum number of units, combined, that can be transferred into your MLIS degree, (e.g., Open Classes, SJSU World Languages or pre-approved transfer electives from other ALA-Accredited information schools) is 9 units. MLIS and MARA students may have a maximum of 15 units of ungraded (Credit / No Credit) courses on their degree Candidacy plans.
+A prerequisite must be taken “before” its elective, not at the same time or in the same semester. Courses with rotating topics are noted on the [iSchool class schedules](https://ischoolapps.sjsu.edu/gss/ajax/schedule.php?search=1) in the Note column — not in the MySJSU Catalog. Refer to the [iSchool Advising Toolkit](https://ischoolapps.sjsu.edu/advising/toolkit/) for course topic [rotations](/mlis-course-rotations), [syllabi](https://ischoolapps.sjsu.edu/gss/ajax/showSheet.php?semester=all) and other planning tools (including a downloadable [glossary](/sites/main/files/file-attachments/glossary_of_advising_tools.pdf) of the planning tools). 
+When planning ahead, you can use the [Rotations](/mlis-course-rotations) tool to see when we plan to offer specific class topics across fall, spring and summer. When using the Courses to Comps tool you can also choose an elective such as: INFO 284 and pull down a list of topics in this seminar. It will show you if any of the INFO 284 topics are 1 or 2 units in parentheses. It will also show the MLIS Competencies and Course Learning Outcomes for each Topic.
+When using the [Courses to Comps](https://ischoolapps.sjsu.edu/slo-core/mlis.php) tool you can also choose an elective such as: INFO 284 and pull down a list of topics in this seminar. It will show you if any of the INFO 284 topics are 1 or 2 units in parentheses. It will also show the MLIS Competencies and Course Learning Outcomes for each Topic.
+INFO 210 Reference and Information Services
+A process-oriented examination of how information professionals answer reference questions. The interpersonal skills required for effective question negotiation and the sources with which questions are answered are stressed.
+Prerequisite: INFO 202
+	Repeatable with different content up to 3 units.
+INFO 220 Resources and Information Services in Professions and Disciplines
+Examination of the nature of resources for, and services to, professions and disciplines including methods of communication, characteristics of users, and current methods of meeting research needs in libraries and information centers.
+Examples of topics studied include: Legal Resources, Maps and Geographic Information Systems, Film and Media Collections, Digital Humanities, GLBT services, Psychology of the Information User, Readers Advisory Genres and Techniques, Data Services in Libraries. See: [current topics](https://ischoolapps.sjsu.edu/slo-core/mlis.php). Select class number then topics.
+Prerequisites: INFO 210 
+	Repeatable with different content up to 9 units.
+INFO 221 Government Information Sources
+Government information sources, their bibliographic organization, use in all types of libraries and information centers, issues of access, availability, dissemination, and preservation of federal, state, and local sources; and aspects of depository and non-depository collections.
+Prerequisite: INFO 210
+INFO 230 Issues in Academic Libraries
+Investigation of current issues impacting the functioning of the academic library. Topics covered include issues related to social and political environments, clientele, services, collections, physical settings, financing and staffing, and future trends in the academic library sector.
+Prerequisites: INFO 200, 202, 204
+INFO 231 Issues in Special Libraries and Information Centers
+This course will investigate current issues that impact the functioning of special libraries/information centers. Topics covered will include issues related to social and political environments, clientele, services, collections, physical settings, financing and staffing, and future trends in the special library/information center sector.
+Prerequisites: INFO 200, 202, 204
+INFO 232 Issues in Public Libraries
+Investigation of current issues that impact the functioning of the public library. Topics covered include issues related to social and political environments, clientele, services, collections, physical settings, financing and staffing, and future trends in the public library sector.
+Prerequisites: INFO 200, 202, 204
+INFO 233 School Library Media Centers
+A seminar course designed to explore the role of the school library media teacher and the school library media program in the educational community. Emphasis will be on the creation of effective learning environments, involvement in the curriculum and teaching process, as well as philosophies of service and management.
+Prerequisites: INFO 204, INFO 250
+INFO 234 Intellectual Freedom Seminar
+Focuses on current intellectual freedom issues and the centrality of intellectual freedom to librarianship.
+Prerequisites: INFO 200, 204
+INFO 235 Information Organization and Collection Management in School Libraries
+This course meets the California Commission on Teaching Credential Standard 4 for Teacher Librarians, Information and Knowledge. Students will learn to model and promote ethical and equitable access to physical, digital, and virtual collections. Students will learn how to manage school library collections and the policies and procedures that guide this management, including copy cataloging, vendor relations, and collection analysis, maintenance, and laws guiding K12 student and parent access and privacy.
+Prerequisites: INFO 200, INFO 202, INFO 203, and INFO 250.
+INFO 237 School Library Media Materials
+Survey of materials in a variety of formats that meet the needs of K12 students. Materials will be examined that support state and national curriculum standards as well as materials that support independent reading and learning.
+Prerequisites: INFO 200, 202, 203, 204
+INFO 240 Information Technology Tools and Applications
+Builds the skills needed to structure, store, process, access, and present information in a Web environment. Will typically cover the design of Web sites and Web coding and scripting languages.
+Prerequisite: INFO 202
+INFO 241 Automated Library Systems
+Planning, implementation, and management of a library automation project. How to evaluate major library automation systems for purchase and negotiate the acquisition process. Survey of current trends, practices, and issues in the field.
+Prerequisite: INFO 200, 202, 204
+	Repeatable with different content for up to 3 units.
+INFO 242 Database Management
+Design and implementation of relational databases with web access for database-driven Web applications. Learn about database management systems (such as Oracle), database administration, and database querying with SQL.
+Prerequisites: INFO 200, 202, 204
+	Recommended: INFO 240
+INFO 244 Online Searching
+Techniques and concepts for searching online, including strategies, database content, search options, and understanding the information environment. The course includes extensive hands-on experience with subscription search engines.
+Prerequisite: INFO 202
+INFO 246 Information Technology Tools and Applications – Advanced
+Content changes. Topics typically offered include XML, Web programming languages such as XSLT, JavaScript, PHP, MYSQL,  Python, Web 2.0 and social media, content management systems (Drupal), Information Architecture, Information Visualization, Big Data Analytics and Management, Web/Text/Data Mining. See [current topics](https://ischoolapps.sjsu.edu/slo-core/mlis.php). Select class number then topics.
+Prerequisite: INFO 202. Other prerequisites may be added depending on content.
+	Repeatable with different content up to 12 units.
+INFO 247 Vocabulary Design
+Survey of principles and practices used to index information-bearing objects such as documents or images. Includes term assignment, review of existing vocabularies, thesaurus design, metadata structures, and automatic and natural language processes.
+Prerequisite: INFO 202
+INFO 248 Beginning Cataloging and Classification
+Theory and practice of bibliographic control including the study of representative cataloging using descriptive cataloging standards, machine-based representation using MARC format and other standards, subject analysis and classification using LCSH, Dewey, and LCC, RDA.
+Prerequisite: INFO 202
+INFO 250 Design and Implementation of Instructional Strategies for Information Professionals
+The library as an integral part of teaching, learning, and training in different settings. Emphasis on collaborative design between librarians and teachers/professors that includes planning, teaching, and assessment of learning activities using the library’s resources and technology.
+Prerequisite: INFO 200
+INFO 251 Web Usability
+Through examination of theory, methodologies, and real-life cases, Info 251 offers a user experience (UX) framework for developing information systems. Students will learn the principles of user-centric design and style for particular circumstances and populations.
+Prerequisite: INFO 202
+INFO 254 Information Literacy and Learning
+Provides theory and practice for teaching information literacy in an LIS setting. The course emphasizes learning theory as well as the practical aspects of teaching. Students learn methods and tools for teaching in both synchronous and asynchronous settings.
+Prerequisite: INFO 200
+INFO 256 Archives and Manuscripts
+An introduction to the theory and practice of managing archival documents, such as personal papers, institutional records, photographs, electronic records, and other unpublished material. Topics covered include manuscript and records acquisition and appraisal, arrangement and description, conservation and preservation, reference and access.
+Prerequisites: INFO 200, 202, 204
+INFO 259 Preservation Management
+Examination of preservation practice, with emphasis on emerging theories, models and technologies.
+Prerequisites: INFO 200, 202, 204
+INFO 260A Programming and Services for Children
+This course examines the importance of programming for children, including parent education programs, story hours, outreach techniques, services with schools, summer reading programs, and program series such as weekly or monthly programs on manga, knitting, book discussions, or homework help.
+Prerequisites: INFO 200
+INFO 261A Programming and Services for Young Adults
+Administration and delivery of professional library and information services with multi-cultural young adult populations: features critical youth studies cultural/historical research, resources, policy, threats, tools, methods, service philosophies and management skills necessary for a comprehensive profile of YA library services.
+Prerequisites: INFO 200
+INFO 263 Materials for Children
+Survey of materials in a variety of formats including nonfiction, beginning chapter books, fictional genres, paperback series and electronic resources, and how they can help meet developmental needs. Collection development tools and techniques for this material will also be included.
+Prerequisites: INFO 200, and INFO 260A or INFO 261A
+INFO 265 Materials for Young Adults
+This course will allow students to take an in-depth look at materials in a variety of formats for teens, including fiction, popular nonfiction, graphic novels, movies, computer games, websites, other media, and determine how they can meet developmental needs.
+Prerequisites: INFO 200, and INFO 260A or INFO 261A
+INFO 266 Collection Management
+Study of collection management in all types of libraries and information centers. Includes analysis of information needs, criteria for selection, collection use evaluation, and resources for collection development.
+Prerequisites: INFO 202, 204
+INFO 267 Seminar in Services to Children and Young Adults
+Seminar in planning, developing, and evaluating youth services. Special needs of children and youth such as controversial literature, intellectual freedom issues for youth will be featured.  See [current topics](https://ischoolapps.sjsu.edu/slo-core/mlis.php). Select class number then topics.
+Prerequisites: INFO 200, INFO 204 and INFO 260A or INFO 261A
+	Repeatable with different content up to 9 units.
+INFO 268 History of Youth Literature
+The history of literature for children and teens from its earliest examples to today’s current trends, including how childhood has changed over the years, the influence of culture on those changes, and on the materials created for children and teens.
+Prerequisites: INFO 200
+INFO 269 Early Childhood Literacy
+Covers a wide variety of topics important for an understanding of early childhood multi-literacies in library and non-library environments, including current research, best practices and practical examples that can be implemented in various work environments with children.
+Prerequisites: INFO 200
+INFO 271A Genres and Topics in Youth Literature
+Various topics and genres in literature for children or teens will be examined in depth, such as graphic novels, poetry, fantasy, science fiction, publishing and writing trends, reading motivation techniques, literature in the classroom, and the art of picture books. Repeatable for up to 9 units.
+Prerequisites: INFO 200, and either INFO 260A or INFO 261A
+INFO 275 Library Services for Racially and Ethnically Diverse Communities
+Focuses on developing skills for planning, implementing and evaluating programs for addressing the information needs of racially, ethnically, and linguistically diverse communities. Reviews the major national, state and local studies.
+Prerequisites: INFO 200, 204
+INFO 281 Seminar in Contemporary Issues
+Investigation of major contemporary issues within the information profession; topics range from censorship to the need for a national information policy and changes each time the course is offered. Examples of topics studied include: Digital Copyright; Information Ethics;  Information Secrecy; International and Comparative Librarianship; Intercultural Communication; Metadata, Examination of global library issues using project-based learning,  See [current topics](https://ischoolapps.sjsu.edu/slo-core/mlis.php). Select class number then topics.
+Prerequisites: INFO 200, 202, 204
+	Other prerequisites may be added depending on content.
+	Repeatable with different content to a maximum of 9 units.
+INFO 282 Seminar in Library Management
+Application of management theory to specific problems. Readings and discussions of the development of effective strategies for planning and implementing organizational change. Specific content of the course changes each time it is offered. Examples of topics studied include: Change Management, Digital Assets Management, Financial Management, Human Resources Management, Leadership, Grant Writing, The Emerging Future, Using Social Media for Competitive and Company Research, Project Management. See [current topics](https://ischoolapps.sjsu.edu/slo-core/mlis.php). Select class number then topics. View a [Student Showcase](/exemplary-student-showcase) of projects created in the Emerging Future: Technology Issues and Trends seminar course.
+Prerequisites: INFO 200, 204
+	Repeatable with different content up to 9 units.
+INFO 283 Marketing of Information Products and Services
+Applications of marketing concepts to library and information services. Market analysis, use surveys, market targeting and introduction of services will be featured.
+Prerequisites: INFO 200, 204
+INFO 284 Seminar in Archives and Records Management
+In-depth study of current issues and practices in archives and records management. The course offers a variety of different topics. They address areas of research and application such as oral history, managing photographic collections, digitization and digital preservation, digital curation. tools, services, and methodologies for digital curation, medieval manuscripts: codicology and paleography, medieval manuscripts: genres, incunabula, curating exhibitions from archival collections, history of books, history of libraries in the US, and more. See [current topics](https://ischoolapps.sjsu.edu/slo-core/mlis.php). Select class number then topics.
+Prerequisites: INFO 200, 202, 204; Other prerequisites may be added depending on content.
+	Repeatable with different content up to 12 units.
+INFO 286 Interpersonal Communication Skills for Librarians
+Surveys the principles and practice of interpersonal communication; small group and peer relationships.
+Prerequisites: INFO 200, 204
+INFO 287 Seminar in Information Science
+Current issues and problems in information science. Specific content of the seminar changes each time it is offered. Examples of topics include: digital libraries, user experience, hyperlinked library, gamifying information, Scratch, STEM in libraries, Innovation and Participatory Practice in Libraries (to include Maker Spaces), institutional repositories and services, library services and tools for the digital age. Student Learning outcomes and competencies will vary according to content. See [current topics](https://ischoolapps.sjsu.edu/slo-core/mlis.php). Select class number then topics.,
+Prerequisites: INFO 200. Other prerequisites may be added depending on content.
+	Repeatable with different content to a maximum of 9 units.
+INFO 293 Introduction to Data Networking
+Information and communication technologies are a strategic necessity for organizations worldwide. This course provides students with the foundational understanding of the design, development and implementation of information and communication technologies in organizations. Topics will include networking standards and the OSI Model, transmission basics and network media, TCP/IP protocols, WANS and remote connectivity, wireless networking, voice and video over IP, virtual networks and remote access, and network security and troubleshooting.
+Prerequisites: INFO 200, 202, 204.
+INFO 294 Professional Experience: Internships
+Experience in a selected public, academic, special library or other information-based organization. Internships can be physical or virtual.  [See more information](/internships). Prerequisites: INFO 200, 202, 203 204, and 9 units of electives. Students must be in good academic standing [3.0 CUM GPA or above and no outstanding incompletes]. Credit/No Credit grading. 2 to 4 units: Each unit is equivalent to a minimum of 45 hours of work.
+Repeatable for a maximum of eight units of credit.
+INFO 295 School Library Field Work
+A supervised professional experience of school librarianship at the levels of both elementary and secondary (middle or high) schools. Emphasis is on observation and guided practice with a credentialed school librarian (library media teacher).
+	Prerequisites: INFO 200, 202, 203, 204, 233, 237, 248, 250, 266, 285. Students must be in good academic standing [3.0 CUM GPA or above and no outstanding incompletes]. Credit/No Credit grading.
+	3 units Permission number from the instructor is required to enroll.
+INFO 298 Special Studies
+MLIS students have the opportunity to take a special (independent) study course, INFO 298 Special Studies. This course is offered every semester. Note that this course is available only to those students who have completed the core classes of INFO 200, 202 and 204.
+In general, students only sign up for an INFO 298 when they have a special topic they want to study or research that is not covered by one of the regular classes. In some cases, students may also sign up for INFO 298 at the request of a faculty member conducting her/his own research, or a faculty member who needs an assistant for a research project.
+The class may be taken for 1 to 3 units, and can be repeated for a maximum of six units of credit. It has credit/no credit grading. One unit is equivalent to 45 hours of work; 2 units are equivalent to 90 hours of work; three units are equivalent to 135 hours of work.
+Topics can be theoretical or practical and can be presented in a variety of formats such as Word documents, wikis, blogs, podcasts, videos, or websites.
+Any [full-time faculty](/directory-and-bios) member (in the Professor, Associate Professor, Assistant Professor list)  can supervise INFO 298 (though are not required to do so).
+If you wish to initiate INFO 298 you need to submit a topic to a [full-time faculty member](/directory-and-bios) (from the Professor, Associate Professor, Assistant Professor list)  Your submission should provide detailed information about the proposed topic including deliverables and a timeline.
+Also, show how the work meets the hours required for the number of units (45 hours for one unit; 90 hours for two units; 135 hours for 3 units).
+Note: Do not sign up for INFO 298 until you have a faculty member’s agreement on your proposed project. Once you have that agreement you can sign up during open registration as follows:
+Regular Session
+INFO 298-01 (1 unit)
+	INFO 298-02 (2 units)
+	INFO 298-03 (3 units)
+Special Session
+INFO 298-10 (1 unit)
+	INFO 298-11 (2 units)
+	INFO 298-12 (3 units)

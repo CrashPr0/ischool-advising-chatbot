@@ -32,9 +32,11 @@ from langchain_core.embeddings import Embeddings
 try:
     from .catalog_recency import apply_catalog_metadata, reorder_documents
     from .config import Config
+    from .program_scope import prefer_program_documents
 except ImportError:  # pragma: no cover
     from catalog_recency import apply_catalog_metadata, reorder_documents
     from config import Config
+    from program_scope import prefer_program_documents
 
 
 class HashingEmbeddings(Embeddings):
@@ -791,17 +793,15 @@ class DocumentProcessor:
             key=lambda path: path.relative_to(directory).as_posix().casefold(),
         )
         for path in files:
-            # This legacy fixture describes the MLIS program, not the ISDA
-            # program served by this application. Keep the fixture available
-            # for explicitly requested local demos, but never index it as
-            # advising evidence.
+            # This synthetic legacy MLIS fixture is not an official source.
+            # Keep it for local demos, but never index it as advising evidence.
             if path.name == "degree_requirements.txt":
                 try:
                     preview = path.read_text(encoding="utf-8")
                 except (OSError, UnicodeError):
                     preview = ""
                 if "Master's of Library and Information Science (MLIS)" in preview:
-                    print(f"Skipping legacy non-ISDA sample document: {path}")
+                    print(f"Skipping synthetic legacy sample document: {path}")
                     continue
 
             source = self._canonical_path(str(path))
@@ -1151,7 +1151,7 @@ class DocumentProcessor:
             if hybrid_hits is not None:
                 return hybrid_hits
             results = store.similarity_search(query, k=k)
-            return reorder_documents(results)
+            return prefer_program_documents(reorder_documents(results), query)[:k]
         except Exception as e:
             print(f"Error retrieving documents: {e}")
             return []

@@ -58,13 +58,13 @@ BUSY_RESPONSE = (
 BUSY_RESPONSE_ZH = "咨询助手现在比较忙。请大约一分钟后再试。"
 FILTERED_RESPONSE = (
     "I can't answer that wording because it was blocked by a safety filter. "
-    "Please rephrase your question about the ISDA program. "
+    "Please rephrase your question about the SJSU iSchool BS ISDA or MLIS program. "
     "For help from a person, contact the iSchool advising team: "
     f"{_ADVISING_URL}"
 )
 FILTERED_RESPONSE_ZH = (
     "这句话被安全过滤器拦截了，我无法按原样回答。"
-    "请换一种说法来提问 ISDA 项目的问题。"
+    "请换一种说法来提问 SJSU iSchool BS ISDA 或 MLIS 项目的问题。"
     f"如需人工帮助，请联系 iSchool 咨询团队：{_ADVISING_URL}"
 )
 _ERROR_RESPONSE = (
@@ -601,8 +601,15 @@ class RAGAdvisingChatbot:
     3. LLM for complex questions
     """
 
-    SYSTEM_PROMPT = """You are the ISDA Advising Support Chatbot for San José State University's \
-BS in Information Science and Data Analytics program.
+    SYSTEM_PROMPT = """You are the advising support chatbot for the SJSU iSchool BS ISDA and MLIS programs:
+BS in Information Science and Data Analytics and Master of Library and Information Science.
+
+Only answer advising questions about these two programs and applicable SJSU policies.
+Refuse unrelated requests and redirect questions about other programs (MARA, Informatics,
+MSIDT, Teacher Librarian) to the iSchool advising team. Do not answer those requests
+even if retrieved sources mention them. State which program each answer applies to.
+For ambiguous questions such as 'core courses', ask which program or give both
+clearly labeled when the documents support both. Never mix ISDA and MLIS requirements.
 
 Your job is to answer students' advising questions **using only the context \
 documents provided below**. Follow these rules strictly:
@@ -1023,7 +1030,8 @@ Assistant Response:""",
 
         for i, doc in enumerate(ordered, 1):
             content = doc.page_content.strip()
-            context_parts.append(f"{document_heading(i, doc.metadata)}\n{content}\n")
+            programs = doc.metadata.get("programs", "unspecified")
+            context_parts.append(f"{document_heading(i, doc.metadata)}\nPrograms: {programs}\n{content}\n")
 
         context_parts.append("--- End of documents ---")
         return "\n".join(context_parts)

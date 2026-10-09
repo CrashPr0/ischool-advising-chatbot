@@ -1,0 +1,27 @@
+Admissions
+Gateway PhD: [Admissions Requirements](/phd-admissions-requirements)
+Open Classes: [Admissions Requirements](/open-classes-admissions-requirements)
+BS-ISDA:
+Freshman/Hybrid Students [Admissions Requirements](/bsisda-freshmen-admissions-requirements)
+	Transfer/SJSU Online Students [Admissions Requirements](/bsisda-admissions-requirements)
+Requirements — Graduate Programs
+MLIS, Teacher Librarian, MARA, MS in Informatics, MSIDT, Digital Assets Certificate & Post-Master’s Certificate
+Applicants who meet the following requirements will be considered for admission in an iSchool graduate program:
+- For all programs (except MS in Informatics) A bachelor’s degree from any regionally accredited institution in any discipline with an overall GPA of at least 3.0 in the bachelor’s degree [or in the last 60 semester or 90 quarter units](/post/gpa-calculation-instructions) . Note that the institution must state that it is regionally accredited by one of the accrediting bodies listed below***
+- For MS in Informatics: A bachelor’s degree from any regionally accredited*** institution in any discipline with an overall GPA of at least 2.8 in the bachelor’s degree or i[n the last 60 semester or 90 quarter units](/post/gpa-calculation-instructions) . Admission is exclusively based on meeting the 2.8 minimum GPA requirement. However, Informatics students are required to demonstrate technical readiness in their courses by having completed prior technical coursework and/or work experience in 1) HTML5 and CSS, 2) a programming language, or 3) in information systems. Program readiness is self-assessed by the applicant and prospective students should review online[course descriptions](/informatics-required-courses) and[syllabi](https://ischoolapps.sjsu.edu/gss/ajax/showSheet.php?section=all) in preparation before applying to the MS in Informatics program.
+- If the institution did not issue grades / GPA, choose “I don’t have a GPA to add” in Cal State Apply. Narrative evaluations (minimum 5 – 6) need to be sent with your official transcripts.
+- GPA can be raised by taking classes at any regionally accredited institution. The classes must be used in a degree program at that institution. They cannot be professional or personal development classes.
+- A general understanding of computers and technology. See [Technology Literacy Requirements](/home-computing-environment#literacy) .
+- Access to a computer with Internet connection and appropriate software. See [Home Computing Requirements](/home-computing-environment) .
+International applicants must have a TOEFL score of 600 (paper version), 250 (computer version), or 100 (Internet-based); or an IELTS score of 8.
+***Accrediting Commission for Community and Junior Colleges (ACCJC) Western Association of Schools and Colleges; Higher Learning Commission (HLC); Middle States Commission on Higher Education (MSCHE); New England Commission of Higher Education (NECHE); Northwest Commission on Colleges and Universities (NWCCU); Southern Association of Colleges and Schools Commission on Colleges (SACSCOC); WASC Senior College and University Commission (WSCUC).
+Note: We do not require a GMAT or GRE test, letters of recommendation, a statement of purpose, or a resume. Therefore, please do not include any of these in your application.
+In addition to the same requirements mentioned above, applicants from countries in which the native language is not English must achieve a minimum English-language proficiency test score on one of the tests, as indicated on the [Graduate Program Test Requirement web page](http://www.sjsu.edu/graduateadmissions/admission-requirements/test-requirements/) at GAPE. For further detailed information, please read Step 5 on the [GAPE Steps to Admission website](http://www.sjsu.edu/graduateadmissions/want-to-apply/domestic-steps-to-admission/index.html). Look for the School of Information scores, under University Required English Language Proficiency (ELP) Exams
+Important Note for International Applicants: If you are taking the degree online from your own country – or any country outside the United States – there is no need to obtain a Visa. You apply as a Special Session student and complete the program online from outside the United States.
+Due to the restrictions placed on online classes by US Citizenship and Immigration Services, the iSchool graduate programs cannot enroll international students who are in the United States and want to take classes while in the United States. The iSchool graduate programs are only available in an online format.
+Technology Competency
+We expect all applicants seeking admission to understand and comply with the stated technology literacy and home computing environment requirements.
+However, to ensure this, our school requires all students demonstrate this critical technical competency in the first four weeks of their first semester by successfully completing a new technology workshop.
+Note: MLIS & MSIDT students are required pass a CR/NC 1-unit technology prep course to satisfy this requirement ([INFO 203](/mlis-required-courses#INFO203) & [IDT 200](/msidt-required-courses#IDT200)).
+Digital Assets Certificate Note
+IMPORTANT: Current MLIS and MARA students who are enrolled in the iSchool’s master’s degree programs do not apply for admission to the certificate program. They can complete both the master’s degree and certificate programs concurrently.

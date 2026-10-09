@@ -98,7 +98,7 @@ const mainIds = docsIds.concat([
   const clearFns = docs["clear-button"].handlers.click || [];
   if (clearFns.length !== 1) throw new Error("clear button listener missing");
   await clearFns[0]();
-  if (!String(docs["chat-box"].innerHTML).includes("ISDA advising assistant")) {
+  if (!String(docs["chat-box"].innerHTML).includes("BS ISDA and MLIS advising assistant")) {
     throw new Error("clear did not reset the chat box");
   }
 
@@ -132,10 +132,10 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "confidence: data.confidence" not in script
     assert 'id="confidence-badge"' not in template
     assert 'id="confidence-badge"' not in docs
-    assert "filename='style.css', v='20261009-report-retention'" in template
-    assert "style.css?v=20261009-report-retention" in docs
-    assert "filename='script.js', v='20261009-report-retention'" in template
-    assert "script.js?v=20261009-report-retention" in docs
+    assert "filename='style.css', v='20261010-mlis'" in template
+    assert "style.css?v=20261010-mlis" in docs
+    assert "filename='script.js', v='20261010-mlis'" in template
+    assert "script.js?v=20261010-mlis" in docs
     assert "20261001-reveal-tabs" not in template
     assert "20260927-tabs" not in docs
     assert "20261002-letter-reveal" not in template

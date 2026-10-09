@@ -32,6 +32,12 @@ except ImportError:  # pragma: no cover - src/ on sys.path
         reorder_ids,
     )
 
+try:
+    from .program_scope import metadata_programs, prefer_program_documents, query_programs
+except ImportError:  # pragma: no cover
+    from program_scope import metadata_programs, prefer_program_documents, query_programs
+
+
 # Cormack, Clarke, and Buettcher, SIGIR 2009. Rank is 1-based.
 # Vector neighbors use the paper's constant. The lexical list uses a smaller
 # constant so an exact course-code hit is not pushed out of the chat top-k by
@@ -472,6 +478,18 @@ def _vector_ids(
     return chosen
 
 
+def _prefer_program_ids(ids, by_id, query):
+    wanted = query_programs(query)
+    if len(wanted) != 1:
+        return ids
+
+    def priority(doc_id):
+        programs = metadata_programs(by_id[doc_id][1])
+        return 0 if programs & wanted else (1 if not programs else 2)
+
+    return sorted(ids, key=priority)
+
+
 def hybrid_retrieve(
     vector_store, query: str, k: int = 3, collection_id: Optional[str] = None
 ) -> list[Document]:
@@ -489,7 +507,7 @@ def hybrid_retrieve(
     try:
         records = _collection_records(vector_store, collection_id)
         if not records:
-            return list(vector_store.similarity_search(query, k=k))
+            return _program_vector_search(vector_store, query, k)
         pool = min(len(records), max(k, CANDIDATE_POOL))
         index = _bm25_for(vector_store, records)
         bm25_positions = index.top_indices(tokenize(query), pool)
@@ -505,7 +523,9 @@ def hybrid_retrieve(
             print(f"Query embedding failed; using BM25 only: {error}")
             # The lexical list is already the candidate pool. Prefer the
             # current catalog inside that pool, then cut to k.
-            lexical = _documents_for_ids(reorder_ids(bm25_ids, by_id), by_id, k)
+            lexical = _documents_for_ids(
+                _prefer_program_ids(reorder_ids(bm25_ids, by_id), by_id, query), by_id, k
+            )
             return include_authoritative_course_pages(lexical, records, k)
         # Fuse the whole candidate pool, then let the current catalog take
         # the better slots of an older catalog for the same course or program.
@@ -519,12 +539,18 @@ def hybrid_retrieve(
         )
         if catalog_recency_rerank_enabled():
             fused = reorder_ids(fused, by_id)
+        fused = _prefer_program_ids(fused, by_id, query)
         fused_hits = _documents_for_ids(fused, by_id, k)
         return include_authoritative_course_pages(fused_hits, records, k)
     except Exception as error:
         print(f"Hybrid retrieval failed; using vector search: {error}")
         try:
-            return reorder_documents(list(vector_store.similarity_search(query, k=k)))
+            return _program_vector_search(vector_store, query, k)
         except Exception as inner:
             print(f"Error retrieving documents: {inner}")
             return []
+
+
+def _program_vector_search(vector_store, query, k):
+    documents = reorder_documents(vector_store.similarity_search(query, k=k))
+    return prefer_program_documents(documents, query)[:k]

@@ -1,0 +1,136 @@
+MLIS Required Courses
+MLIS students are required to have taken all core classes (INFO 203, 200, 202, 204) within their first 16 units in the program. INFO 203 (1 unit) must be taken in the first semester. The other core classes (200, 202, 204) are each 3 units and can be taken in any order. It is recommended to browse the [syllabi](https://ischoolapps.sjsu.edu/gss/ajax/showSheet.php?semester=all) for instructors of the courses you are considering from our [class schedules](https://ischoolapps.sjsu.edu/gss/ajax/schedule.php?search=1), to learn details about course content and readings, learning outcomes, competencies, a timeline of assignment due dates, and other instructor expectations. 
+INFO 200 Information Communities
+Examines information users and the social, cultural, economic, technological, and political forces that shape their information access and use. The different resources and services that information professionals provide for their user communities will also be addressed as well as ethical/legal professional practice. INFO 200 satisfies SJSU’s Campus Graduate GWAR (CGGWAR). All INFO 200 students receive [a one-year paid membership](/student-professional-association-memberships) in a professional association.
+Note: Must be completed with a grade of B or better. If the grade is less than B (B- or lower) after the first attempt you will be placed on administrative academic probation. You must repeat the class as soon as possible. If -on the second attempt- you do not pass the class with a grade of B or better (not B- but B) you will be disqualified. (See [required grade details](/required-grade-details).)
+INFO 202 Information Retrieval System Design
+This course covers the design, querying, and evaluation of information retrieval systems, from web hierarchies to controlled vocabularies.
+Note: Must be completed with a grade of B or better. If the grade is less than B (B- or lower) after the first attempt you will be placed on administrative academic probation. You must repeat the class as soon as possible. If -on the second attempt- you do not pass the class with a grade of B or better (not B- but B) you will be disqualified. (See [required grade details.](/required-grade-details))
+INFO 203 Online Learning
+All new MLIS students must complete INFO 203: Online Learning Tools and Strategies for Success, a 1-unit CR/NC course, within the first four weeks of their first semester.
+INFO 204 Information Professions
+Examines the organizations and environments in which information professionals work. This course explores different specializations and career paths, professional communities, networks and resources, ethical and legal frameworks. This course also introduces management and leadership theories and concepts and applies them to different information environments. A special focus is placed on management responsibilities in order to emphasize the importance of these skills in the professional workplace.
+Note: Must be completed with a grade of B or better. If the grade is less than B (B- or lower) after the first attempt you will be placed on administrative academic probation. You must repeat the class as soon as possible. If -on the second attempt- you do not pass the class with a grade of B or better (not B- but B) you will be disqualified. ([See required grade details](/required-grade-details).)
+INFO 285 Applied Research Methods
+Note: INFO 285 is a required course for MLIS students and cannot be replaced with MARA 285.
+All students must complete INFO 285 (Research Methods) before graduating. INFO 285 (Research Methods) will be offered with different areas of focus. Students may select any area of focus.
+INFO 285 Topics & Waiver Option are next sections.
+Prerequisites: INFO 200, INFO 202, INFO 204
+Repeatable with different topics up to 6 units.
+INFO 285 – Topics
+Instructors, Focus and Topics Covered
+INFO 285 Research Methods in Library and Information Science offers an array of sections with different focuses – students are free to choose any of the sections that interest them most. Here’s an overview of the focuses and topics of the different INFO 285 sections. The instructors teaching each focus are also listed – students may click on each instructor’s name to view their profile and contact them if necessary.
+General Overview
+	Focus: A general introduction to the research methods frequently used in conducting Library and Information Science research.
+	Topics Covered:
+- How to recognize and define a research problem in a professional domain whose solution could improve professional practice.
+- How to select and use appropriate research methods (sampling design, survey, experiment, qualitative field research, unobtrusive research, etc.) to gather original data to solve the research problem and increase knowledge about the domain.
+- How to use analytic methods (quantitative statistical analysis and qualitative analysis) to analyze and synthesize the collected data into a solution to the identified research problem.
+- How to prepare a professional research proposal.
+Instructors Teaching This Topic: [Geoffrey Liu](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=liug) 
+Youth Services
+	Focus: An introduction to research methods while focusing on how it is applied in youth research, and a critical examination of the issues surrounding research that involves youth.
+	Topics Covered:
+- How to recognize and define a research problem in a professional domain whose solution could improve professional practice.
+- How to use research methods to gather original data to solve the research problem and increase knowledge about the domain.
+- Critical analysis of secondary research.
+- How to use/apply program evaluation to youth service programs through applied research.
+Instructors Teaching This Topic: [Anthony Bernier](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=berniera)
+Evaluating Programs and Services
+	Focus: Research methods most often used when evaluating and assessing services in public, academic, and special libraries as well as information agencies.
+	Topics Covered:
+- How to recognize and define an assessment or evaluation research problem whose solution could improve professional practice.
+- How to collect sources and write a literature review related to a research topic.
+- How to evaluate and implement data collection methods and research procedures.
+- How to perform a preliminary analysis of an actual data set, discerning findings, tentative conclusions, and tentative recommendations, while noting some of the gaps and shortcomings of the data set.
+- How propose a project to evaluate a real or imagined library service or program, noting the types of data to be gathered, the types of analysis to be performed, the overall picture of the service that these data and analysis will reveal, and how such a program evaluation will be informative and useful to all the stakeholders.
+Instructors Teaching This Topic: [Jennifer Sweeney](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=sweeneyj)
+Action Research
+	Focus: An introduction to action research methods that further learning and improve situations within professional settings.
+	Topics Covered:
+- How to recognize and define a research problem whose solution could improve professional practice.
+- How to collect sources and write a literature review related to a research topic.
+- How to define and describe research participants, data collection methods, and research procedures (how to use a cyclical plan-act-observe-reflect process to increase domain knowledge and generate professional insight).
+- How to use statistical techniques and interpret statistical data.
+- How to create an action research proposal detailing project design elements and anticipating collaborative ‘informed learning’ outcomes.
+Instructors Teaching This Topic: [Renee Jefferson](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=jeffersonr)
+Doing Research Online
+	Focus: A introduction to the process and methods of conducting research in online contexts.
+	Topics Covered:
+- How to study social/cultural phenomena and information use in online contexts.
+- Research methodologies for conducting research online, including qualitative approaches such as digital ethnography, content analysis, surveys, and interviews (among others).
+- Ethical issues of doing online research, designing an effective project, collecting data, analyzing results, and disseminating findings.
+Instructors Teaching This Topic: [Dan Nathan-Roberts](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=nathan_robertsd)
+Literature Review Methods
+	Focus: Prepares students to write comprehensive literature reviews that leverage the research of library & information science and cognate fields.
+	Topics Covered:
+- Research methodologies associated with theory-driven, multimodal, and cultural approaches to comprehensive literature reviews.
+- Fundamental principles and processes of conducting comprehensive literature reviews and disseminating related publications.
+- Application of research methods covered in the course and understanding their strengths and liabilities.
+- Appropriate information collection, analysis, and synthesis practices and ethical concerns related to literature review research.
+Instructors Teaching This Topic: [Kristen Radsliff](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=radsliffk)
+Historical Research Methods
+	Focus: Explores the ways in which historians frame research questions, assess current literature on historical topics, locate and critically use primary and secondary sources, and formulate viable and worthwhile research projects.
+	Topics Covered:
+- Historical work in the information professions.
+- Current trends and theories in historical writing.
+- Major history reference sources and their uses.
+- History monographs, history journals, and the historiographical essay.
+- Manuscripts, records, and other primary sources used in historical research.
+- History on the web.
+Instructors Teaching This Topic: [Donald Westbrook](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=westbrookd) – [Anthony Bernier](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=berniera)
+Survey Research (especially library user surveys)
+	Focus: The focus is on the survey research method, which is one of the most frequently used methods in library and information science research.
+	Topics Covered:
+- Recognizing and defining research problems that are most appropriate for survey research.
+- Constructing survey questionnaire items effectively.
+- Understanding the various sampling designs that are often used in survey research.
+- Using proper techniques to analyze survey data.
+- Writing and reporting survey research.
+Instructors Teaching This Topic: [Lili Luo](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=luol)
+Technology Management
+	Focus: Presents within the context of technology management. Students are trained in research design, which includes the recognition of a research problem and the development of a research topic, literature review, and research proposal. Students are introduced to research methodologies, including observation methods, sampling design, surveys and experiments, quantitative and qualitative research and analysis, statistical analysis, and the ethics of social research. Students obtain training for research with live human subjects.
+	Topics Covered:
+- Research Problem Identification and Proposal Development in Technology Management
+- Literature Review and Research Evaluation
+- Research Design and Data Collection Methods
+- Qualitative and Quantitative Data Analysis
+- Research Ethics and Human Subjects Research
+Instructors Teaching This Topic: [Jason Kaltenbacher](/webform/contact-jason-kaltenbacher)
+Unobtrusive Research Methods
+	Focus: An overview of the frequently used unobtrusive research methods, including but not limited to content analysis and analysis of existing statistics. 
+	Topics Covered: 
+- Difference between unobtrusive research methods and methods where human subjects are involved.
+- Introduction to frequently used unobtrusive research methods in library and information methods such as content analysis and analysis of existing statistics
+- Determining proper methods of unobtrusive research based on the needs of a research project
+- Identifying proper sources of data for unobtrusive research
+Instructors Teaching This Topic: [Lili Luo](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=luol) 
+Using Generative AI in Library and Information Science Research
+	Focus: An exploration of the integration of AI tools and methodologies across various stages of research, from literature review, data collection data analysis to writing and publication.
+	Topics Covered: 
+- How to write a literature review and how to use generative AI to assist the literature search and literature review writing process
+- How to design a survey questionnaire and how to use generative AI to assist the process of survey design
+- How to analyze qualitative data and how to use generative AI to assist the qualitative data analysis process
+- How to write effective prompts, evaluate AI output critically and use AI responsibly and effectively
+Instructors Teaching This Topic: [Lili Luo](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=luol) 
+Research Methods in Records Management & Archival Science
+	Focus: An introduction to the full research process, from developing investigable questions and designing studies to measurement, sampling, ethics, and multiple research approaches, culminating in a literature review, survey project, and final research proposal suitable for archival and records management contexts. 
+	Topics Covered: 
+- Developing research questions and designing investigations in records management and archival contexts
+- Measurement strategies, including indexes and scales for research data
+- Sampling methods and research ethics, including human participants certification
+- Experimental, survey, evaluation, and field-based research approaches
+- Data analysis (qualitative and quantitative) and research dissemination through proposals and reports
+Instructors Teaching This Topic: [Joshua Zimmerman](https://ischoolapps.sjsu.edu/facultypages/view.php?fac=zimmermanj)
+INFO 285 – Waiver
+All students must complete [INFO 285](/mlis-required-courses#INFO285) (Research Methods) before graduating. [INFO 285](/mlis-required-courses#INFO285) (Research Methods) will be offered with [different areas of focus](/mlis-required-courses#INFO285-TOPICS). Students may select any area of focus.
+If a student has taken and passed a graduate level-research methods course within the last 5 years from the start date of the MLIS program  (as documented by an official transcript and showing a  B grade), the student can petition the Coordinator of Admissions and Academic Advising to waive the INFO 285 requirement. Please send a PDF copy of your transcript to the [Graduate Coordinator](/post/contact-us?profile=9488) as an attachment.
+A waiver, if granted, does not reduce the total units required for the MLIS degree. It simply means that you are not required to take INFO 285 as one of your MLIS classes.
+Please send an electronic copy of the transcript (scanned as a pdf file) to the [Graduate Coordinator](/post/contact-us?profile=9488).
+Note: If a waiver is approved it will not be reflected in My Progress or MyPlanner in one.sjsu.edu. INFO 285 will remain on the My Progress list. We will note it when we submit your candidacy form.
+INFO 289 e-Portfolio
+See the [INFO 289 e-Portfolio Handbook](/info-289-e-portfolio-handbook) for using INFO 289 as your culminating experience for the university master’s degree requirement.
+Students may use either INFO 289 e-Portfolio or INFO 299 Thesis (next section) as the culminating experience.
+INFO 299 Thesis
+See the [INFO 299 Thesis Guidelines](/info-299-thesis) for using INFO 299 as your culminating experience for the university master’s degree requirement.
+Students may use either INFO 289 e-Portfolio (previous section) or INFO 299 Thesis as their culminating experience.

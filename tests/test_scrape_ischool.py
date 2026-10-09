@@ -136,3 +136,45 @@ def test_sync_pages_tracks_changes_without_rewriting_unchanged_snapshots(tmp_pat
     assert text_path.stat().st_mtime_ns == first_mtime
     manifest = json.loads((tmp_path / "scrape" / "manifest.json").read_text())
     assert manifest["documents"][0]["programs"] == ["ISDA"]
+
+
+def test_program_refresh_preserves_other_program_manifest_entries(tmp_path):
+    isda = {"url": "https://ischool.sjsu.edu/bsisda-advising", "title": "ISDA", "text": "ISDA evidence"}
+    mlis = {"url": "https://ischool.sjsu.edu/mlis-required-courses", "title": "MLIS", "text": "MLIS evidence"}
+    sync_pages([isda], tmp_path, programs=["ISDA"])
+    manifest_path = tmp_path / "scrape" / "manifest.json"
+    old_isda = json.loads(manifest_path.read_text())["documents"][0]
+    sync_pages([mlis], tmp_path, programs=["MLIS"])
+    entries = json.loads(manifest_path.read_text())["documents"]
+    assert old_isda in entries
+    assert len(entries) == 2
+    old_mlis = next(entry for entry in entries if entry["programs"] == ["MLIS"])
+    replacement = dict(isda, url="https://ischool.sjsu.edu/bsisda-required-courses")
+    sync_pages([replacement], tmp_path, programs=["ISDA"])
+    entries = json.loads(manifest_path.read_text())["documents"]
+    assert old_mlis in entries
+    assert old_isda not in entries
+    assert len(entries) == 2
+
+
+def test_shared_page_keeps_both_programs_in_manifest_and_metadata(tmp_path):
+    import yaml
+
+    page = {"url": "https://ischool.sjsu.edu/advising-appointments", "title": "Advising", "text": "Shared advising evidence"}
+    sync_pages([page], tmp_path, programs=["ISDA"])
+    text_path = next((tmp_path / "txt").glob("*.txt"))
+    original_mtime = text_path.stat().st_mtime_ns
+    sync_pages([page], tmp_path, programs=["MLIS"])
+    entries = json.loads((tmp_path / "scrape" / "manifest.json").read_text())["documents"]
+    assert len(entries) == 1
+    assert entries[0]["programs"] == ["ISDA", "MLIS"]
+    metadata = yaml.safe_load(next((tmp_path / "meta").glob("*.yml")).read_text())
+    assert metadata["programs"] == ["ISDA", "MLIS"]
+    assert text_path.stat().st_mtime_ns == original_mtime
+
+
+def test_sync_rejects_excluded_programs(tmp_path):
+    import pytest
+
+    with pytest.raises(ValueError, match="only ISDA and MLIS"):
+        sync_pages([], tmp_path, programs=["MARA"])

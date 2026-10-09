@@ -400,7 +400,7 @@ topicButtons.forEach((btn) => {
     addMessage(
       `Got it! I'm now focused on ${activeTopic}. Choose a sample question below or type your own!`,
       "bot-message",
-      "ISDA Bot"
+      "iSchool Bot"
     );
   });
 });
@@ -536,7 +536,7 @@ function showTypingIndicator() {
 
   const labelDiv = document.createElement("div");
   labelDiv.classList.add("message-label");
-  labelDiv.textContent = "ISDA Bot";
+  labelDiv.textContent = "iSchool Bot";
 
   const textDiv = document.createElement("div");
   textDiv.textContent = "Thinking...";
@@ -754,7 +754,7 @@ function revealReply(key, text, meta) {
   operation.wrapper = addMessage(
     "",
     "bot-message",
-    "ISDA Bot",
+    "iSchool Bot",
     { skipRecord: true }
   );
 
@@ -1220,7 +1220,7 @@ function deliverBotReply(conversationId, text, meta) {
   const reportMessages = conversationId
     ? messages.slice(0, index + 1)
     : messages.concat([stored]);
-  addMessage(text, "bot-message", "ISDA Bot", {
+  addMessage(text, "bot-message", "iSchool Bot", {
     skipRecord: Boolean(conversationId),
     reportable: true,
     report: reportContext(reportMessages, reportMessages.length - 1, conversationId)
@@ -1313,8 +1313,8 @@ clearButton.addEventListener("click", async (event) => {
   } else {
     chatBox.innerHTML = `
     <div class="message bot-message">
-      <div class="message-label">ISDA Bot</div>
-      <div>Hi! I’m your ISDA advising assistant. I can help you explore degree requirements, plan your courses, and navigate registration. Choose a topic or ask me a question to get started.</div>
+      <div class="message-label">iSchool Bot</div>
+      <div>Hi! I’m your BS ISDA and MLIS advising assistant. I can help you explore degree requirements, plan your courses, and navigate registration. Choose a topic or ask me a question to get started.</div>
     </div>
   `;
   }
@@ -1551,7 +1551,7 @@ function paintConversation(convo) {
     addMessage(
       message.text,
       isBot ? "bot-message" : "user-message",
-      isBot ? "ISDA Bot" : "You",
+      isBot ? "iSchool Bot" : "You",
       {
         skipRecord: true,
         reportable: isBot,

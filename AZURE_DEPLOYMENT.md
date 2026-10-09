@@ -550,3 +550,32 @@ change, the reviews copy line.
   `/home/data/evaluation/reviews-backup-20260926.sqlite3`. Restore a backup
   only after stopping traffic to `/evaluation`, and only if you are replacing
   an empty file you just confirmed is empty. Do not delete the backup.
+
+## BS ISDA and MLIS corpus rollout
+
+The advising corpus now includes both BS ISDA and MLIS. After merge, the Azure
+index must be rebuilt to include the MLIS chunks and program metadata. The
+existing deploy workflow runs `/api/load-docs` through
+`scripts/verify_deployed_index.py` and verifies the new receipt. No additional
+manual step is needed for a successful normal deployment. The corpus contents and
+release SHA change; `/readyz` checks the rebuilt receipt against the deployed
+release SHA and configured embedder, rather than computing a corpus hash. If the workflow rebuild fails, rerun the deploy
+workflow and verify `/readyz` before using chat. Do not reuse the old receipt.
+
+The 15 ingested official MLIS/iSchool pages are:
+
+- https://ischool.sjsu.edu/master-library-and-information-science
+- https://ischool.sjsu.edu/mlis-required-courses
+- https://ischool.sjsu.edu/mlis-electives
+- https://ischool.sjsu.edu/mlis-academics
+- https://ischool.sjsu.edu/mlis-course-load
+- https://ischool.sjsu.edu/mlis-fees-chart
+- https://ischool.sjsu.edu/mlis-program-learning-outcomes
+- https://ischool.sjsu.edu/mlis-accreditation
+- https://ischool.sjsu.edu/mlis-career-pathways
+- https://ischool.sjsu.edu/admissions
+- https://ischool.sjsu.edu/application-deadlines
+- https://ischool.sjsu.edu/graduate-application
+- https://ischool.sjsu.edu/advising-appointments
+- https://ischool.sjsu.edu/info-289-e-portfolio-faqs
+- https://www.sjsu.edu/online/programs/library-and-information-science-masters-degree.php

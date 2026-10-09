@@ -412,3 +412,24 @@ def test_server_error_uses_the_fallback_deployment(monkeypatch):
     bot.chain = _RaisingChain(ServerError())
     result = bot.chat("What are the required courses?")
     assert result["response"] == "recovered"
+
+
+def test_other_program_request_redirects_without_model_or_retrieval():
+    from knowledge_base import KnowledgeBase
+
+    bot = _bare_bot()
+    bot.knowledge_base = KnowledgeBase()
+    answer = bot.chat("What are the MARA core courses?")
+    assert answer["source"] == "knowledge_base"
+    assert "BS ISDA and MLIS" in answer["response"]
+    assert "contact the iSchool advising team" in answer["response"]
+    assert bot.doc_processor.queries == []
+    assert bot.chain.payloads == []
+
+
+def test_unrelated_question_without_evidence_uses_existing_fallback():
+    bot = _bare_bot()
+    answer = bot.chat("Who will win the Super Bowl?")
+    assert answer["source"] == "fallback"
+    assert "couldn't find enough information" in answer["response"]
+    assert bot.chain.payloads == []
