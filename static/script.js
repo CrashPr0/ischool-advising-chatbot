@@ -1439,6 +1439,8 @@ function normalizeMessage(message) {
   const normalized = {
     role: message.role,
     text: message.text,
+    timestamp: Number.isFinite(message.timestamp) && !isNaN(new Date(message.timestamp).getTime())
+      ? message.timestamp : null,
     source: typeof message.source === "string" ? message.source : null,
     retrievedDocs: Number.isFinite(message.retrievedDocs) ? message.retrievedDocs : null
   };
@@ -1535,6 +1537,7 @@ function rememberMessage(conversationId, message) {
   const convo = conversations.find((item) => item.id === conversationId);
   const normalized = normalizeMessage(message);
   if (!convo || !normalized) return;
+  if (normalized.timestamp === null) normalized.timestamp = Date.now();
   convo.messages.push(normalized);
   if (convo.messages.length > MAX_STORED_MESSAGES) {
     convo.messages.splice(0, convo.messages.length - MAX_STORED_MESSAGES);
@@ -1601,6 +1604,7 @@ function paintConversation(convo) {
 }
 
 function renderTabs(options) {
+  updateExportChatControl();
   if (!chatTabs) return;
   const activeElement = document.activeElement;
   const focusId = activeElement && activeElement.dataset
@@ -1838,6 +1842,179 @@ function initConversations() {
   renderTabs({ scrollActive: true });
   chatTabs.addEventListener("click", onTabClick);
   chatTabs.addEventListener("keydown", onTabKeydown);
+}
+
+// Export only the active browser transcript, entirely on the student's device.
+const exportChatButton = document.getElementById("export-chat-button");
+const exportChatStatus = document.getElementById("export-chat-status");
+let chatPrintView = null;
+let titleBeforeExport = null;
+let chatPdfLoadPromise = null;
+
+function loadChatPdfLibrary() {
+  if (typeof window.jspdf?.jsPDF === "function") return Promise.resolve();
+  if (!chatPdfLoadPromise) {
+    chatPdfLoadPromise = new Promise((resolve, reject) => {
+      const path = exportChatButton?.dataset?.jspdfSrc;
+      if (typeof path !== "string" || !path) {
+        reject(new Error("PDF library URL unavailable"));
+        return;
+      }
+      const url = new URL(path, window.location.href);
+      if (url.origin !== window.location.origin) {
+        reject(new Error("PDF library must be same-origin"));
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = url.href;
+      script.onload = () => {
+        if (typeof window.jspdf?.jsPDF === "function") resolve();
+        else reject(new Error("PDF library unavailable"));
+      };
+      script.onerror = () => reject(new Error("PDF library failed to load"));
+      document.head.appendChild(script);
+    });
+  }
+  return chatPdfLoadPromise;
+}
+
+function chatExportProgramLabel(convo) {
+  const program = convo?.program;
+  if (typeof program !== "string") return null;
+  switch (program) {
+    case "isda": return "ISDA";
+    case "mlis": return "MLIS";
+    case "both": return "Not sure / both";
+    default: return null;
+  }
+}
+
+function updateExportChatControl() {
+  if (!exportChatButton) return;
+  const convo = getActiveConversation();
+  exportChatButton.disabled = !convo || !convo.messages.some((message) => message.role === "bot");
+  if (exportChatStatus) exportChatStatus.textContent = "";
+}
+
+function cleanupChatPrintView() {
+  if (chatPrintView) chatPrintView.remove();
+  chatPrintView = null;
+  if (titleBeforeExport !== null) document.title = titleBeforeExport;
+  titleBeforeExport = null;
+}
+
+function chatExportDate(date) {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0")].join("-");
+}
+
+function chatExportMessageLabel(message) {
+  const role = message.role === "bot" ? "Advising assistant" : "You";
+  const timestamp = Number.isFinite(message.timestamp)
+    ? new Date(message.timestamp).toLocaleString() : "Timestamp unavailable";
+  return role + " - " + timestamp;
+}
+
+function chatExportPlainText(message) {
+  if (message.role !== "bot" || typeof renderBotMarkdown !== "function") return message.text;
+  // Preserve both citation labels and destinations without HTML or PDF annotations.
+  return unescapeHtml(renderBotMarkdown(message.text)
+    .replace(/<a\b[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/g, "$2 ($1)")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|li|ul|ol|pre|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, ""))
+    .replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function downloadChatPdf(convo, exportedAt) {
+  const pdf = new window.jspdf.jsPDF({ unit: "pt", format: "letter" });
+  const margin = 48;
+  const width = pdf.internal.pageSize.getWidth() - 2 * margin;
+  const bottom = pdf.internal.pageSize.getHeight() - margin;
+  let y = margin;
+  function write(text, size, bold = false) {
+    pdf.setFont("helvetica", bold ? "bold" : "normal");
+    pdf.setFontSize(size);
+    const lineHeight = size * 1.4;
+    for (const line of pdf.splitTextToSize(String(text), width)) {
+      if (y + lineHeight > bottom) {
+        pdf.addPage();
+        y = margin;
+      }
+      pdf.text(line, margin, y);
+      y += lineHeight;
+    }
+    y += 8;
+  }
+  write("SJSU iSchool Advising Chatbot - conversation", 16, true);
+  const program = chatExportProgramLabel(convo);
+  if (program) write("Program: " + program, 10);
+  write("Exported: " + exportedAt.toLocaleString(), 10);
+  convo.messages.forEach((message) => {
+    write(chatExportMessageLabel(message), 11, true);
+    write(chatExportPlainText(message), 11);
+  });
+  write("This copy was created on your device. The advising chatbot does not keep it. Verify important details with an iSchool advisor.", 10);
+  pdf.save("SJSU-advising-chat-" + chatExportDate(exportedAt) + ".pdf");
+}
+
+if (exportChatButton) {
+  window.addEventListener("afterprint", cleanupChatPrintView);
+  exportChatButton.addEventListener("click", async () => {
+    const convo = getActiveConversation();
+    if (!convo || exportChatButton.disabled) return;
+    cleanupChatPrintView();
+    const exportedAt = new Date();
+    try {
+      await loadChatPdfLibrary();
+      downloadChatPdf(convo, exportedAt);
+      if (exportChatStatus) exportChatStatus.textContent = "PDF downloaded.";
+      return;
+    } catch (_error) {
+      // A missing library or PDF failure retains the browser print fallback.
+    }
+    cleanupChatPrintView();
+    const view = document.createElement("article");
+    view.id = "chat-print-view";
+    const heading = document.createElement("h1");
+    heading.textContent = "SJSU iSchool Advising Chatbot - conversation";
+    const timestamp = document.createElement("p");
+    timestamp.textContent = "Exported: " + exportedAt.toLocaleString();
+    view.append(heading, timestamp);
+    const program = chatExportProgramLabel(convo);
+    if (program) {
+      const programHeader = document.createElement("p");
+      programHeader.textContent = "Program: " + program;
+      view.appendChild(programHeader);
+    }
+    convo.messages.forEach((message) => {
+      const turn = document.createElement("section");
+      const label = document.createElement("h2");
+      label.textContent = chatExportMessageLabel(message);
+      const body = document.createElement("div");
+      body.className = "chat-print-message";
+      renderMessageText(body, message.text, message.role === "bot");
+      turn.append(label, body);
+      view.appendChild(turn);
+    });
+    const footer = document.createElement("footer");
+    footer.textContent = "This copy was created on your device. The advising chatbot does not keep it. Verify important details with an iSchool advisor.";
+    view.appendChild(footer);
+    document.body.appendChild(view);
+    chatPrintView = view;
+    titleBeforeExport = document.title;
+    const date = chatExportDate(exportedAt);
+    document.title = "SJSU-advising-chat-" + date;
+    if (exportChatStatus) {
+      exportChatStatus.textContent = "Choose “Save as PDF” in the print dialog to keep a copy.";
+    }
+    try {
+      window.print();
+    } catch (error) {
+      cleanupChatPrintView();
+      throw error;
+    }
+  });
 }
 
 initConversations();

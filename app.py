@@ -54,6 +54,7 @@ from evaluation_store import (
     EvaluationValidationError,
 )
 from issue_reports import (
+    REASON_LABELS,
     IssueReportStore,
     IssueReportValidationError,
     build_issue_report,
@@ -1525,12 +1526,17 @@ def list_issue_reports():
     auth_error = _evaluation_auth_error()
     if auth_error:
         return auth_error
+    reason = request.args.get("reason")
+    if reason is not None and reason not in REASON_LABELS:
+        return jsonify({"error": "Unknown report reason"}), 400
     try:
-        reports = get_issue_report_store().list_reports()
+        store = get_issue_report_store()
+        reports = store.list_reports(reason=reason)
+        summary = store.reason_counts()
     except Exception:
         logger.exception("Unable to list answer issue reports")
         return jsonify({"error": "Unable to list issue reports"}), 500
-    return jsonify({"reports": reports})
+    return jsonify({"reports": reports, "summary": summary})
 
 
 @app.route("/api/load-docs", methods=["POST"])

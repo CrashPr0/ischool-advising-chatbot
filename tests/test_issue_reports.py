@@ -86,7 +86,7 @@ def test_retention_purges_on_startup_and_keeps_recent_and_boundary_rows(
     assert "private earlier question" not in caplog.text
 
 
-@pytest.mark.parametrize("operation", ["list", "write"])
+@pytest.mark.parametrize("operation", ["list", "write", "counts"])
 def test_retention_throttles_then_purges_on_list_or_write(
     tmp_path, retention_clock, operation, caplog
 ):
@@ -97,6 +97,8 @@ def test_retention_throttles_then_purges_on_list_or_write(
     def use_store():
         if operation == "list":
             return store.list_reports()
+        if operation == "counts":
+            return store.reason_counts()
         store.save(build_issue_report(_report()))
 
     with caplog.at_level(logging.INFO, logger=issue_reports.__name__):
@@ -112,6 +114,9 @@ def test_retention_throttles_then_purges_on_list_or_write(
         assert store.get(recent) is not None
         if operation == "list":
             assert [row["id"] for row in result] == [recent]
+        elif operation == "counts":
+            assert result["total"] == 1
+            assert result["reasons"][0]["count"] == 1
         use_store()
         assert caplog.text.count("Deleted 1 expired issue reports") == 1
         assert caplog.text.count("expired issue reports") == 1
@@ -485,3 +490,70 @@ def test_report_endpoint_rejects_bad_payloads_and_rate_limits(monkeypatch, repor
     limited = _post_report(report_client, _report(question="Third question?"), csrf)
     assert limited.status_code == 429
     assert limited.headers["Retry-After"]
+
+
+def test_reason_summary_includes_zeros_and_stable_ties(tmp_path):
+    store = IssueReportStore(tmp_path / "reviews.sqlite3")
+    empty = store.reason_counts()
+    assert empty == {
+        "total": 0,
+        "reasons": [
+            {"key": key, "label": label, "count": 0}
+            for key, label in issue_reports.REASONS
+        ],
+    }
+    for reason in ["other", "made_up", "other", "incorrect_info", "made_up"]:
+        store.save(build_issue_report(_report(reason=reason)))
+    summary = store.reason_counts()
+    assert summary["total"] == 5
+    assert summary["reasons"] == [
+        {"key": key, "label": issue_reports.REASON_LABELS[key], "count": count}
+        for key, count in [("made_up", 2), ("other", 2), ("incorrect_info", 1), ("outdated", 0)]
+    ]
+    assert len(store.list_reports(limit=1)) == 1
+    assert store.reason_counts() == summary  # Counts cover more than the list limit.
+    assert len(store.list_reports(reason="other")) == 2
+    with pytest.raises(IssueReportValidationError):
+        store.list_reports(reason="unknown")
+
+
+def test_summary_excludes_expired_reports(tmp_path, retention_clock):
+    store = IssueReportStore(tmp_path / "reviews.sqlite3")
+    _dated_report(store, retention_clock["now"] - timedelta(days=91))
+    _dated_report(store, retention_clock["now"] - timedelta(days=90))
+    store.save(build_issue_report(_report(reason="other")))
+    retention_clock["monotonic"] += issue_reports.PURGE_INTERVAL_SECONDS
+    summary = store.reason_counts()
+    assert summary["total"] == 2
+    assert {item["key"]: item["count"] for item in summary["reasons"]} == {
+        "incorrect_info": 1, "made_up": 0, "outdated": 0, "other": 1,
+    }
+    assert len(store.list_reports()) == 2
+
+
+def test_reviewer_report_summary_and_reason_filter(report_client):
+    store = app_module.get_issue_report_store()
+    for reason in ["other", "made_up", "other"]:
+        store.save(build_issue_report(_report(reason=reason)))
+    for query in ["", "?reason=other", "?reason=unknown"]:
+        assert report_client.get("/api/evaluation/issue-reports" + query).status_code == 401
+    assert report_client.post(
+        "/api/evaluation/session",
+        json={"reviewer": "Reviewer One", "access_token": "test-review-token"},
+    ).status_code == 200
+    endpoint = "/api/evaluation/issue-reports"
+    body = report_client.get(endpoint).get_json()
+    assert len(body["reports"]) == 3
+    assert body["summary"]["total"] == 3
+    assert [reason["key"] for reason in body["summary"]["reasons"]] == [
+        "other", "made_up", "incorrect_info", "outdated",
+    ]
+    for reason in issue_reports.REASON_LABELS:
+        response = report_client.get(endpoint, query_string={"reason": reason})
+        assert response.status_code == 200
+        filtered = response.get_json()
+        assert all(report["reason"] == reason for report in filtered["reports"])
+        assert len(filtered["reports"]) == (2 if reason == "other" else 1 if reason == "made_up" else 0)
+        assert filtered["summary"] == body["summary"]
+    for reason in ["unknown", "", "other' OR 1=1 --"]:
+        assert report_client.get(endpoint, query_string={"reason": reason}).status_code == 400
