@@ -512,8 +512,12 @@ optional comment, and the flagged question and answer. The conversation id,
 model, earlier turns, and links from the answer are stored only when the
 student turns on "Include this conversation so the team can review it".
 Signed-in reviewers see the list on `/evaluation` and at
-`GET /api/evaluation/issue-reports`. Reports stay until the database file is
-removed; there is no automatic retention window. Saving a student's own chat
+`GET /api/evaluation/issue-reports`. Reports, including opted-in transcripts,
+are automatically deleted after 90 days. Set `ISSUE_REPORT_RETENTION_DAYS`
+to a positive integer to override this window; invalid values fall back to 90.
+Cleanup runs when the report store initializes, then on writes or lists at most
+once per hour per worker, without a separate scheduler. Only deletion counts
+are logged, never report contents. Saving a student's own chat
 copy is tracked separately in
 [issue #35](https://github.com/SJSU-CMPE-195/group-project-team-22/issues/35)
 and is not part of this report flow.

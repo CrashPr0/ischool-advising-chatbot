@@ -999,7 +999,7 @@ function ensureReportDialog() {
   privacy.id = "report-issue-privacy";
   privacy.className = "report-privacy";
   privacy.textContent =
-    "Only the reason, your comment, and this answer are saved unless you include the conversation.";
+    "Only the reason, your comment, and this answer are saved unless you include the conversation. Reports, including any conversation you share, are automatically deleted after 90 days.";
 
   const fieldset = document.createElement("fieldset");
   fieldset.className = "report-reasons";

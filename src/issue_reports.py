@@ -15,9 +15,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import sqlite3
-from datetime import datetime, timezone
+import threading
+import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -45,6 +48,8 @@ TURNS_MAX = 40
 LABEL_MAX = 120
 CITATION_MAX = 40
 LIST_DEFAULT = 200
+RETENTION_DEFAULT_DAYS = 90
+PURGE_INTERVAL_SECONDS = 3_600
 
 _LABEL_RE = re.compile(r"^[A-Za-z0-9_.:/+-]{1,120}$")
 _CONVERSATION_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
@@ -273,12 +278,27 @@ def build_issue_report(
 
 
 class IssueReportStore:
-    """Append-only reports in the reviews SQLite database."""
+    """Reports in the reviews SQLite database, with automatic expiration."""
 
     def __init__(self, database_path: str | Path):
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.retention_days = int(
+                os.getenv("ISSUE_REPORT_RETENTION_DAYS", str(RETENTION_DEFAULT_DAYS))
+            )
+            if self.retention_days <= 0:
+                raise ValueError("retention must be positive")
+        except (TypeError, ValueError):
+            logger.warning(
+                "Invalid ISSUE_REPORT_RETENTION_DAYS value; using %s",
+                RETENTION_DEFAULT_DAYS,
+            )
+            self.retention_days = RETENTION_DEFAULT_DAYS
+        self._purge_lock = threading.Lock()
+        self._last_purge: float | None = None
         self._initialize()
+        self._purge_expired()
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path, timeout=10)
@@ -292,8 +312,31 @@ class IssueReportStore:
             connection.execute(_CREATE_SQL)
             connection.execute(_CREATE_INDEX_SQL)
 
+    def _purge_expired(self) -> None:
+        """Delete expired rows atomically; each worker throttles its own checks."""
+        with self._purge_lock:
+            now = time.monotonic()
+            if (
+                self._last_purge is not None
+                and now - self._last_purge < PURGE_INTERVAL_SECONDS
+            ):
+                return
+            try:
+                cutoff = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
+            except OverflowError:
+                # An arbitrarily large positive window expires no existing rows.
+                cutoff = datetime.min.replace(tzinfo=timezone.utc)
+            with self._connect() as connection:
+                deleted = connection.execute(
+                    "DELETE FROM answer_issue_reports WHERE created_at < ?",
+                    (cutoff.isoformat(),),
+                ).rowcount
+            self._last_purge = time.monotonic()
+            logger.info("Deleted %s expired issue reports", deleted)
+
     def save(self, record: dict[str, Any]) -> int:
         """Insert one validated record. Returns the new row id."""
+        self._purge_expired()
         include = 1 if record.get("include_conversation") else 0
         turns = record.get("turns")
         citations = record.get("citations")
@@ -339,6 +382,7 @@ class IssueReportStore:
 
     def list_reports(self, *, limit: int = LIST_DEFAULT) -> list[dict[str, Any]]:
         """Return the newest reports, capped so one response stays bounded."""
+        self._purge_expired()
         capped = max(1, min(int(limit), LIST_DEFAULT))
         with self._connect() as connection:
             rows = connection.execute(

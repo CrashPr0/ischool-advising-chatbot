@@ -52,6 +52,19 @@ and verify steps call the app; they do not hard-code a directory.
 `EVAL_RESULTS_PATH` stays the `evals/results/latest.json` shipped in the
 release unless you set it.
 
+Student answer reports use `answer_issue_reports` in the reviews database.
+`ISSUE_REPORT_RATE_LIMIT` (10) and `ISSUE_REPORT_RATE_WINDOW_SECONDS` (600)
+control report submissions. `ISSUE_REPORT_RETENTION_DAYS` defaults to 90;
+set a positive integer in App Service application settings to override it,
+then restart the app. Invalid values fall back to 90. Reports older than the
+window, including any opted-in conversation transcripts, are deleted when
+each worker initializes its report store and opportunistically on report
+writes or lists, at most once per hour per worker. No scheduler is needed;
+idle workers clean up on the next report operation. Concurrent workers use
+an atomic SQLite deletion. Logs record the number of deleted rows without
+report contents. Keep the dialog's 90-day privacy note aligned if you change
+the deployment's retention window.
+
 ## Reviews database backup
 
 The live reviews file is `/home/data/evaluation/reviews.sqlite3`. The copy
