@@ -1423,6 +1423,8 @@ function normalizeMessage(message) {
   const normalized = {
     role: message.role,
     text: message.text,
+    timestamp: Number.isFinite(message.timestamp) && !isNaN(new Date(message.timestamp).getTime())
+      ? message.timestamp : null,
     source: typeof message.source === "string" ? message.source : null,
     retrievedDocs: Number.isFinite(message.retrievedDocs) ? message.retrievedDocs : null
   };
@@ -1517,6 +1519,7 @@ function rememberMessage(conversationId, message) {
   const convo = conversations.find((item) => item.id === conversationId);
   const normalized = normalizeMessage(message);
   if (!convo || !normalized) return;
+  if (normalized.timestamp === null) normalized.timestamp = Date.now();
   convo.messages.push(normalized);
   if (convo.messages.length > MAX_STORED_MESSAGES) {
     convo.messages.splice(0, convo.messages.length - MAX_STORED_MESSAGES);
@@ -1819,7 +1822,7 @@ function initConversations() {
   chatTabs.addEventListener("keydown", onTabKeydown);
 }
 
-// Export only the active browser transcript; printing requires no server request.
+// Export only the active browser transcript, entirely on the student's device.
 const exportChatButton = document.getElementById("export-chat-button");
 const exportChatStatus = document.getElementById("export-chat-status");
 let chatPrintView = null;
@@ -1839,6 +1842,59 @@ function cleanupChatPrintView() {
   titleBeforeExport = null;
 }
 
+function chatExportDate(date) {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0")].join("-");
+}
+
+function chatExportMessageLabel(message) {
+  const role = message.role === "bot" ? "Advising assistant" : "You";
+  const timestamp = Number.isFinite(message.timestamp)
+    ? new Date(message.timestamp).toLocaleString() : "Timestamp unavailable";
+  return role + " - " + timestamp;
+}
+
+function chatExportPlainText(message) {
+  if (message.role !== "bot" || typeof renderBotMarkdown !== "function") return message.text;
+  // Preserve both citation labels and destinations without HTML or PDF annotations.
+  return unescapeHtml(renderBotMarkdown(message.text)
+    .replace(/<a\b[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/g, "$2 ($1)")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|li|ul|ol|pre|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, ""))
+    .replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function downloadChatPdf(convo, exportedAt) {
+  const pdf = new window.jspdf.jsPDF({ unit: "pt", format: "letter" });
+  const margin = 48;
+  const width = pdf.internal.pageSize.getWidth() - 2 * margin;
+  const bottom = pdf.internal.pageSize.getHeight() - margin;
+  let y = margin;
+  function write(text, size, bold = false) {
+    pdf.setFont("helvetica", bold ? "bold" : "normal");
+    pdf.setFontSize(size);
+    const lineHeight = size * 1.4;
+    for (const line of pdf.splitTextToSize(String(text), width)) {
+      if (y + lineHeight > bottom) {
+        pdf.addPage();
+        y = margin;
+      }
+      pdf.text(line, margin, y);
+      y += lineHeight;
+    }
+    y += 8;
+  }
+  write("SJSU iSchool Advising Chatbot - conversation", 16, true);
+  write("Exported: " + exportedAt.toLocaleString(), 10);
+  convo.messages.forEach((message) => {
+    write(chatExportMessageLabel(message), 11, true);
+    write(chatExportPlainText(message), 11);
+  });
+  write("This copy was created on your device. The advising chatbot does not keep it. Verify important details with an iSchool advisor.", 10);
+  pdf.save("SJSU-advising-chat-" + chatExportDate(exportedAt) + ".pdf");
+}
+
 if (exportChatButton) {
   window.addEventListener("afterprint", cleanupChatPrintView);
   exportChatButton.addEventListener("click", () => {
@@ -1846,6 +1902,13 @@ if (exportChatButton) {
     if (!convo || exportChatButton.disabled) return;
     cleanupChatPrintView();
     const exportedAt = new Date();
+    try {
+      downloadChatPdf(convo, exportedAt);
+      if (exportChatStatus) exportChatStatus.textContent = "PDF downloaded.";
+      return;
+    } catch (_error) {
+      // A missing library or PDF failure retains the browser print fallback.
+    }
     const view = document.createElement("article");
     view.id = "chat-print-view";
     const heading = document.createElement("h1");
@@ -1856,7 +1919,7 @@ if (exportChatButton) {
     convo.messages.forEach((message) => {
       const turn = document.createElement("section");
       const label = document.createElement("h2");
-      label.textContent = message.role === "bot" ? "Advising assistant" : "You";
+      label.textContent = chatExportMessageLabel(message);
       const body = document.createElement("div");
       body.className = "chat-print-message";
       renderMessageText(body, message.text, message.role === "bot");
@@ -1869,8 +1932,7 @@ if (exportChatButton) {
     document.body.appendChild(view);
     chatPrintView = view;
     titleBeforeExport = document.title;
-    const date = [exportedAt.getFullYear(), String(exportedAt.getMonth() + 1).padStart(2, "0"),
-      String(exportedAt.getDate()).padStart(2, "0")].join("-");
+    const date = chatExportDate(exportedAt);
     document.title = "SJSU-advising-chat-" + date;
     if (exportChatStatus) {
       exportChatStatus.textContent = "Choose “Save as PDF” in the print dialog to keep a copy.";

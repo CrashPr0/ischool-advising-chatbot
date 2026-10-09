@@ -305,6 +305,26 @@ def test_security_headers_and_healthz_stay_lightweight(monkeypatch):
     assert client.get("/healthz").get_json()["status"] == "ok"
 
 
+def test_pdf_vendor_is_served_locally_under_existing_csp():
+    client = app_module.app.test_client()
+    page = client.get("/")
+    assert b"/static/vendor/jspdf/jspdf.umd.min.js?v=4.2.1" in page.data
+    policy = page.headers["Content-Security-Policy"]
+    script_policy = next(
+        part.strip()
+        for part in policy.split(";")
+        if part.strip().startswith("script-src ")
+    )
+    assert "'self'" in script_policy
+    assert "'unsafe-eval'" not in script_policy
+    assert "'unsafe-inline'" not in script_policy
+    vendor = client.get("/static/vendor/jspdf/jspdf.umd.min.js?v=4.2.1")
+    assert vendor.status_code == 200
+    assert b"Version 4.2.1" in vendor.data
+    assert "javascript" in vendor.content_type
+    assert client.get("/static/vendor/jspdf/LICENSE").status_code == 200
+
+
 def test_http_localhost_session_is_not_secure_and_still_round_trips(
     monkeypatch, ready_chat_index
 ):

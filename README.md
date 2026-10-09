@@ -520,9 +520,11 @@ once per hour per worker, without a separate scheduler. Only deletion counts
 are logged, never report contents.
 
 Students can use **Export chat** to keep the current conversation on their
-own device. Choose **Save as PDF** in the browser's print dialog. The export
-is created entirely client-side, sends no network request, and stores nothing
-on the server.
+own device with a one-click PDF download. The locally vendored jsPDF 4.2.1
+build creates the export entirely client-side, sends no network request, and
+stores nothing on the server. If PDF generation is unavailable, choose
+**Save as PDF** in the browser's fallback print dialog. Older saved turns
+without recorded timestamps show **Timestamp unavailable**.
 
 Localhost can use the workspace without a shared secret. On a public deploy,
 sign-in needs `EVAL_ACCESS_TOKEN`, `EVAL_ALLOWED_REVIEWERS`, or Easy Auth;
