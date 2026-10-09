@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ISDA Advising Support Chatbot</title>
+  <title>SJSU iSchool Advising Support Chatbot</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261010-pdf-download') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261011-mlis-pdf') }}" />
 </head>
 
 <body>
@@ -33,7 +33,7 @@
             <p class="brand-kicker">San José State University</p>
             <h1>Your next step starts here.</h1>
             <p class="hero-subtitle">
-              ISDA advising support, whenever you need it. Get guidance on courses,
+              BS ISDA and MLIS advising support, whenever you need it. Get guidance on courses,
               registration, and the path to graduation.
             </p>
           </div>
@@ -52,7 +52,7 @@
           <ul class="topic-list" id="topic-list">
             <li>
               <button class="topic-btn" data-topic="General Advising"
-                data-hint="I have a general advising question. Please help me with general ISDA advising."
+                data-hint="I have a general advising question. Please help me with general BS ISDA or MLIS advising."
                 data-samples='["Who is my assigned ISDA advisor?","How do I schedule an advising appointment?","Where is the iSchool advising office?"]'>
                 <span class="topic-name">General Advising</span>
                 <span class="topic-sub">All advising questions</span>
@@ -121,6 +121,38 @@
                 <span class="topic-sub">Scholarships &amp; payments</span>
               </button>
             </li>
+            <li>
+              <button class="topic-btn" data-topic="MLIS core courses"
+                data-hint="What are the MLIS core courses?"
+                data-samples='["What are the MLIS core courses?"]'>
+                <span class="topic-name">MLIS core courses</span>
+                <span class="topic-sub">MLIS program</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="Apply to the MLIS program"
+                data-hint="How do I apply to the MLIS program?"
+                data-samples='["How do I apply to the MLIS program?"]'>
+                <span class="topic-name">Apply to the MLIS program</span>
+                <span class="topic-sub">MLIS program</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="MLIS e-portfolio / culminating experience"
+                data-hint="What is the MLIS e-portfolio?"
+                data-samples='["What is the MLIS e-portfolio?"]'>
+                <span class="topic-name">MLIS e-portfolio / culminating experience</span>
+                <span class="topic-sub">MLIS program</span>
+              </button>
+            </li>
+            <li>
+              <button class="topic-btn" data-topic="MLIS advising"
+                data-hint="How do I schedule an MLIS advising appointment?"
+                data-samples='["How do I schedule an MLIS advising appointment?"]'>
+                <span class="topic-name">MLIS advising</span>
+                <span class="topic-sub">MLIS program</span>
+              </button>
+            </li>
           </ul>
 
           <div class="active-topic-banner hidden" id="active-topic-banner">
@@ -162,7 +194,7 @@
         <div class="chat-card">
           <div class="chat-header">
             <div>
-              <p class="chat-eyebrow">ISDA STUDENT SUPPORT</p>
+              <p class="chat-eyebrow">BS ISDA &amp; MLIS STUDENT SUPPORT</p>
               <h2 id="chat-heading">Let’s talk about your next step</h2>
               <p>Ask a question or choose an advising topic.</p>
             </div>
@@ -188,7 +220,7 @@
             <div class="empty-state" id="empty-state">
               <div class="empty-intro">
                 <p class="empty-kicker">Welcome</p>
-                <h3>Hi! I’m your ISDA advising assistant.</h3>
+                <h3>Hi! I’m your BS ISDA and MLIS advising assistant.</h3>
                 <p class="empty-lead">
                   I can help you explore degree requirements, plan your courses,
                   and navigate registration. Choose a topic or ask me a question
@@ -244,6 +276,15 @@
           </div>
 
           <div class="composer">
+            <div class="program-control">
+              <label for="program-select">Program</label>
+              <select id="program-select" name="program">
+                <option value="both">Not sure / both</option>
+                <option value="isda">BS Information Science &amp; Data Analytics (ISDA)</option>
+                <option value="mlis">MLIS</option>
+              </select>
+            </div>
+
             <div class="input-row-wrapper">
               <div class="input-container">
                 <label class="sr-only" for="user-input">
@@ -351,5 +392,5 @@
   </div>
 
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
-  <script src="{{ url_for('static', filename='script.js', v='20261010-pdf-download') }}"></script></body>
+  <script src="{{ url_for('static', filename='script.js', v='20261011-mlis-pdf') }}"></script></body>
 </html>

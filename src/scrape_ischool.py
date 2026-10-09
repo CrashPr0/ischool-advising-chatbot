@@ -340,7 +340,7 @@ def sync_pages(
     programs: Iterable[str] = ("ISDA",),
     topics: Iterable[str] = ("advising",),
 ) -> dict[str, int]:
-    """Write changed snapshots and a deterministic source manifest."""
+    """Write snapshots; preserve manifest entries outside this run’s programs."""
     text_dir = docs_root / "txt"
     meta_dir = docs_root / "meta"
     manifest_path = docs_root / "scrape" / "manifest.json"
@@ -351,13 +351,31 @@ def sync_pages(
     program_list = sorted(
         {value.strip().upper() for value in programs if value.strip()}
     )
+    if not program_list or not set(program_list) <= {"ISDA", "MLIS"}:
+        raise ValueError("The advising corpus supports only ISDA and MLIS")
     topic_list = sorted({value.strip() for value in topics if value.strip()})
     stats = {"processed": 0, "added": 0, "updated": 0, "unchanged": 0}
-    manifest_entries = []
+    # A program-specific refresh must not erase the other program's inventory.
+    previous_entries = []
+    if manifest_path.is_file():
+        previous_entries = json.loads(manifest_path.read_text(encoding="utf-8")).get(
+            "documents", []
+        )
+    manifest_entries = [
+        entry for entry in previous_entries
+        if not set(entry.get("programs", [])).intersection(program_list)
+    ]
     for page in pages:
         doc_id = f"web-{sha256(page['url'].encode('utf-8')).hexdigest()[:16]}"
         text_path = text_dir / f"{doc_id}.txt"
         meta_path = meta_dir / f"{doc_id}.yml"
+        # A shared URL has one snapshot, with both program labels.
+        shared = next(
+            (entry for entry in manifest_entries if entry["source_url"] == page["url"]),
+            None,
+        )
+        page_programs = sorted(set(program_list) | set((shared or {}).get("programs", [])))
+        page_topics = sorted(set(topic_list) | set((shared or {}).get("topics", [])))
         content = page["text"].strip() + "\n"
         content_hash = sha256(content.encode("utf-8")).hexdigest()
         previous = (
@@ -378,23 +396,34 @@ def sync_pages(
                         "source_url": page["url"],
                         "retrieved_at": timestamp,
                         "content_sha256": content_hash,
-                        "programs": program_list,
-                        "topics": topic_list,
+                        "programs": page_programs,
+                        "topics": page_topics,
                     },
                     allow_unicode=True,
                     sort_keys=False,
                 ),
                 encoding="utf-8",
             )
+        if previous == content and shared and meta_path.is_file():
+            metadata = yaml.safe_load(meta_path.read_text(encoding="utf-8"))
+            if metadata.get("programs") != page_programs or metadata.get("topics") != page_topics:
+                metadata.update(programs=page_programs, topics=page_topics)
+                meta_path.write_text(
+                    yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False),
+                    encoding="utf-8",
+                )
         stats["processed"] += 1
+        manifest_entries = [
+            entry for entry in manifest_entries if entry["source_url"] != page["url"]
+        ]
         manifest_entries.append(
             {
                 "doc_id": doc_id,
                 "source_url": page["url"],
                 "title": page["title"] or page["url"],
                 "content_sha256": content_hash,
-                "programs": program_list,
-                "topics": topic_list,
+                "programs": page_programs,
+                "topics": page_topics,
             }
         )
 

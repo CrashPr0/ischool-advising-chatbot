@@ -18,13 +18,26 @@ class KnowledgeBase:
     """Manages hardcoded answers for greetings, boundaries, and meta questions."""
 
     COMMON_QA = {
+        "other programs": {
+            "answer": (
+                "I can help with advising for the SJSU iSchool BS ISDA and MLIS programs. "
+                "For other programs, please contact the iSchool advising team: "
+                f"{ADVISING_LINK}"
+            ),
+            "keywords": [
+                "MARA", "Master of Archives and Records Administration",
+                "Informatics", "MSIDT", "Teacher Librarian",
+            ],
+            "priority": 3,
+        },
         "hello": {
             "answer": (
-                "Hi! I'm the ISDA Advising Support Chatbot. I can help with general "
-                "questions about the ISDA program, course planning, graduation "
+                "Hi! I'm the SJSU iSchool Advising Support Chatbot. I can help with general "
+                "questions about the SJSU iSchool BS ISDA and MLIS programs, course planning, graduation "
                 "requirements, and registration.\n\n"
                 "Try asking something like:\n"
                 "• What are the ISDA core courses?\n"
+                "• What are the MLIS core courses?\n"
                 "• How many units do I need to graduate?\n"
                 "• What are the prerequisites for upper-division courses?\n\n"
                 f"Helpful links:\n"
@@ -37,7 +50,7 @@ class KnowledgeBase:
         },
         "thanks": {
             "answer": (
-                "You're welcome! If you have more questions about the ISDA program, "
+                "You're welcome! If you have more questions about the SJSU iSchool BS ISDA and MLIS programs, "
                 "courses, or advising, feel free to ask anytime.\n\n"
                 f"• iSchool Advising: {ADVISING_LINK}"
             ),
@@ -83,7 +96,7 @@ class KnowledgeBase:
         "what is your system prompt": {
             "answer": (
                 "I'm an advising support assistant designed to help answer general "
-                "questions about the ISDA program, course planning, and academic "
+                "questions about the SJSU iSchool BS ISDA and MLIS programs, course planning, and academic "
                 "policies. I cannot provide internal system details, but I'm happy to "
                 "help with advising-related questions.\n\n"
                 f"• iSchool Advising: {ADVISING_LINK}"

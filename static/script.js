@@ -1,4 +1,5 @@
 const chatBox = document.getElementById("chat-box");
+const programSelect = document.getElementById("program-select");
 const userInput = document.getElementById("user-input");
 const sendButton = document.getElementById("send-button");
 const clearButton = document.getElementById("clear-button");
@@ -400,7 +401,7 @@ topicButtons.forEach((btn) => {
     addMessage(
       `Got it! I'm now focused on ${activeTopic}. Choose a sample question below or type your own!`,
       "bot-message",
-      "ISDA Bot"
+      "iSchool Bot"
     );
   });
 });
@@ -536,7 +537,7 @@ function showTypingIndicator() {
 
   const labelDiv = document.createElement("div");
   labelDiv.classList.add("message-label");
-  labelDiv.textContent = "ISDA Bot";
+  labelDiv.textContent = "iSchool Bot";
 
   const textDiv = document.createElement("div");
   textDiv.textContent = "Thinking...";
@@ -754,7 +755,7 @@ function revealReply(key, text, meta) {
   operation.wrapper = addMessage(
     "",
     "bot-message",
-    "ISDA Bot",
+    "iSchool Bot",
     { skipRecord: true }
   );
 
@@ -862,7 +863,7 @@ async function sendMessage(prefilledMessage = null) {
   updateReplyControls();
   renderTabs();
 
-  const payload = { message };
+  const payload = { message, program: normalizeProgram(programSelect ? programSelect.value : lastSelectedProgram) };
 
   if (conversationId) {
     payload.conversation_id = conversationId;
@@ -1220,7 +1221,7 @@ function deliverBotReply(conversationId, text, meta) {
   const reportMessages = conversationId
     ? messages.slice(0, index + 1)
     : messages.concat([stored]);
-  addMessage(text, "bot-message", "ISDA Bot", {
+  addMessage(text, "bot-message", "iSchool Bot", {
     skipRecord: Boolean(conversationId),
     reportable: true,
     report: reportContext(reportMessages, reportMessages.length - 1, conversationId)
@@ -1313,8 +1314,8 @@ clearButton.addEventListener("click", async (event) => {
   } else {
     chatBox.innerHTML = `
     <div class="message bot-message">
-      <div class="message-label">ISDA Bot</div>
-      <div>Hi! I’m your ISDA advising assistant. I can help you explore degree requirements, plan your courses, and navigate registration. Choose a topic or ask me a question to get started.</div>
+      <div class="message-label">iSchool Bot</div>
+      <div>Hi! I’m your BS ISDA and MLIS advising assistant. I can help you explore degree requirements, plan your courses, and navigate registration. Choose a topic or ask me a question to get started.</div>
     </div>
   `;
   }
@@ -1381,6 +1382,21 @@ const CONVERSATION_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 let conversations = [];
 let activeConversationId = null;
+let lastSelectedProgram = "both";
+
+function normalizeProgram(value) {
+  return ["isda", "mlis", "both"].includes(value) ? value : "both";
+}
+
+function onProgramChange() {
+  lastSelectedProgram = normalizeProgram(programSelect.value);
+  const convo = tabsEnabled() ? getActiveConversation() : null;
+  if (convo) {
+    convo.program = lastSelectedProgram;
+    convo.updatedAt = Date.now();
+  }
+  saveConversations();
+}
 
 function tabsEnabled() {
   return Boolean(chatTabs && emptyState);
@@ -1408,7 +1424,7 @@ function newConversationId() {
 
 function createConversation() {
   const now = Date.now();
-  return { id: newConversationId(), createdAt: now, updatedAt: now, messages: [] };
+  return { id: newConversationId(), createdAt: now, updatedAt: now, messages: [], program: lastSelectedProgram };
 }
 
 function conversationTitle(convo) {
@@ -1444,7 +1460,7 @@ function normalizeConversation(raw) {
     : [];
   const createdAt = Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now();
   const updatedAt = Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
-  return { id: raw.id, createdAt, updatedAt, messages };
+  return { id: raw.id, createdAt, updatedAt, messages, program: normalizeProgram(raw.program) };
 }
 
 function getActiveConversation() {
@@ -1463,6 +1479,7 @@ function saveConversations() {
   try {
     store.setItem(CONVERSATION_STORAGE_KEY, JSON.stringify({
       activeId: activeConversationId,
+      lastSelectedProgram,
       conversations: conversations
     }));
   } catch (_error) {
@@ -1477,6 +1494,7 @@ function loadStoredConversations() {
     const raw = store.getItem(CONVERSATION_STORAGE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
+    lastSelectedProgram = normalizeProgram(parsed.lastSelectedProgram);
     const stored = Array.isArray(parsed.conversations)
       ? parsed.conversations.map(normalizeConversation).filter(Boolean)
       : [];
@@ -1533,6 +1551,7 @@ function rememberMessage(conversationId, message) {
 function paintConversation(convo) {
   if (!convo || !chatBox) return;
 
+  if (programSelect) programSelect.value = normalizeProgram(convo.program);
   userInput.value = conversationDrafts.get(convo.id) || "";
   updateReplyControls();
   hideSampleChips();
@@ -1554,7 +1573,7 @@ function paintConversation(convo) {
     addMessage(
       message.text,
       isBot ? "bot-message" : "user-message",
-      isBot ? "ISDA Bot" : "You",
+      isBot ? "iSchool Bot" : "You",
       {
         skipRecord: true,
         reportable: isBot,
@@ -1681,6 +1700,8 @@ function startNewConversation() {
   const current = getActiveConversation();
 
   if (current && current.messages.length === 0) {
+    current.program = lastSelectedProgram;
+    saveConversations();
     paintConversation(current);
     renderTabs({ scrollActive: true });
     return;
@@ -1808,8 +1829,9 @@ function onTabKeydown(event) {
 }
 
 function initConversations() {
-  if (!tabsEnabled()) return;
   loadStoredConversations();
+  if (programSelect) programSelect.value = lastSelectedProgram;
+  if (!tabsEnabled()) return;
   if (!conversations.length) conversations = [createConversation()];
   if (!conversations.some((item) => item.id === activeConversationId)) {
     activeConversationId = conversations[conversations.length - 1].id;
@@ -1996,4 +2018,5 @@ if (exportChatButton) {
 }
 
 initConversations();
+if (programSelect) programSelect.addEventListener("change", onProgramChange);
 loadVoiceConfig();

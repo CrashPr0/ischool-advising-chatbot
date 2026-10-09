@@ -60,6 +60,7 @@ from issue_reports import (
     build_issue_report,
 )
 from voice_config import get_voice_config
+from program_scope import normalize_program
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -1015,7 +1016,12 @@ def chat():
         # store is updated here so a crisis reply can be left out of history.
         chatbot_instance = get_chatbot()
         prior_turns = _history_store.snapshot(session_id)
-        result = chatbot_instance.chat(user_message, history=prior_turns)
+        program = normalize_program(data.get("program"))
+        result = chatbot_instance.chat(
+            user_message,
+            history=prior_turns,
+            **({"program": program} if program else {}),
+        )
         provider, model = _stamp_chat_model(result)
         if result.get("safety_tier") != "crisis":
             _history_store.append(session_id, result)

@@ -391,6 +391,48 @@
       ]
     },
     {
+      "doc_id": "web-f94879d2bc8f76ba",
+      "source_url": "https://ischool.sjsu.edu/admissions",
+      "title": "Admissions - SJSU - School of Information",
+      "content_sha256": "8a123c3f69bce4b2c94782d10b8173033e2c528d5101b76d49f08e8cdfceabbb",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-045a136baaa70683",
+      "source_url": "https://ischool.sjsu.edu/advising-appointments",
+      "title": "Advising Appointments - SJSU - School of Information",
+      "content_sha256": "f2b197ae73edcfcdc8ae835a4b5eb6c4687fe064722cfb0e6169fac14ec87baf",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-a2e9fbe533774212",
+      "source_url": "https://ischool.sjsu.edu/application-deadlines",
+      "title": "Application Deadlines - SJSU - School of Information",
+      "content_sha256": "7a0d0d7f6ae1e6b351f1ababeebb30dade4e4d4cd3023104cfdb34ec5352230e",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
       "doc_id": "web-2fc4c82a38a1e267",
       "source_url": "https://ischool.sjsu.edu/bachelor-science-information-science-and-data-analytics",
       "title": "BS in Information Science & Data Analytics - San José State University",
@@ -601,6 +643,160 @@
       ]
     },
     {
+      "doc_id": "web-b9f42b8112ad5ee7",
+      "source_url": "https://ischool.sjsu.edu/graduate-application",
+      "title": "Graduate Application - SJSU - School of Information",
+      "content_sha256": "7b08dc210d2a7923f49adb5862bca784347cc53a335e4520b4a242efb450a606",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-6de51dc28419de57",
+      "source_url": "https://ischool.sjsu.edu/info-289-e-portfolio-faqs",
+      "title": "INFO 289 e-Portfolio FAQs - SJSU - School of Information",
+      "content_sha256": "1fda9994f2d700fad9a61c7234135193981a84139c2746aa463a1688a641fbcf",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-cd919d38fc5046fd",
+      "source_url": "https://ischool.sjsu.edu/master-library-and-information-science",
+      "title": "Master of Library and Information Science - SJSU - School of Information",
+      "content_sha256": "558a2d8caaebb892c7d7ceab75a9c78ee851e4a5c4f8c0bd275bf4387b7def56",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-f93ba0d100172d0d",
+      "source_url": "https://ischool.sjsu.edu/mlis-academics",
+      "title": "MLIS Academics - SJSU - School of Information",
+      "content_sha256": "1d50b9692950e59cf1a59d1feae10d808280ce3eaecb7138ce37e84372bec24c",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-3d4d045d6a720fb7",
+      "source_url": "https://ischool.sjsu.edu/mlis-accreditation",
+      "title": "mlis accreditation - SJSU - School of Information",
+      "content_sha256": "55d4c9e5a1df55ca28c33a397be83321a71bc924db178e7d470f5f8ecfc319da",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-a8ed6c9949a064a8",
+      "source_url": "https://ischool.sjsu.edu/mlis-career-pathways",
+      "title": "MLIS Career Pathways - SJSU - School of Information",
+      "content_sha256": "809ed1775f65f2e78dcd7874abe444e49de974ca3c77b8db6777f029e3c12495",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-0e175e6b6d65b913",
+      "source_url": "https://ischool.sjsu.edu/mlis-course-load",
+      "title": "MLIS Course Load - SJSU - School of Information",
+      "content_sha256": "0a9f7e858dd345aa6a07626cb38a066c409ba9e448e86b027ca28762a894f8b4",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-71faa4ee3406d587",
+      "source_url": "https://ischool.sjsu.edu/mlis-electives",
+      "title": "MLIS Electives - SJSU - School of Information",
+      "content_sha256": "b1e8933abe74da04c0def632d9c89386810d548f9227b4dc32ccef7aff0d5a13",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-24557f5ea70b505e",
+      "source_url": "https://ischool.sjsu.edu/mlis-fees-chart",
+      "title": "MLIS Fees Chart - SJSU - School of Information",
+      "content_sha256": "9b558da63b8a9fd305e8ae3769c092326c6edcccfcfce0129cc0387626792fb2",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-9676b886051edffc",
+      "source_url": "https://ischool.sjsu.edu/mlis-program-learning-outcomes",
+      "title": "MLIS Program Learning Outcomes - SJSU - School of Information",
+      "content_sha256": "07346ca7eebecf3b0c3f791aab76e6ab6d848b9849454fca6166fa87056e8902",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-2d19d3e666267452",
+      "source_url": "https://ischool.sjsu.edu/mlis-required-courses",
+      "title": "MLIS Required Courses - SJSU - School of Information",
+      "content_sha256": "eb7ad1af43f997dabb8fe2f08ccc23c8fad4c5d8ce997d94a7dc46b2110085ec",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
+      ]
+    },
+    {
       "doc_id": "web-7cb352458448ad58",
       "source_url": "https://www.sjsu.edu/commencement/ceremonies/index.php",
       "title": "Schedule of Events | Commencement",
@@ -685,6 +881,20 @@
         "degree-requirements",
         "financial-aid",
         "registration"
+      ]
+    },
+    {
+      "doc_id": "web-6ec5dc6d39aac2e8",
+      "source_url": "https://www.sjsu.edu/online/programs/library-and-information-science-masters-degree.php",
+      "title": "Online Master of Library and Information Science | SJSU",
+      "content_sha256": "3868a53831e6728e7115980167bb32d2aa3e5b6b5687247e2e63e51079f9a292",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "admissions",
+        "advising",
+        "degree-requirements"
       ]
     },
     {

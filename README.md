@@ -1,6 +1,6 @@
 # iSchool Senior Advising Chatbot (RAG)
 
-A LangChain-based advising chatbot for SJSU iSchool students. It supports:
+A LangChain-based advising chatbot for SJSU iSchool BS ISDA and MLIS students. It supports:
 
 - **Knowledge base answers** (instant responses for common questions)
 - **RAG** (retrieves relevant documents and grounds the answer)
@@ -64,15 +64,15 @@ URLs.
 
 ### Offline website ingestion (scrape into txt + meta)
 
-The scraper is **not** meant to run at query-time. It writes files your existing `DocumentProcessor` already ingests. The checked-in seed list is deliberately limited to reviewed ISDA and SJSU-wide sources; do not add program-specific MLIS, MARA, Informatics, or MSIDT pages.
+The scraper is **not** meant to run at query-time. It writes files your existing `DocumentProcessor` already ingests. The checked-in seed list covers reviewed BS ISDA, MLIS, and applicable SJSU-wide sources. MARA, Informatics, MSIDT, and Teacher Librarian remain excluded. Crawl program-specific seed subsets separately with `--program ISDA` or `--program MLIS`; do not label the combined seed list as one program. `sync_pages` preserves manifest entries for programs outside the current run.
 
-1. Put seed URLs in `data/advising_docs/scrape/seed_urls.txt` (one URL per line)
+1. Review seeds in `data/advising_docs/scrape/seed_urls.txt` (one URL per line). Copy only the program and applicable university seeds for the current crawl into a temporary seed file, such as `/tmp/isda-seeds.txt`.
 2. Run:
 
 ```bash
 python -m src.scrape_ischool \
   --docs-root ./data/advising_docs \
-  --seeds ./data/advising_docs/scrape/seed_urls.txt \
+  --seeds /tmp/isda-seeds.txt \
   --allow-host ischool.sjsu.edu \
   --allow-host www.sjsu.edu \
   --max-urls 100 \
@@ -87,7 +87,7 @@ Optional: also pass a sitemap (bounded) to add more pages:
 ```bash
 python -m src.scrape_ischool \
   --docs-root ./data/advising_docs \
-  --seeds ./data/advising_docs/scrape/seed_urls.txt \
+  --seeds /tmp/isda-seeds.txt \
   --sitemap https://ischool.sjsu.edu/sitemap.xml \
   --allow-host ischool.sjsu.edu \
   --include-path '^/(bsisda|bachelor-science-information-science)' \
@@ -251,6 +251,15 @@ clamped to 1–20). The completion cap stays `LLM_MAX_TOKENS` (512). History
 retention is controlled by `MAX_HISTORY_MESSAGES` and `CHAT_SESSION_TTL_SECONDS`.
 
 ### Hybrid retrieval
+
+Queries explicitly mentioning MLIS, library science, or a master's program prefer
+chunks tagged `programs: [MLIS]`; ISDA, undergraduate, and bachelor's queries
+prefer ISDA chunks. This stable preference runs within the hybrid candidate pool
+before selecting top-k and also applies to the BM25 fallback when query embeddings
+fail. The vector-only path reranks its existing top-k. Untagged sources remain
+available as fallback evidence. Queries naming both programs or neither retain
+their ranking; the prompt asks for clarification or clearly labels both programs
+and never combines their requirements.
 
 `HYBRID_RETRIEVAL` defaults to on. Chat fuses the vector ranking with local
 BM25 scores using reciprocal rank fusion. The lexical side is what keeps
@@ -637,3 +646,32 @@ We want to fix up what we currently have at this moment since for next semester 
 ## License
 
 See `LICENSE`.
+
+## BS ISDA and MLIS corpus rollout
+
+The advising corpus now includes both BS ISDA and MLIS. After merge, the Azure
+index must be rebuilt to include the MLIS chunks and program metadata. The
+existing deploy workflow runs `/api/load-docs` through
+`scripts/verify_deployed_index.py` and verifies the new receipt. No additional
+manual step is needed for a successful normal deployment. The corpus contents and
+release SHA change; `/readyz` checks the rebuilt receipt against the deployed
+release SHA and configured embedder, rather than computing a corpus hash. If the workflow rebuild fails, rerun the deploy
+workflow and verify `/readyz` before using chat. Do not reuse the old receipt.
+
+The 15 ingested official MLIS/iSchool pages are:
+
+- https://ischool.sjsu.edu/master-library-and-information-science
+- https://ischool.sjsu.edu/mlis-required-courses
+- https://ischool.sjsu.edu/mlis-electives
+- https://ischool.sjsu.edu/mlis-academics
+- https://ischool.sjsu.edu/mlis-course-load
+- https://ischool.sjsu.edu/mlis-fees-chart
+- https://ischool.sjsu.edu/mlis-program-learning-outcomes
+- https://ischool.sjsu.edu/mlis-accreditation
+- https://ischool.sjsu.edu/mlis-career-pathways
+- https://ischool.sjsu.edu/admissions
+- https://ischool.sjsu.edu/application-deadlines
+- https://ischool.sjsu.edu/graduate-application
+- https://ischool.sjsu.edu/advising-appointments
+- https://ischool.sjsu.edu/info-289-e-portfolio-faqs
+- https://www.sjsu.edu/online/programs/library-and-information-science-masters-degree.php

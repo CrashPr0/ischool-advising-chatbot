@@ -395,3 +395,29 @@ def test_evaluation_api_blinds_models_and_requires_complete_review_for_export(
     export = client.get("/api/evaluation/export.csv")
     assert export.status_code == 200
     assert "Azure GPT-4o mini" in export.get_data(as_text=True)
+
+
+def test_chat_program_allowlist(monkeypatch, ready_chat_index):
+    class ProgramChatbot(FakeChatbot):
+        def __init__(self):
+            self.programs = []
+
+        def chat(self, message, history=None, program=None):
+            self.programs.append(program)
+            return super().chat(message, history)
+
+    bot = ProgramChatbot()
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: bot)
+    client = app_module.app.test_client()
+    for program in ("isda", "mlis", "both", "invalid", "MLIS", [], {}, 42, None):
+        response = client.post(
+            "/api/chat", json={"message": "core courses", "program": program}
+        )
+        assert response.status_code == 200
+        assert bot.programs[-1] == (
+            program
+            if isinstance(program, str) and program in {"isda", "mlis", "both"}
+            else None
+        )
+    assert client.post("/api/chat", json={"message": "core courses"}).status_code == 200
+    assert bot.programs[-1] is None

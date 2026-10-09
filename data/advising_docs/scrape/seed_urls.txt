@@ -1,4 +1,4 @@
-# Approved, public sources for the ISDA advising corpus.
+# Approved, public sources for the BS ISDA and MLIS advising corpus.
 #
 # Keep this list intentionally small. The offline crawler defaults to
 # --max-depth 0 so only these reviewed pages are ingested unless an operator
@@ -78,3 +78,21 @@ https://catalog.sjsu.edu/content.php?catoid=23&navoid=8473
 https://www.sjsu.edu/commencement/ceremonies/index.php
 https://www.sjsu.edu/commencement/participation/tickets.php
 https://www.sjsu.edu/commencement/participation/grad-vs-comm.php
+
+# MLIS program, admissions and advising
+# These reviewed seeds were crawled separately with --program MLIS.
+https://ischool.sjsu.edu/master-library-and-information-science
+https://ischool.sjsu.edu/mlis-required-courses
+https://ischool.sjsu.edu/mlis-electives
+https://ischool.sjsu.edu/mlis-academics
+https://ischool.sjsu.edu/mlis-course-load
+https://ischool.sjsu.edu/mlis-fees-chart
+https://ischool.sjsu.edu/mlis-program-learning-outcomes
+https://ischool.sjsu.edu/mlis-accreditation
+https://ischool.sjsu.edu/mlis-career-pathways
+https://ischool.sjsu.edu/admissions
+https://ischool.sjsu.edu/application-deadlines
+https://ischool.sjsu.edu/graduate-application
+https://ischool.sjsu.edu/advising-appointments
+https://ischool.sjsu.edu/info-289-e-portfolio-faqs
+https://www.sjsu.edu/online/programs/library-and-information-science-masters-degree.php

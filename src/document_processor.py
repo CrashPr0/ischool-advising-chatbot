@@ -32,9 +32,11 @@ from langchain_core.embeddings import Embeddings
 try:
     from .catalog_recency import apply_catalog_metadata, reorder_documents
     from .config import Config
+    from .program_scope import normalize_program, prefer_program_documents
 except ImportError:  # pragma: no cover
     from catalog_recency import apply_catalog_metadata, reorder_documents
     from config import Config
+    from program_scope import normalize_program, prefer_program_documents
 
 
 class HashingEmbeddings(Embeddings):
@@ -791,17 +793,15 @@ class DocumentProcessor:
             key=lambda path: path.relative_to(directory).as_posix().casefold(),
         )
         for path in files:
-            # This legacy fixture describes the MLIS program, not the ISDA
-            # program served by this application. Keep the fixture available
-            # for explicitly requested local demos, but never index it as
-            # advising evidence.
+            # This synthetic legacy MLIS fixture is not an official source.
+            # Keep it for local demos, but never index it as advising evidence.
             if path.name == "degree_requirements.txt":
                 try:
                     preview = path.read_text(encoding="utf-8")
                 except (OSError, UnicodeError):
                     preview = ""
                 if "Master's of Library and Information Science (MLIS)" in preview:
-                    print(f"Skipping legacy non-ISDA sample document: {path}")
+                    print(f"Skipping synthetic legacy sample document: {path}")
                     continue
 
             source = self._canonical_path(str(path))
@@ -1123,7 +1123,9 @@ class DocumentProcessor:
                 _prime_hybrid_records(store, collection_id)
             return store, collection_id
 
-    def retrieve_relevant_docs(self, query: str, k: int = 3) -> List[Document]:
+    def retrieve_relevant_docs(
+        self, query: str, k: int = 3, program=None
+    ) -> List[Document]:
         """
         Retrieve relevant documents for a query.
 
@@ -1141,17 +1143,23 @@ class DocumentProcessor:
             return []
 
         try:
+            program = normalize_program(program)
             k = max(1, min(int(k), 20))
             # None means the hybrid helper could not run. Unset
             # HYBRID_RETRIEVAL fuses BM25 with vector search; false keeps
             # vector-only search.
             hybrid_hits = _optional_hybrid_retrieve(
-                store, query, k, collection_id=collection_id
+                store, query, k, collection_id=collection_id, program=program
             )
             if hybrid_hits is not None:
                 return hybrid_hits
-            results = store.similarity_search(query, k=k)
-            return reorder_documents(results)
+            # Rank a wider pool before slicing so the selection can affect top-k.
+            results = store.similarity_search(
+                query, k=max(k, 40) if program in {"isda", "mlis"} else k
+            )
+            return prefer_program_documents(reorder_documents(results), query, program)[
+                :k
+            ]
         except Exception as e:
             print(f"Error retrieving documents: {e}")
             return []
@@ -1330,7 +1338,9 @@ def _prime_hybrid_records(vector_store, collection_id) -> None:
         print(f"Hybrid record cache skipped: {error}")
 
 
-def _optional_hybrid_retrieve(vector_store, query: str, k: int, collection_id=None):
+def _optional_hybrid_retrieve(
+    vector_store, query: str, k: int, collection_id=None, program=None
+):
     """Return fused hits when hybrid retrieval is on, otherwise None.
 
     The import stays inside the helper so the vector-only path does not
@@ -1344,4 +1354,6 @@ def _optional_hybrid_retrieve(vector_store, query: str, k: int, collection_id=No
         return None
     if not hybrid_retrieval_enabled():
         return None
-    return hybrid_retrieve(vector_store, query, k, collection_id=collection_id)
+    return hybrid_retrieve(
+        vector_store, query, k, collection_id=collection_id, program=program
+    )

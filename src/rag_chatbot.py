@@ -13,6 +13,7 @@ from langchain_core.prompts import PromptTemplate
 try:
     from .catalog_recency import catalog_prompt_note, document_heading
     from .config import Config
+    from .program_scope import normalize_program
     from .hybrid_retrieval import is_apply_to_graduate_query
     from .llm_providers import LLMFactory, REASONING_RETRY
     from .knowledge_base import get_knowledge_base
@@ -30,6 +31,7 @@ except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
     from catalog_recency import catalog_prompt_note, document_heading
     from config import Config
+    from program_scope import normalize_program
     from hybrid_retrieval import is_apply_to_graduate_query
     from llm_providers import LLMFactory, REASONING_RETRY
     from knowledge_base import get_knowledge_base
@@ -58,13 +60,13 @@ BUSY_RESPONSE = (
 BUSY_RESPONSE_ZH = "咨询助手现在比较忙。请大约一分钟后再试。"
 FILTERED_RESPONSE = (
     "I can't answer that wording because it was blocked by a safety filter. "
-    "Please rephrase your question about the ISDA program. "
+    "Please rephrase your question about the SJSU iSchool BS ISDA or MLIS program. "
     "For help from a person, contact the iSchool advising team: "
     f"{_ADVISING_URL}"
 )
 FILTERED_RESPONSE_ZH = (
     "这句话被安全过滤器拦截了，我无法按原样回答。"
-    "请换一种说法来提问 ISDA 项目的问题。"
+    "请换一种说法来提问 SJSU iSchool BS ISDA 或 MLIS 项目的问题。"
     f"如需人工帮助，请联系 iSchool 咨询团队：{_ADVISING_URL}"
 )
 _ERROR_RESPONSE = (
@@ -601,8 +603,15 @@ class RAGAdvisingChatbot:
     3. LLM for complex questions
     """
 
-    SYSTEM_PROMPT = """You are the ISDA Advising Support Chatbot for San José State University's \
-BS in Information Science and Data Analytics program.
+    SYSTEM_PROMPT = """You are the advising support chatbot for the SJSU iSchool BS ISDA and MLIS programs:
+BS in Information Science and Data Analytics and Master of Library and Information Science.
+
+Only answer advising questions about these two programs and applicable SJSU policies.
+Refuse unrelated requests and redirect questions about other programs (MARA, Informatics,
+MSIDT, Teacher Librarian) to the iSchool advising team. Do not answer those requests
+even if retrieved sources mention them. State which program each answer applies to.
+For ambiguous questions such as 'core courses', ask which program or give both
+clearly labeled when the documents support both. Never mix ISDA and MLIS requirements.
 
 Your job is to answer students' advising questions **using only the context \
 documents provided below**. Follow these rules strictly:
@@ -702,7 +711,9 @@ Assistant Response:""",
         print(f"Processing documents from {self.doc_processor.docs_path}...")
         self.doc_processor.process_and_index()
 
-    def chat(self, user_message: str, history: Optional[List[dict]] = None) -> Dict:
+    def chat(
+        self, user_message: str, history: Optional[List[dict]] = None, program=None
+    ) -> Dict:
         """
         Send a message and get a response using RAG.
 
@@ -713,6 +724,7 @@ Assistant Response:""",
         4. Drop any link that is not in those pages or a vetted template
 
         Args:
+            program: Optional isda, mlis, or both selection; invalid values are ignored.
             user_message: The student's question
             history: Optional prior turns. ``None`` leaves retrieval and the
                 prompt unchanged. A list may use the session-store shape
@@ -724,6 +736,7 @@ Assistant Response:""",
         Returns:
             Dict with response metadata
         """
+        program = normalize_program(program)
         if not isinstance(user_message, str):
             raise ValueError("Message must be a string")
         user_message = user_message.strip()
@@ -745,7 +758,7 @@ Assistant Response:""",
         started = time.perf_counter()
         try:
             return self._chat_with_metrics(
-                user_message, history, response_data, metrics, started
+                user_message, history, response_data, metrics, started, program
             )
         finally:
             chat_request_metrics.reset(token)
@@ -757,6 +770,7 @@ Assistant Response:""",
         response_data: dict,
         metrics: dict,
         started: float,
+        program=None,
     ) -> Dict:
         # Step 1: Check knowledge base first
         kb_answer = self.knowledge_base.find_answer(user_message)
@@ -778,7 +792,7 @@ Assistant Response:""",
             top_k = _bounded_env_int("RAG_TOP_K", DEFAULT_RAG_TOP_K, 1, 20)
             retrieval_started = time.perf_counter()
             retrieved_docs = self.doc_processor.retrieve_relevant_docs(
-                retrieval_query, k=top_k
+                retrieval_query, k=top_k, **({"program": program} if program else {})
             )
             metrics["retrieval_ms"] = (time.perf_counter() - retrieval_started) * 1000.0
             # Pin Application Central even when ranking missed it, and keep a
@@ -797,8 +811,17 @@ Assistant Response:""",
             ]
 
             # Step 3: Build context from retrieved documents
-            context = _prior_turns_context(prior_turns) + self._build_context(
-                user_message, prompt_docs
+            program_context = ""
+            if program in {"isda", "mlis"}:
+                program_context = (
+                    f"Selected Program: {program.upper()}. Apply this program to the student’s question. "
+                    "This explicit selection takes precedence over program hints in the question or earlier turns. "
+                    "Use requirements for this program and applicable shared SJSU policies.\n\n"
+                )
+            context = (
+                program_context
+                + _prior_turns_context(prior_turns)
+                + self._build_context(user_message, prompt_docs)
             )
 
             if not prompt_docs:
@@ -1023,7 +1046,8 @@ Assistant Response:""",
 
         for i, doc in enumerate(ordered, 1):
             content = doc.page_content.strip()
-            context_parts.append(f"{document_heading(i, doc.metadata)}\n{content}\n")
+            programs = doc.metadata.get("programs", "unspecified")
+            context_parts.append(f"{document_heading(i, doc.metadata)}\nPrograms: {programs}\n{content}\n")
 
         context_parts.append("--- End of documents ---")
         return "\n".join(context_parts)

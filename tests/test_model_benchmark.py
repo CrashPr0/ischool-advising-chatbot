@@ -200,7 +200,7 @@ def test_curated_evaluation_set_is_independent_of_chat_presets():
     benchmark = load_questions(project_root / "evals" / "advising_questions.json")
     preset_questions = _chat_preset_questions(project_root)
 
-    assert 12 <= len(benchmark) <= 20
+    assert 12 <= len(benchmark) <= 24  # includes the MLIS vertical slice
     assert len({item["id"] for item in benchmark}) == len(benchmark)
     assert len({item["question"] for item in benchmark}) == len(benchmark)
     assert {item["category"] for item in benchmark} == REQUIRED_EVAL_CATEGORIES
