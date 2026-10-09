@@ -538,8 +538,8 @@ def test_export_chat_accessibility_and_print_styles():
     assert "#chat-print-view { display: none; }" in styles
     assert "@media print" in styles
     assert "body > :not(#chat-print-view) { display: none !important; }" in styles
-    assert 'filename=\'evaluation.css\')' in evaluation
-    assert 'filename=\'evaluation.js\')' in evaluation
+    assert "filename='evaluation.css'" in evaluation
+    assert "filename='evaluation.js'" in evaluation
     assert 'id="saved-chats"' not in evaluation
 
 
