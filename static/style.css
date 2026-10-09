@@ -1284,3 +1284,6 @@ button.clear-btn:active {
     animation: none;
   }
 }
+.save-copy-status { margin: 0 18px; color: var(--text-muted); font-size: .88rem; }
+.save-copy-status:empty { display: none; }
+#save-copy-button:disabled { opacity: .5; cursor: default; }

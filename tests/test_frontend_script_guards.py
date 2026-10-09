@@ -132,10 +132,10 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "confidence: data.confidence" not in script
     assert 'id="confidence-badge"' not in template
     assert 'id="confidence-badge"' not in docs
-    assert "filename='style.css', v='20261009-report-retention'" in template
-    assert "style.css?v=20261009-report-retention" in docs
-    assert "filename='script.js', v='20261009-report-retention'" in template
-    assert "script.js?v=20261009-report-retention" in docs
+    assert "filename='style.css', v='20261009-saved-chats'" in template
+    assert "style.css?v=20261009-saved-chats" in docs
+    assert "filename='script.js', v='20261009-saved-chats'" in template
+    assert "script.js?v=20261009-saved-chats" in docs
     assert "20261001-reveal-tabs" not in template
     assert "20260927-tabs" not in docs
     assert "20261002-letter-reveal" not in template
@@ -231,3 +231,83 @@ def test_docs_page_voice_init_and_clear_do_not_throw(tmp_path):
         report["enabledStatus"]
         == "This browser does not expose speech controls. You can still use text chat."
     )
+
+
+def test_save_copy_dialog_defaults_to_no_and_posts_only_consent_and_id(tmp_path):
+    runner = _PAGE_RUNNER.split("(async () => {")[0]
+    runner = runner.replace('    appendChild() {},', '''    children: [],
+    appendChild(child) { this.children.push(child); },
+    append(...children) { this.children.push(...children); },
+    querySelector(selector) {
+      for (const child of this.children) {
+        if (selector === "." + child.className) return child;
+        const found = child.querySelector(selector);
+        if (found) return found;
+      }
+      return null;
+    },
+    showModal() { this.open = true; },
+    close() { this.open = false; (this.handlers.close || []).forEach(fn => fn()); },
+    isConnected: true,''')
+    runner = runner.replace('    focus() {},', '    focus() { this.focused = true; },')
+    runner = runner.replace('      getElementById(id)', '      body: makeElement(),\n      getElementById(id)')
+    runner = runner.replace('resolve(elements)', 'resolve({ elements, sandbox })')
+    runner += r'''
+(async () => {
+  const { elements, sandbox } = await runPage(docsIds.concat(["save-copy-button", "save-copy-status"]), null);
+  const button = elements["save-copy-button"];
+  vm.runInContext("updateSaveCopyControl()", sandbox);
+  if (!button.disabled) throw new Error("Empty conversation can be saved");
+  vm.runInContext(`conversations = [{ id: "conversation-123", messages: [{ role: "bot", text: "Answer" }] }];
+    activeConversationId = "conversation-123"; updateSaveCopyControl();`, sandbox);
+  if (button.disabled) throw new Error("Conversation with answer cannot be saved");
+  const requests = [];
+  sandbox.fetch = async (url, options) => {
+    requests.push({ url, options });
+    return { ok: true, json: async () => ({ csrf: "token", saved: true }) };
+  };
+  button.handlers.click[0]();
+  const dialog = sandbox.document.body.children[0];
+  const decline = dialog.querySelector(".report-secondary");
+  if (!decline.focused) throw new Error("No is not the default focus");
+  decline.handlers.click[0]();
+  if (requests.length) throw new Error("Declining sent a request");
+  if (dialog.open || !button.focused) throw new Error("Declining did not close and restore focus");
+  button.handlers.click[0]();
+  // The confirmation remains bound to the conversation that opened it.
+  vm.runInContext(`conversations.push({id: "another-conversation", messages: []});
+    activeConversationId = "another-conversation";`, sandbox);
+  const form = dialog.children[0];
+  await form.handlers.submit[0]({ preventDefault() {} });
+  if (requests.length !== 2) throw new Error("Yes did not fetch token then save");
+  const payload = JSON.parse(requests[1].options.body);
+  if (JSON.stringify(payload) !== JSON.stringify({conversation_id: "conversation-123", consent: true})) {
+    throw new Error("Save sent browser transcript or wrong conversation");
+  }
+  if (!elements["save-copy-status"].textContent.includes("saved privately")) throw new Error("Missing save status");
+  console.log("ok");
+})().catch(error => { console.error(error.stack || error); process.exit(1); });
+'''
+    path = tmp_path / "check_save_copy.js"
+    path.write_text(runner, encoding="utf-8")
+    completed = subprocess.run(
+        ["node", str(path), str(ROOT / "static" / "script.js")],
+        capture_output=True, text=True, check=False,
+    )
+    assert completed.returncode == 0, completed.stderr + completed.stdout
+
+
+def test_saved_transcript_reviewer_uses_safe_text_and_versioned_assets():
+    template = (ROOT / "templates" / "index.html").read_text()
+    evaluation = (ROOT / "templates" / "evaluation.html").read_text()
+    script = (ROOT / "static" / "evaluation.js").read_text()
+    renderer = script[script.index("async function loadSavedChats()") :]
+    assert 'id="save-copy-button"' in template
+    assert 'id="saved-chats"' in evaluation
+    assert "filename='evaluation.js', v='20261009-saved-chats'" in evaluation
+    assert "filename='evaluation.css', v='20261009-saved-chats'" in evaluation
+    assert 'document.createElement("details")' in renderer
+    assert "summary.textContent" in renderer
+    assert "turn.content" in renderer
+    assert "innerHTML" not in renderer
+    assert "body.textContent = value" in script

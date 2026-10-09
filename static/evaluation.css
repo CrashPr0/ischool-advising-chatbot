@@ -541,3 +541,5 @@ button { cursor: pointer; }
     grid-template-columns: 1fr;
   }
 }
+.saved-chat summary { cursor: pointer; margin-bottom: 12px; }
+.saved-chat details p { margin-left: 12px; }

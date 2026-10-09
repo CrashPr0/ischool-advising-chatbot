@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light" />
   <title>Model Review Workspace · SJSU iSchool</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css', v='20261009-saved-chats') }}" />
 </head>
 <body>
   <header class="review-header">
@@ -270,6 +270,15 @@
       <div id="issue-reports-status" class="issue-reports-status" role="status"></div>
       <div id="issue-reports-list" class="issue-reports-list"></div>
     </section>
+    <section id="saved-chats" class="issue-reports hidden" aria-labelledby="saved-chats-title">
+      <div class="issue-reports__heading">
+        <h2 id="saved-chats-title">Saved conversations</h2>
+        <button id="refresh-saved-chats-button" class="button button--secondary" type="button">Refresh</button>
+      </div>
+      <p class="issue-reports__note">Students explicitly chose to save these copies. Copies are private and automatically deleted after 90 days.</p>
+      <div id="saved-chats-status" class="issue-reports-status" role="status"></div>
+      <div id="saved-chats-list"></div>
+    </section>
   </main>
 
   <dialog id="auth-dialog" class="auth-dialog">
@@ -291,6 +300,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="{{ url_for('static', filename='evaluation.js') }}"></script>
+  <script src="{{ url_for('static', filename='evaluation.js', v='20261009-saved-chats') }}"></script>
 </body>
 </html>

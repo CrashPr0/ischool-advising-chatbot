@@ -61,6 +61,10 @@ const elements = {
   issueReports: document.getElementById("issue-reports"),
   issueReportsList: document.getElementById("issue-reports-list"),
   issueReportsStatus: document.getElementById("issue-reports-status"),
+  savedChats: document.getElementById("saved-chats"),
+  savedChatsList: document.getElementById("saved-chats-list"),
+  savedChatsStatus: document.getElementById("saved-chats-status"),
+  refreshSavedChatsButton: document.getElementById("refresh-saved-chats-button"),
   refreshReportsButton: document.getElementById("refresh-reports-button")
 };
 
@@ -166,6 +170,10 @@ function showAuthenticatedSession(sessionData) {
   state.csrf = sessionData.csrf;
   state.reviewer = sessionData.reviewer;
   elements.reviewerChip.textContent = sessionData.reviewer;
+  if (elements.savedChats) {
+    elements.savedChats.classList.remove("hidden");
+    loadSavedChats();
+  }
   if (elements.authDialog.open) elements.authDialog.close();
   if (elements.issueReports) {
     elements.issueReports.classList.remove("hidden");
@@ -578,6 +586,9 @@ async function signOut() {
     state.csrf = null;
     state.reviewer = null;
     state.workspace = null;
+    if (elements.savedChats) elements.savedChats.classList.add("hidden");
+    if (elements.savedChatsList) elements.savedChatsList.replaceChildren();
+    if (elements.savedChatsStatus) elements.savedChatsStatus.textContent = "";
     elements.app.classList.add("hidden");
     elements.summaryPanel.classList.add("hidden");
     if (elements.issueReports) elements.issueReports.classList.add("hidden");
@@ -825,4 +836,36 @@ function createDimensionDistributionChart(model, definitions, canvas, titleEleme
       scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
     }
   }));
+}
+
+async function loadSavedChats() {
+  if (!elements.savedChats || !state.reviewer) return;
+  elements.savedChatsStatus.textContent = "Loading saved conversations…";
+  try {
+    const data = await api("/api/evaluation/saved-chats");
+    elements.savedChatsList.replaceChildren();
+    const chats = Array.isArray(data.chats) ? data.chats : [];
+    elements.savedChatsStatus.textContent = chats.length ? "" : "No saved conversations yet.";
+    chats.forEach((chat) => {
+      const article = document.createElement("article");
+      article.className = "issue-report saved-chat";
+      const details = document.createElement("details");
+      const summary = document.createElement("summary");
+      const turns = Array.isArray(chat.transcript) ? chat.transcript : [];
+      summary.textContent = `${formatDate(chat.updated_at)} · ${turns.length} messages · View transcript`;
+      details.appendChild(summary);
+      turns.forEach((turn) => {
+        const who = turn.role === "user" ? "Student" : "Assistant";
+        appendLabeledText(details, `${who} · ${formatDate(turn.time)}`, turn.content);
+      });
+      article.appendChild(details);
+      elements.savedChatsList.appendChild(article);
+    });
+  } catch (error) {
+    elements.savedChatsStatus.textContent = error.message || "Unable to load saved conversations.";
+  }
+}
+
+if (elements.refreshSavedChatsButton) {
+  elements.refreshSavedChatsButton.addEventListener("click", () => loadSavedChats());
 }

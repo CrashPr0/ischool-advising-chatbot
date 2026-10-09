@@ -517,10 +517,21 @@ are automatically deleted after 90 days. Set `ISSUE_REPORT_RETENTION_DAYS`
 to a positive integer to override this window; invalid values fall back to 90.
 Cleanup runs when the report store initializes, then on writes or lists at most
 once per hour per worker, without a separate scheduler. Only deletion counts
-are logged, never report contents. Saving a student's own chat
-copy is tracked separately in
-[issue #35](https://github.com/SJSU-CMPE-195/group-project-team-22/issues/35)
-and is not part of this report flow.
+are logged, never report contents.
+
+Students can separately choose **Save a copy**, then **Yes, save a copy**.
+No is the default and sends nothing. Each copy is built from that session's
+server history (questions, answers, UTC times) in the `saved_chats` table;
+saving again replaces the snapshot for that conversation. It stores no IP,
+user agent, or identity metadata. Signed-in reviewers retrieve copies in
+**Saved conversations** on `/evaluation` or `GET /api/evaluation/saved-chats`.
+Copies use the same private database and hourly cleanup pattern, with a
+90-day default (`SAVED_CHAT_RETENTION_DAYS`). `SAVED_CHAT_RATE_LIMIT` (10) and
+`SAVED_CHAT_RATE_WINDOW_SECONDS` (600) bound submissions. Copies are capped at
+200 messages and 12,000 characters per message; oversized copies are rejected.
+Only the random row id and message count are logged. Keep database access
+limited to the team operating the bot; never publish database files or backups.
+
 
 Localhost can use the workspace without a shared secret. On a public deploy,
 sign-in needs `EVAL_ACCESS_TOKEN`, `EVAL_ALLOWED_REVIEWERS`, or Easy Auth;

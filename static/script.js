@@ -1372,7 +1372,8 @@ if (voiceLanguageSelect) {
 }
 
 // ── CONVERSATION TABS ──
-// Transcripts stay in this browser. The server only keeps model context,
+// Transcripts stay in this browser unless a student explicitly saves a copy.
+// The server keeps model context,
 // keyed by conversation_id under the existing session cookie.
 const CONVERSATION_STORAGE_KEY = "isda-chat-conversations-v1";
 const MAX_CONVERSATIONS = 10;
@@ -1582,6 +1583,7 @@ function paintConversation(convo) {
 }
 
 function renderTabs(options) {
+  updateSaveCopyControl();
   if (!chatTabs) return;
   const activeElement = document.activeElement;
   const focusId = activeElement && activeElement.dataset
@@ -1816,6 +1818,101 @@ function initConversations() {
   renderTabs({ scrollActive: true });
   chatTabs.addEventListener("click", onTabClick);
   chatTabs.addEventListener("keydown", onTabKeydown);
+}
+
+
+// A saved copy always requires a fresh explicit yes for the selected conversation.
+const saveCopyButton = document.getElementById("save-copy-button");
+const saveCopyStatus = document.getElementById("save-copy-status");
+let saveCopyDialog = null;
+let pendingSaveConversation = null;
+
+function updateSaveCopyControl() {
+  if (!saveCopyButton) return;
+  const convo = getActiveConversation();
+  saveCopyButton.disabled = !convo || !convo.messages.some((message) => message.role === "bot");
+}
+
+function ensureSaveCopyDialog() {
+  if (saveCopyDialog) return saveCopyDialog;
+  const dialog = document.createElement("dialog");
+  dialog.id = "save-copy-dialog";
+  dialog.className = "report-dialog";
+  dialog.setAttribute("aria-labelledby", "save-copy-title");
+  dialog.setAttribute("aria-describedby", "save-copy-privacy");
+  const form = document.createElement("form");
+  const title = document.createElement("h2");
+  title.id = "save-copy-title";
+  title.textContent = "Save a copy of this conversation?";
+  const privacy = document.createElement("p");
+  privacy.id = "save-copy-privacy";
+  privacy.className = "report-privacy";
+  privacy.textContent = "The copy contains only this chat's questions and answers with times. It is kept privately for the advising team to review, is not linked to your name or email unless you typed it into the chat, and is deleted automatically after 90 days.";
+  const error = document.createElement("p");
+  error.className = "report-error";
+  error.setAttribute("role", "alert");
+  const actions = document.createElement("div");
+  actions.className = "report-actions";
+  const decline = document.createElement("button");
+  decline.type = "button";
+  decline.className = "report-secondary";
+  decline.textContent = "No thanks";
+  const yes = document.createElement("button");
+  yes.type = "submit";
+  yes.className = "report-primary";
+  yes.textContent = "Yes, save a copy";
+  actions.append(decline, yes);
+  form.append(title, privacy, error, actions);
+  dialog.appendChild(form);
+  document.body.appendChild(dialog);
+  decline.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    pendingSaveConversation = null;
+    if (saveCopyButton && saveCopyButton.isConnected) saveCopyButton.focus();
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!pendingSaveConversation || yes.disabled) return;
+    const conversationId = pendingSaveConversation;
+    yes.disabled = true;
+    error.textContent = "";
+    try {
+      const tokenResponse = await fetch(apiUrl("/api/saved-chats/csrf"), {
+        credentials: "include", cache: "no-store"
+      });
+      const token = await tokenResponse.json();
+      if (!tokenResponse.ok || !token.csrf) throw new Error(token.error || "Unable to save this conversation.");
+      const response = await fetch(apiUrl("/api/saved-chats"), {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json", "X-Issue-Report-CSRF": token.csrf },
+        body: JSON.stringify({ conversation_id: conversationId, consent: true })
+      });
+      const body = await response.json();
+      if (!response.ok || !body.saved) throw new Error(body.error || "Unable to save this conversation.");
+      if (saveCopyStatus) saveCopyStatus.textContent = "A copy of your conversation was saved privately for the advising team.";
+      dialog.close();
+    } catch (saveError) {
+      error.textContent = saveError.message || "Unable to save this conversation. Please try again.";
+    } finally {
+      yes.disabled = false;
+    }
+  });
+  saveCopyDialog = dialog;
+  return dialog;
+}
+
+if (saveCopyButton) {
+  saveCopyButton.addEventListener("click", () => {
+    const convo = getActiveConversation();
+    if (!convo || saveCopyButton.disabled) return;
+    const dialog = ensureSaveCopyDialog();
+    if (typeof dialog.showModal !== "function") return;
+    pendingSaveConversation = convo.id;
+    dialog.querySelector(".report-error").textContent = "";
+    if (!dialog.open) dialog.showModal();
+    // Declining is the default; it makes no request and saves nothing.
+    dialog.querySelector(".report-secondary").focus();
+  });
 }
 
 initConversations();
