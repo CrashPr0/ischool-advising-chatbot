@@ -642,7 +642,15 @@ current catalog lacks the information, and name that older year. For course \
 titles, unit counts, prerequisites, and degree requirements, the current \
 official catalog is authoritative over iSchool or other web pages. If another \
 page gives a different title or links an older catalog, use the catalog's \
-title and link."""
+title and link.
+9. Cite the documents you use with Markdown source links in every factual \
+advising answer. Copy the exact Source URL supplied with each document; never \
+invent a URL, rewrite its path, or add a fragment. Official iSchool \
+(ischool.sjsu.edu) and SJSU (sjsu.edu) pages are valid sources for MLIS and \
+shared policies. Cite those pages when they support the answer. The catalog \
+priority rule applies to conflicting facts, not to whether other official \
+sources can be cited. If a document has no Source URL, only use a link \
+explicitly present in its text; do not fabricate a citation."""
 
     def __init__(
         self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None
@@ -1047,7 +1055,15 @@ Assistant Response:""",
         for i, doc in enumerate(ordered, 1):
             content = doc.page_content.strip()
             programs = doc.metadata.get("programs", "unspecified")
-            context_parts.append(f"{document_heading(i, doc.metadata)}\nPrograms: {programs}\n{content}\n")
+            # Splitting preserves metadata but the source line in the original
+            # text may be in a different chunk. Give every chunk its citation.
+            raw_source_url = doc.metadata.get("source_url")
+            source_url = raw_source_url.strip() if isinstance(raw_source_url, str) else ""
+            source_line = f"Source URL: {source_url}\n" if source_url else ""
+            context_parts.append(
+                f"{document_heading(i, doc.metadata)}\nPrograms: {programs}\n"
+                f"{source_line}{content}\n"
+            )
 
         context_parts.append("--- End of documents ---")
         return "\n".join(context_parts)
