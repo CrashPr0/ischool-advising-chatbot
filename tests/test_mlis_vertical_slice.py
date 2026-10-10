@@ -9,7 +9,8 @@ import pytest
 from src.config import Config
 from src.document_processor import DocumentProcessor
 from src.program_scope import prefer_program_documents, query_programs
-from src.rag_chatbot import RAGAdvisingChatbot
+from src.rag_chatbot import RAGAdvisingChatbot, _restrict_reply_links
+from src.knowledge_base import get_knowledge_base
 from langchain_core.documents import Document
 
 DOCS = Path(__file__).resolve().parents[1] / "data" / "advising_docs"
@@ -56,6 +57,64 @@ def test_all_official_mlis_pages_load_program_metadata(corpus_processor):
     )
     manifest = json.loads((DOCS / "scrape" / "manifest.json").read_text())
     assert {entry["source_url"] for entry in manifest["documents"] if entry["programs"] == ["MLIS"]} == {doc.metadata["source_url"] for doc in mlis}
+
+
+def test_mlis_core_answer_cites_retrieved_source_through_guardrail(corpus_processor):
+    question = "What are the MLIS core courses?"
+    source = "https://ischool.sjsu.edu/mlis-career-pathways"
+    invented = source + "#core-courses"
+    hits = corpus_processor.retrieve_relevant_docs(question, k=8, program="mlis")
+    core = next(doc for doc in hits if doc.metadata.get("source_url") == source
+                and "Core Courses:" in doc.page_content)
+    # The ingested page and its chunks have the URL only in companion metadata.
+    assert source not in core.page_content
+    for number in ("203", "200", "202", "204"):
+        assert f"INFO {number}" in core.page_content
+    assert get_knowledge_base().find_answer(question) is None
+
+    class CitationChain:
+        def invoke(self, payload):
+            assert f"Source URL: {source}" in payload["context"]
+            assert "Selected Program: MLIS" in payload["context"]
+            assert payload["question"] == question
+            return type("Reply", (), {"content": (
+                "The MLIS core courses are INFO 203, 200, 202, and 204. "
+                f"[MLIS Core Courses]({source}). Also see {invented}."
+            )})()
+
+    bot = RAGAdvisingChatbot.__new__(RAGAdvisingChatbot)
+    bot.knowledge_base = get_knowledge_base()
+    bot.doc_processor = corpus_processor
+    bot.chain = CitationChain()
+    result = bot.chat(question, program="mlis")
+    assert result["source"] == "rag"
+    assert f"[MLIS Core Courses]({source})" in result["response"]
+    assert invented not in result["response"]
+    assert _restrict_reply_links(result["response"], hits) == (result["response"], 0)
+
+
+def test_every_mlis_chunk_exposes_its_ingested_citation(corpus_processor):
+    bot = RAGAdvisingChatbot.__new__(RAGAdvisingChatbot)
+    mlis = [doc for doc in corpus_processor.load_documents()
+            if doc.metadata.get("programs") == ["MLIS"]]
+    for chunk in corpus_processor.split_documents(mlis):
+        source = chunk.metadata["source_url"]
+        context = bot._build_context("MLIS requirements", [chunk])
+        assert f"Source URL: {source}\n" in context
+        reply = f"[Official source]({source})"
+        assert _restrict_reply_links(reply, [chunk]) == (reply, 0)
+        # Official-domain URLs still need to be retrieved, not merely plausible.
+        invented = "https://ischool.sjsu.edu/not-an-ingested-page"
+        assert invented not in _restrict_reply_links(invented, [chunk])[0]
+
+
+def test_prompt_requires_citations_from_official_non_catalog_pages():
+    prompt = RAGAdvisingChatbot.SYSTEM_PROMPT
+    assert "Markdown source links in every factual" in prompt
+    assert "Copy the exact Source URL" in prompt
+    assert "ischool.sjsu.edu" in prompt
+    assert "SJSU (sjsu.edu) pages are valid sources for MLIS" in prompt
+    assert "priority rule applies to conflicting facts" in prompt
 
 
 @pytest.mark.parametrize("question,expected", [
