@@ -527,7 +527,17 @@ function addMessage(text, className, label, options) {
 
   chatBox.appendChild(wrapper);
   chatBox.scrollTop = chatBox.scrollHeight;
+  revealMessageOnPhone(wrapper, className === "bot-message" ? "start" : "nearest");
   return wrapper;
+}
+
+// On phones the chat box grows with the page and the composer is sticky, so
+// sending no longer scrolls the window. Bring the newest message into view.
+function revealMessageOnPhone(element, block) {
+  if (!element || typeof element.scrollIntoView !== "function") return;
+  if (!window.matchMedia || !window.matchMedia("(max-width: 640px)").matches) return;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  element.scrollIntoView({ block: block, behavior: reduceMotion ? "auto" : "smooth" });
 }
 
 function showTypingIndicator() {
@@ -547,6 +557,7 @@ function showTypingIndicator() {
 
   chatBox.appendChild(wrapper);
   chatBox.scrollTop = chatBox.scrollHeight;
+  revealMessageOnPhone(wrapper, "nearest");
 }
 
 function removeTypingIndicator() {
