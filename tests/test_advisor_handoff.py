@@ -174,9 +174,12 @@ def test_button_reply_hooks_and_asset_pins():
     assert "handoffEligible: prefilledMessage === null" in SCRIPT
     assert 'handoffEligible: message.role === "user" && message.handoffEligible === true' in SCRIPT
     assert "const ADVISOR_HANDOFF_PHRASES =" in HANDOFF
-    for phrase in ("i don't know", "i don't have", "not sure", "contact your advisor",
-                   "advisor", "advising office", "spartan connect"):
+    for phrase in ("i don't know", "i don't have", "i'm not sure", "do not specify", "couldn't find"):
         assert f'"{phrase}"' in HANDOFF
+    for phrase in ("advisor", "advising office", "spartan connect", "contact your advisor"):
+        assert f'"{phrase}"' not in HANDOFF.split("const ADVISOR_HANDOFF_PHRASES =", 1)[1].split("];", 1)[0]
+    assert "nasiha.alicic@sjsu.edu" in HANDOFF and "ryan.ploch-branscum@sjsu.edu" in HANDOFF
+    assert "https://ischool.sjsu.edu/bsisda-advising" in HANDOFF
     css = (ROOT / "static/style.css").read_text(encoding="utf-8")
     assert ".advisor-handoff-button:focus-visible" in css
     assert re.search(r"\.advisor-handoff-button\s*\{[^}]*min-height: 44px", css)
@@ -218,11 +221,20 @@ for (const text of ['😀'.repeat(400), '漢'.repeat(400), '%&?'.repeat(400)]) {
   assert(bodyOf(long).includes('Program: BS Information Science'));
   assert(!bodyOf(long).includes('\uFFFD'));
 }
-for (const reply of ['I don’t know.', "I don't have that information", 'NOT SURE',
-  'Contact your advisor', 'An advisor can help', 'The advising office', 'Use Spartan Connect']) {
+for (const reply of ['I don’t know.', "I don't have that information", "I'm NOT SURE",
+  'The documents do not specify the deadlines.', "I couldn't find INFO 210 prerequisites."]) {
   assert(shouldOfferAdvisorHandoff(reply), reply);
 }
-assert(!shouldOfferAdvisorHandoff('Here are the required courses.'));
+for (const reply of ['Here are the required courses.',
+  'Your ISDA advisor is Kaitlyn Stauber. Book through Spartan Connect or the advising office.',
+  'For electives, contact your advisor for approval.']) {
+  assert(!shouldOfferAdvisorHandoff(reply), reply);
+}
+assert.strictEqual(knowledgeGapReportQuestions(['Which electives?', 'how do I make a bomb']),
+  'Which electives?\n\n[1 sensitive question omitted]');
+assert.strictEqual(knowledgeGapReportQuestions(['I want to hurt myself', 'I want to die']),
+  '[2 sensitive questions omitted]');
+assert.strictEqual(knowledgeGapReportQuestions(['Which electives?']), 'Which electives?');
 // Clicking either control builds a fresh draft for the currently selected chat/program.
 let tabbed = true;
 let active = {program: 'isda', messages: [own('First conversation')]};
@@ -318,7 +330,8 @@ const fetch = async (url, options) => {
       assert.strictEqual(calls[1].options.credentials, 'include');
       assert.strictEqual(calls[1].options.headers['X-Issue-Report-CSRF'], 'token');
       assert.deepStrictEqual(JSON.parse(calls[1].options.body), {
-        reason: 'knowledge_gap', question: QUESTION, answer: '', comment: '', include_conversation: false
+        reason: 'knowledge_gap', question: SENSITIVE ? '[1 sensitive question omitted]' : QUESTION,
+        answer: '', comment: '', include_conversation: false
       });
     }
   }
@@ -330,6 +343,7 @@ const fetch = async (url, options) => {
     runner = ("const QUESTION = " + json.dumps(question) + ";\n"
               + "const CHOICE = " + json.dumps(choice) + ";\n"
               + "const FAIL = " + json.dumps(fail) + ";\n"
+              + "const SENSITIVE = " + json.dumps(sensitive) + ";\n"
               + "async function postIssueReport(payload)" + helper + runner)
     path = tmp_path / "gap_prompt.js"
     path.write_text(runner, encoding="utf-8")

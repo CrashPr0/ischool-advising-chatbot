@@ -469,10 +469,18 @@ const ADVISOR_HANDOFF_CONTACTS = {
 };
 const ADVISOR_HANDOFF_MAX_URL_LENGTH = 1800;
 const ADVISOR_HANDOFF_MAX_QUESTION_CHARS = 300;
+// Only clear "can't answer" wording; a normal answer that merely mentions an
+// advisor gets no per-reply button (the composer button is always visible).
 const ADVISOR_HANDOFF_PHRASES = [
-  "i don't know", "i don't have", "not sure", "contact your advisor",
-  "advisor", "advising office", "spartan connect"
+  "i don't know", "i don't have", "i'm not sure", "i am not sure",
+  "do not provide", "does not provide", "don't provide", "do not specify",
+  "does not specify", "don't specify", "do not include", "does not include",
+  "couldn't find", "could not find", "unable to find", "no information about",
+  "not available in the documents", "not in the documents"
 ];
+// SJSU Online ISDA students are advised by last name (bsisda-advising page).
+const ADVISOR_HANDOFF_ONLINE_ISDA_NOTE = "SJSU Online ISDA students: last names A–J email Nasiha Alicic (nasiha.alicic@sjsu.edu); L–Z email Ryan Ploch-Branscum (ryan.ploch-branscum@sjsu.edu). ";
+const ADVISOR_HANDOFF_ONLINE_ISDA_SOURCE = "https://ischool.sjsu.edu/bsisda-advising";
 // Word boundaries avoid substring matches. Whole-word kill/killing still matches
 // idioms like "killing it": a conservative, safe fallback. Shoot/shooting needs
 // a target phrase so academic goals like "shooting for a 3.5 GPA" stay eligible.
@@ -535,6 +543,14 @@ function buildAdvisorMailto(program, messages) {
   return url;
 }
 
+// Opted-in reports keep non-sensitive questions only; sensitive ones become a placeholder.
+function knowledgeGapReportQuestions(questions) {
+  const kept = questions.filter((question) => !isSensitiveAdvisorQuestion(question));
+  const omitted = questions.length - kept.length;
+  if (omitted) kept.push(`[${omitted} sensitive question${omitted === 1 ? "" : "s"} omitted]`);
+  return kept.join("\n\n");
+}
+
 let advisorHandoffDialog = null;
 
 function openAdvisorHandoff(event) {
@@ -544,6 +560,7 @@ function openAdvisorHandoff(event) {
   const messages = current ? current.messages : plainTranscript;
   const mailto = buildAdvisorMailto(program, messages);
   const questions = eligibleAdvisorQuestions(messages);
+  const reportQuestions = knowledgeGapReportQuestions(questions);
   const returnFocus = event?.currentTarget || document.activeElement;
   const dialog = document.createElement("dialog");
   advisorHandoffDialog = dialog;
@@ -591,11 +608,10 @@ function openAdvisorHandoff(event) {
     decided = true;
     close();
     try {
-      // Keep sensitive questions in this opted-in, reviewer-only report (90-day
-      // auto-delete) so the team can improve safety handling. Never add bot text.
+      // Sensitive questions are never stored; only a placeholder count. Never add bot text.
       await postIssueReport({
         reason: "knowledge_gap",
-        question: clipReportText(questions.join("\n\n"), REPORT_LIMITS.question),
+        question: clipReportText(reportQuestions, REPORT_LIMITS.question),
         answer: "",
         comment: "",
         include_conversation: false
@@ -631,6 +647,16 @@ function updateAdvisorHandoffNotes() {
       link.href = contact.source;
       link.textContent = "Advising page";
       note.appendChild(link);
+    }
+    if (key === "isda") {
+      const online = document.createElement("span");
+      online.className = "advisor-handoff-online";
+      online.textContent = " " + ADVISOR_HANDOFF_ONLINE_ISDA_NOTE;
+      const link = document.createElement("a");
+      link.href = ADVISOR_HANDOFF_ONLINE_ISDA_SOURCE;
+      link.textContent = "BSISDA advising";
+      online.appendChild(link);
+      note.appendChild(online);
     }
   });
 }
