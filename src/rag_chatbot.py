@@ -593,6 +593,43 @@ def _restrict_reply_links(text: str, documents: Optional[List] = None) -> tuple:
     return cleaned, dropped
 
 
+def _strip_document_labels(text: str) -> str:
+    """Remove internal context citations while preserving links and ordinary prose."""
+    prefix = "\x00citation_link_"
+    while prefix in text:
+        prefix += "_"
+    links = []
+    protected = text
+    for start, end, *_ in reversed(_link_spans(text)):
+        token = f"{prefix}{len(links)}\x00"
+        links.append((token, text[start:end]))
+        protected = protected[:start] + token + protected[end:]
+
+    numbers = (
+        r"Documents?[ \t]+\d+"
+        r"(?:[ \t]*(?:,[ \t]*(?:and[ \t]+)?|and[ \t]+|&[ \t]*)"
+        r"(?:Documents?[ \t]+)?\d+)*"
+    )
+    label = rf"(?:Sources?:[ \t]*)?{numbers}"
+    pattern = re.compile(
+        rf"\([ \t]*{label}[ \t]*\)|\[[ \t]*{label}[ \t]*\]"
+        rf"|(?<!\w)Sources?:[ \t]*{numbers}(?=[ \t]*[.!?]?[ \t]*$)",
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
+    lines = []
+    for line in protected.splitlines(keepends=True):
+        cleaned_line = pattern.sub("", line)
+        if cleaned_line != line:
+            cleaned_line = re.sub(r"(?<=\S)[ \t]+([.,;:!?])", r"\1", cleaned_line)
+            cleaned_line = re.sub(r"(?<=\S)[ \t]{2,}", " ", cleaned_line)
+            cleaned_line = re.sub(r"[ \t]+(?=\r?$)", "", cleaned_line, flags=re.MULTILINE)
+        lines.append(cleaned_line)
+    cleaned = "".join(lines)
+    for token, link in links:
+        cleaned = cleaned.replace(token, link)
+    return cleaned
+
+
 class RAGAdvisingChatbot:
     """
     Retrieval Augmented Generation (RAG) chatbot for iSchool advising.
@@ -650,7 +687,9 @@ invent a URL, rewrite its path, or add a fragment. Official iSchool \
 shared policies. Cite those pages when they support the answer. The catalog \
 priority rule applies to conflicting facts, not to whether other official \
 sources can be cited. If a document has no Source URL, only use a link \
-explicitly present in its text; do not fabricate a citation."""
+explicitly present in its text; do not fabricate a citation. Never refer to \
+context documents by number (e.g. "Document 3"), since students cannot see \
+those labels; cite with the Source URL link instead."""
 
     def __init__(
         self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None
@@ -866,6 +905,7 @@ Assistant Response:""",
                     str(response_text)[:response_limit],
                     list(prompt_docs) + list(retrieved_docs),
                 )
+                cleaned = _strip_document_labels(cleaned)
                 if dropped:
                     metrics["dropped_links"] = dropped
                 if dropped and not _reply_has_substance(cleaned):
