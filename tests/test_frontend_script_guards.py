@@ -137,8 +137,8 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert 'id="confidence-badge"' not in docs
     assert "filename='style.css', v='20261012-mobile-ui'" in template
     assert "style.css?v=20261012-mobile-ui" in docs
-    assert "filename='script.js', v='20261012-mobile-ui'" in template
-    assert "script.js?v=20261012-mobile-ui" in docs
+    assert "filename='script.js', v='20261014-chat-errors'" in template
+    assert "script.js?v=20261014-chat-errors" in docs
     assert "20261001-reveal-tabs" not in template
     assert "20260927-tabs" not in docs
     assert "20261002-letter-reveal" not in template
@@ -180,6 +180,84 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "if (!voiceTools) return;" in script
     assert "activeBanner?.classList.add" in script
     assert "silent" not in script
+
+
+def test_chat_errors_surface_safe_messages_and_parse_json_defensively(tmp_path):
+    script = (ROOT / "static" / "script.js").read_text(encoding="utf-8")
+    chat = script.split("async function sendMessage(", 1)[1].split("function reportContext(", 1)[0]
+    assert 'typeof data.error === "string" && data.error.trim()' in chat
+    assert 'typeof error.message === "string"' in chat
+    assert "deliverBotReply(conversationId, safeMessage ? errorMessage : fallbackError)" in chat
+    assert "Sorry, I couldn't get an answer right now. Please try again." in chat
+    assert re.search(r"try\s*\{\s*data = .*?response\.json\(\).*?\}\s*catch", chat, re.S)
+
+    runner = tmp_path / "check_chat_errors.js"
+    runner.write_text(r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync(process.argv[2], "utf8");
+const chat = source.slice(source.indexOf("async function sendMessage("), source.indexOf("function reportContext("));
+const fallback = "Sorry, I couldn't get an answer right now. Please try again.";
+
+async function check({ body = {}, ok = false, parseError, fetchError, cancelled = false, expected = fallback }) {
+  const replies = [];
+  const operations = new Map();
+  const noop = () => {};
+  const sandbox = {
+    AbortController, replyOperations: operations, activeReplyKey: () => "default",
+    userInput: { value: "Question" }, conversationDrafts: new Map(),
+    hideSampleChips: noop, updateMeta: noop, addMessage: noop,
+    showTypingIndicator: noop, updateReplyControls: noop, renderTabs: noop,
+    programSelect: null, lastSelectedProgram: "both", normalizeProgram: value => value,
+    apiUrl: value => value, removeTypingIndicator: noop,
+    deliverBotReply: (id, text) => replies.push(text),
+    revealReply: (key, text) => replies.push(text),
+    fetch: async () => {
+      if (fetchError) throw fetchError;
+      return { ok, json: async () => {
+        if (cancelled) operations.clear();
+        if (parseError) throw parseError;
+        return body;
+      } };
+    },
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(chat, sandbox);
+  await vm.runInContext("sendMessage()", sandbox);
+  const wanted = expected === null ? [] : [expected];
+  if (JSON.stringify(replies) !== JSON.stringify(wanted)) {
+    throw new Error("Expected " + JSON.stringify(wanted) + ", got " + JSON.stringify(replies));
+  }
+}
+
+(async () => {
+  for (const message of ["Too many requests. Please try again in a minute.", "The advising index is not ready. Please try again later."]) {
+    await check({ body: { error: message }, expected: message });
+  }
+  for (const error of [null, 42, {}, "", "   ", "x".repeat(300),
+      "TypeError: Failed to fetch", "ReferenceError: value is not defined",
+      "SyntaxError: Unexpected token", "NetworkError: Request failed",
+      "Error: internal failure", "Exception: internal failure",
+      "Cannot read properties of undefined", "handler is not a function",
+      "Error\n    at sendMessage (script.js:900)", "at sendMessage (script.js:900)"]) {
+    await check({ body: { error } });
+  }
+  await check({ body: null });
+  await check({ parseError: new SyntaxError("Unexpected token '<'") });
+  await check({ parseError: Object.assign(new Error("Cancelled"), { name: "AbortError" }), expected: null });
+  await check({ fetchError: new TypeError("Failed to fetch") });
+  await check({ fetchError: Object.assign(new Error("Cancelled"), { name: "AbortError" }), expected: null });
+  await check({ cancelled: true, body: { error: "Please try later." }, expected: null });
+  await check({ ok: true, body: { response: "Successful answer" }, expected: "Successful answer" });
+})().catch(error => { console.error(error); process.exit(1); });
+""", encoding="utf-8")
+    completed = subprocess.run(
+        ["node", str(runner), str(ROOT / "static" / "script.js")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr + completed.stdout
 
 
 def test_index_welcome_chips_reuse_topic_samples():

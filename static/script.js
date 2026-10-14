@@ -880,6 +880,8 @@ async function sendMessage(prefilledMessage = null) {
     payload.conversation_id = conversationId;
   }
 
+  const fallbackError = "Sorry, I couldn't get an answer right now. Please try again.";
+
   try {
     const response = await fetch(apiUrl("/api/chat"), {
       method: "POST",
@@ -891,13 +893,21 @@ async function sendMessage(prefilledMessage = null) {
       signal: operation.controller.signal
     });
 
-    const data = await response.json();
+    let data = {};
+    try {
+      data = (await response.json()) || {};
+    } catch (error) {
+      if (error.name === "AbortError") throw error;
+      // Gateways can return HTML instead of the API's JSON error body.
+    }
 
     if (replyOperations.get(key) !== operation) return;
 
     if (!response.ok) {
       throw new Error(
-        data.error || "An error occurred while contacting the chatbot."
+        typeof data.error === "string" && data.error.trim()
+          ? data.error.trim()
+          : fallbackError
       );
     }
 
@@ -925,10 +935,13 @@ async function sendMessage(prefilledMessage = null) {
       removeTypingIndicator();
     }
 
-    deliverBotReply(
-      conversationId,
-      "Sorry, I couldn't get an answer right now. Please try again."
-    );
+    const errorMessage = typeof error.message === "string" ? error.message.trim() : "";
+    const safeMessage = errorMessage && errorMessage.length < 300 &&
+      !/[\r\n]|\bat\s+\S+\s*\(|\.js:/i.test(errorMessage) &&
+      !/^(TypeError|ReferenceError|SyntaxError|NetworkError|RangeError|EvalError|URIError)$/i.test(error.name) &&
+      !/^(TypeError|ReferenceError|SyntaxError|NetworkError|RangeError|EvalError|URIError)\b|^(Error|Exception):|^(Uncaught\b|Cannot read\b|\S+ is not (a function|defined)\b)/i.test(errorMessage);
+
+    deliverBotReply(conversationId, safeMessage ? errorMessage : fallbackError);
 
     updateReplyControls();
     renderTabs();

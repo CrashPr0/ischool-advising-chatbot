@@ -7,7 +7,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 CSS = (ROOT / "static/style.css").read_text()
 HTML_FILES = ("templates/index.html", "docs/index.html")
-PIN = "20261012-mobile-ui"
+ASSET_PINS = {"style.css": "20261012-mobile-ui", "script.js": "20261014-chat-errors"}
 
 
 def mobile_rules():
@@ -33,8 +33,8 @@ def test_viewport_and_asset_pins_in_both_pages():
     for name in HTML_FILES:
         html = (ROOT / name).read_text()
         assert "viewport-fit=cover" in html
-        for asset in ("style.css", "script.js"):
-            assert re.search(rf"{re.escape(asset)}[^\n<>]*{PIN}", html)
+        for asset, pin in ASSET_PINS.items():
+            assert re.search(rf"{re.escape(asset)}[^\n<>]*{pin}", html)
         assert "20261011-mlis-pdf" not in html
 
 
