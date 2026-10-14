@@ -160,7 +160,7 @@ def test_both_pages_offer_mlis_topics_and_keep_isda():
         assert "How do I apply to the MLIS program?" in text
         assert "What is the MLIS e-portfolio?" in text
         assert "MLIS advising" in text
-        assert "20261012-mobile-ui" in text
+        assert "20261014-advisor-handoff" in text
 
 
 def test_mlis_retrieval_survives_query_embedding_failure(corpus_processor, monkeypatch):

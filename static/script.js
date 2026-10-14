@@ -456,6 +456,102 @@ function hideSampleChips() {
   sampleChipsArea?.classList.add("hidden");
 }
 
+// ── ADVISOR HANDOFF (client-only email draft; no server request) ──
+// Recipient configuration: confirm changes with iSchool before updating.
+const ADVISOR_HANDOFF_CONTACTS = {
+  // Listed as BSISDA major-specific advisor in data/advising_docs/txt/web-d027e0fd8a5961c2.txt.
+  isda: { email: "kaitlyn.stauber@sjsu.edu", source: "https://ischool.sjsu.edu/bsisda-freshmen-advising" },
+  // No MLIS advising email in the knowledge base; leave blank, student fills in; confirm with iSchool.
+  mlis: { email: "", source: "https://ischool.sjsu.edu/advising-appointments" },
+  both: { email: "", source: "https://ischool.sjsu.edu/advising-appointments" }
+};
+const ADVISOR_HANDOFF_MAX_URL_LENGTH = 1800;
+const ADVISOR_HANDOFF_MAX_QUESTION_CHARS = 300;
+const ADVISOR_HANDOFF_PHRASES = [
+  "i don't know", "i don't have", "not sure", "contact your advisor",
+  "advisor", "advising office", "spartan connect"
+];
+
+function shouldOfferAdvisorHandoff(reply) {
+  const normalized = String(reply || "").toLowerCase().replace(/’/g, "'");
+  return ADVISOR_HANDOFF_PHRASES.some((phrase) => normalized.includes(phrase));
+}
+
+// Pure builder: accepts only the program and student-authored message records.
+function buildAdvisorMailto(program, messages) {
+  const key = ["isda", "mlis", "both"].includes(program) ? program : "both";
+  const label = { isda: "BS Information Science & Data Analytics (ISDA)", mlis: "MLIS", both: "Not sure / both" }[key];
+  const subject = `Advising question from the iSchool chatbot (${label})`;
+  // Array.from slices Unicode code points without splitting surrogate pairs.
+  const questions = (Array.isArray(messages) ? messages : [])
+    .filter((message) => message.role === "user" && message.handoffEligible === true && typeof message.text === "string")
+    .map((message) => message.text.trim())
+    .filter(Boolean)
+    .slice(-3)
+    .map((question) => Array.from(question).slice(0, ADVISOR_HANDOFF_MAX_QUESTION_CHARS).join(""));
+  function draftUrl() {
+    const body = [
+      "Hello, I would like help with an advising question.",
+      "", "My question(s):", questions.join("\n\n"), "",
+      `Program: ${label}`, "",
+      "Please review/edit this draft before sending. Add your name/student ID only if you choose."
+    ].join("\n");
+    return `mailto:${ADVISOR_HANDOFF_CONTACTS[key].email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+  let url = draftUrl();
+  // Keep the newest question: drop oldest first, then trim the remaining one.
+  while (url.length >= ADVISOR_HANDOFF_MAX_URL_LENGTH && questions.length > 1) {
+    questions.shift();
+    url = draftUrl();
+  }
+  while (url.length >= ADVISOR_HANDOFF_MAX_URL_LENGTH && questions[0]) {
+    questions[0] = Array.from(questions[0]).slice(0, -1).join("");
+    url = draftUrl();
+  }
+  return url;
+}
+
+function openAdvisorHandoff() {
+  const current = tabsEnabled() ? getActiveConversation() : null;
+  const program = programSelect?.value || current?.program || lastSelectedProgram;
+  window.location.href = buildAdvisorMailto(program, current ? current.messages : plainTranscript);
+}
+
+function updateAdvisorHandoffNotes() {
+  const key = normalizeProgram(programSelect?.value || lastSelectedProgram);
+  const contact = ADVISOR_HANDOFF_CONTACTS[key];
+  document.querySelectorAll(".advisor-handoff-note").forEach((note) => {
+    note.textContent = contact.email
+      ? "Opens an email draft. Review and edit before sending."
+      : "Add a recipient before sending. Confirm the contact with iSchool: ";
+    if (!contact.email) {
+      const link = document.createElement("a");
+      link.href = contact.source;
+      link.textContent = "Advising page";
+      note.appendChild(link);
+    }
+  });
+}
+
+function attachAdvisorHandoff(wrapper, reply) {
+  if (!shouldOfferAdvisorHandoff(reply)) return;
+  const controls = document.createElement("div");
+  controls.className = "advisor-handoff";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "advisor-handoff-button";
+  button.textContent = "Email an advisor";
+  button.setAttribute("aria-label", "Email an advisor: open a draft to review and edit");
+  button.addEventListener("click", openAdvisorHandoff);
+  const note = document.createElement("p");
+  note.className = "advisor-handoff-note";
+  controls.appendChild(button);
+  controls.appendChild(note);
+  wrapper.appendChild(controls);
+  updateAdvisorHandoffNotes();
+}
+// ── END ADVISOR HANDOFF ──
+
 // ── MESSAGES ──
 // Transcript used when this page has no conversation tabs (the static docs
 // fallback). Tabbed chats keep the same text in localStorage.
@@ -492,6 +588,7 @@ function addMessage(text, className, label, options) {
       rememberMessage(current.id, {
         role: className === "user-message" ? "user" : "bot",
         text: text,
+        handoffEligible: Boolean(options && options.handoffEligible),
         provider: options && options.report ? options.report.provider : null,
         model: options && options.report ? options.report.model : null
       });
@@ -501,6 +598,7 @@ function addMessage(text, className, label, options) {
     plainTranscript.push({
       role: className === "user-message" ? "user" : "bot",
       text: String(text ?? ""),
+      handoffEligible: Boolean(options && options.handoffEligible),
       provider: options && options.report ? options.report.provider : null,
       model: options && options.report ? options.report.model : null
     });
@@ -521,6 +619,7 @@ function addMessage(text, className, label, options) {
 
   wrapper.appendChild(labelDiv);
   wrapper.appendChild(textDiv);
+  if (className === "bot-message") attachAdvisorHandoff(wrapper, text);
   if (options && options.reportable && options.report) {
     attachReportControl(wrapper, options.report);
   }
@@ -869,7 +968,7 @@ async function sendMessage(prefilledMessage = null) {
   conversationDrafts.delete(key);
   updateMeta({});
 
-  addMessage(message, "user-message", "You");
+  addMessage(message, "user-message", "You", { handoffEligible: prefilledMessage === null });
   showTypingIndicator();
   updateReplyControls();
   renderTabs();
@@ -1414,6 +1513,7 @@ function normalizeProgram(value) {
 
 function onProgramChange() {
   lastSelectedProgram = normalizeProgram(programSelect.value);
+  updateAdvisorHandoffNotes();
   const convo = tabsEnabled() ? getActiveConversation() : null;
   if (convo) {
     convo.program = lastSelectedProgram;
@@ -1463,6 +1563,7 @@ function normalizeMessage(message) {
   const normalized = {
     role: message.role,
     text: message.text,
+    handoffEligible: message.role === "user" && message.handoffEligible === true,
     timestamp: Number.isFinite(message.timestamp) && !isNaN(new Date(message.timestamp).getTime())
       ? message.timestamp : null,
     source: typeof message.source === "string" ? message.source : null,
@@ -1576,6 +1677,7 @@ function paintConversation(convo) {
   if (!convo || !chatBox) return;
 
   if (programSelect) programSelect.value = normalizeProgram(convo.program);
+  updateAdvisorHandoffNotes();
   userInput.value = conversationDrafts.get(convo.id) || "";
   updateReplyControls();
   hideSampleChips();
@@ -2042,5 +2144,8 @@ if (exportChatButton) {
 }
 
 initConversations();
+const advisorHandoffButton = document.getElementById("advisor-handoff-button");
+if (advisorHandoffButton) advisorHandoffButton.addEventListener("click", openAdvisorHandoff);
+updateAdvisorHandoffNotes();
 if (programSelect) programSelect.addEventListener("change", onProgramChange);
 loadVoiceConfig();
