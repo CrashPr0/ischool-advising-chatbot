@@ -30,12 +30,14 @@ REASON_INCORRECT = "incorrect_info"
 REASON_MADE_UP = "made_up"
 REASON_OUTDATED = "outdated"
 REASON_OTHER = "other"
+REASON_KNOWLEDGE_GAP = "knowledge_gap"
 
 REASONS: tuple[tuple[str, str], ...] = (
     (REASON_INCORRECT, "Incorrect information"),
     (REASON_MADE_UP, "Made-up link or course"),
     (REASON_OUTDATED, "Outdated information"),
     (REASON_OTHER, "Other"),
+    (REASON_KNOWLEDGE_GAP, "Knowledge gap"),
 )
 REASON_LABELS: dict[str, str] = dict(REASONS)
 _REASON_KEYS = set(REASON_LABELS)
@@ -63,7 +65,7 @@ CREATE TABLE IF NOT EXISTS answer_issue_reports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
     reason TEXT NOT NULL CHECK (
-        reason IN ('incorrect_info', 'made_up', 'outdated', 'other')
+        reason IN ('incorrect_info', 'made_up', 'outdated', 'other', 'knowledge_gap')
     ),
     comment TEXT NOT NULL,
     question TEXT NOT NULL,
@@ -208,7 +210,7 @@ def build_issue_report(
     reason = payload.get("reason")
     if not isinstance(reason, str) or reason not in _REASON_KEYS:
         raise IssueReportValidationError(
-            "reason must be incorrect_info, made_up, outdated, or other"
+            "reason must be one of: " + ", ".join(REASON_LABELS)
         )
 
     if "include_conversation" not in payload:
@@ -218,11 +220,21 @@ def build_issue_report(
         if not isinstance(include, bool):
             raise IssueReportValidationError("include_conversation must be a boolean")
 
+    knowledge_gap = reason == REASON_KNOWLEDGE_GAP
+    if knowledge_gap:
+        include = False  # Gap reports contain student questions, never bot replies.
+
     question = _clean_multiline(
-        payload.get("question"), limit=QUESTION_MAX, field="question", required=True
+        payload.get("question"),
+        limit=QUESTION_MAX,
+        field="question",
+        required=not knowledge_gap,
     )
     answer = _clean_multiline(
-        payload.get("answer"), limit=ANSWER_MAX, field="answer", required=True
+        "" if knowledge_gap else payload.get("answer"),
+        limit=ANSWER_MAX,
+        field="answer",
+        required=not knowledge_gap,
     )
     comment = _clean_comment(payload.get("comment"))
 
@@ -309,7 +321,22 @@ class IssueReportStore:
 
     def _initialize(self) -> None:
         with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             connection.execute(_CREATE_SQL)
+            schema = connection.execute(
+                "SELECT sql FROM sqlite_master WHERE name = 'answer_issue_reports'"
+            ).fetchone()[0]
+            if "'knowledge_gap'" not in schema:
+                # SQLite cannot alter a CHECK constraint. Rebuild atomically while
+                # preserving report ids, retention timestamps, and all prior rows.
+                connection.execute(
+                    "ALTER TABLE answer_issue_reports RENAME TO answer_issue_reports_legacy"
+                )
+                connection.execute(_CREATE_SQL)
+                connection.execute(
+                    "INSERT INTO answer_issue_reports SELECT * FROM answer_issue_reports_legacy"
+                )
+                connection.execute("DROP TABLE answer_issue_reports_legacy")
             connection.execute(_CREATE_INDEX_SQL)
 
     def _purge_expired(self) -> None:

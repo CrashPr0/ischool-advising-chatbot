@@ -456,7 +456,9 @@ function hideSampleChips() {
   sampleChipsArea?.classList.add("hidden");
 }
 
-// ── ADVISOR HANDOFF (client-only email draft; no server request) ──
+// ── ADVISOR HANDOFF (email draft and optional knowledge-gap report) ──
+const REPORT_RETENTION_NOTICE = "Reports, including any conversation you share, are automatically deleted after 90 days.";
+
 // Recipient configuration: confirm changes with iSchool before updating.
 const ADVISOR_HANDOFF_CONTACTS = {
   // Listed as BSISDA major-specific advisor in data/advising_docs/txt/web-d027e0fd8a5961c2.txt.
@@ -471,10 +473,30 @@ const ADVISOR_HANDOFF_PHRASES = [
   "i don't know", "i don't have", "not sure", "contact your advisor",
   "advisor", "advising office", "spartan connect"
 ];
+// Word boundaries avoid substring matches. Whole-word kill/killing still matches
+// idioms like "killing it": a conservative, safe fallback. Shoot/shooting needs
+// a target phrase so academic goals like "shooting for a 3.5 GPA" stay eligible.
+const ADVISOR_HANDOFF_SENSITIVE_PATTERNS = [
+  { category: "self-harm / suicide / mental health crisis", pattern: /\b(?:suicide|suicidal|kill\s+myself|end\s+my\s+life|self[-\s]?harm|hurt\s+myself|cut\s+myself|want\s+to\s+die|overdose|no\s+reason\s+to\s+live)\b/i },
+  { category: "violence / weapons / explosives", pattern: /\b(?:bomb|explosives?|guns?|firearm|rifle|pistol|kill|killing|shoot(?:ing)?\s+(?:at|up|someone|people|him|her|them|a\s+person|the\s+school)|shooter|mass\s+shooting)\b/i },
+  { category: "other clear harmful intent", pattern: /\b(?:(?:hurt|attack|stab|threaten)\s+(?:someone|people)|poison)\b/i }
+];
+
+function isSensitiveAdvisorQuestion(text) {
+  return ADVISOR_HANDOFF_SENSITIVE_PATTERNS.some(({ pattern }) => pattern.test(text));
+}
 
 function shouldOfferAdvisorHandoff(reply) {
   const normalized = String(reply || "").toLowerCase().replace(/’/g, "'");
   return ADVISOR_HANDOFF_PHRASES.some((phrase) => normalized.includes(phrase));
+}
+
+function eligibleAdvisorQuestions(messages) {
+  return (Array.isArray(messages) ? messages : [])
+    .filter((message) => message.role === "user" && message.handoffEligible === true && typeof message.text === "string")
+    .map((message) => message.text.trim())
+    .filter(Boolean)
+    .slice(-3);
 }
 
 // Pure builder: accepts only the program and student-authored message records.
@@ -482,12 +504,14 @@ function buildAdvisorMailto(program, messages) {
   const key = ["isda", "mlis", "both"].includes(program) ? program : "both";
   const label = { isda: "BS Information Science & Data Analytics (ISDA)", mlis: "MLIS", both: "Not sure / both" }[key];
   const subject = `Advising question from the iSchool chatbot (${label})`;
+  const eligibleQuestions = eligibleAdvisorQuestions(messages);
+  // Screen the full selected questions before any draft truncation or removal.
+  if (eligibleQuestions.some(isSensitiveAdvisorQuestion)) {
+    const body = "Hi, I have some questions and was wondering if you could get back to me.";
+    return `mailto:${ADVISOR_HANDOFF_CONTACTS[key].email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
   // Array.from slices Unicode code points without splitting surrogate pairs.
-  const questions = (Array.isArray(messages) ? messages : [])
-    .filter((message) => message.role === "user" && message.handoffEligible === true && typeof message.text === "string")
-    .map((message) => message.text.trim())
-    .filter(Boolean)
-    .slice(-3)
+  const questions = eligibleQuestions
     .map((question) => Array.from(question).slice(0, ADVISOR_HANDOFF_MAX_QUESTION_CHARS).join(""));
   function draftUrl() {
     const body = [
@@ -511,10 +535,88 @@ function buildAdvisorMailto(program, messages) {
   return url;
 }
 
-function openAdvisorHandoff() {
+let advisorHandoffDialog = null;
+
+function openAdvisorHandoff(event) {
+  if (advisorHandoffDialog) return;
   const current = tabsEnabled() ? getActiveConversation() : null;
   const program = programSelect?.value || current?.program || lastSelectedProgram;
-  window.location.href = buildAdvisorMailto(program, current ? current.messages : plainTranscript);
+  const messages = current ? current.messages : plainTranscript;
+  const mailto = buildAdvisorMailto(program, messages);
+  const questions = eligibleAdvisorQuestions(messages);
+  const returnFocus = event?.currentTarget || document.activeElement;
+  const dialog = document.createElement("dialog");
+  advisorHandoffDialog = dialog;
+  dialog.className = "report-dialog";
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-labelledby", "advisor-gap-title");
+  dialog.setAttribute("aria-describedby", "advisor-gap-privacy");
+  const content = document.createElement("form");
+  const title = document.createElement("h2");
+  title.id = "advisor-gap-title";
+  title.tabIndex = -1;
+  title.textContent = "Do you also want to report this as a knowledge-base gap so the team can improve the answer?";
+  const privacy = document.createElement("p");
+  privacy.id = "advisor-gap-privacy";
+  privacy.textContent = REPORT_RETENTION_NOTICE;
+  const actions = document.createElement("div");
+  actions.className = "report-actions";
+  const yes = document.createElement("button");
+  yes.type = "button";
+  yes.className = "report-primary";
+  yes.textContent = "Yes";
+  const no = document.createElement("button");
+  no.type = "button";
+  no.className = "report-secondary";
+  no.textContent = "No";
+  actions.append(yes, no);
+  content.append(title, privacy, actions);
+  dialog.appendChild(content);
+  document.body.appendChild(dialog);
+  let decided = false;
+  const close = () => {
+    dialog.close();
+    dialog.remove();
+    advisorHandoffDialog = null;
+    returnFocus?.focus();
+  };
+  dialog.addEventListener("cancel", (cancelEvent) => {
+    cancelEvent.preventDefault();
+    decided = true;
+    close(); // Escape cancels without a report or an email draft.
+  });
+  content.addEventListener("submit", (submitEvent) => submitEvent.preventDefault());
+  yes.addEventListener("click", async () => {
+    if (decided) return;
+    decided = true;
+    close();
+    try {
+      // Keep sensitive questions in this opted-in, reviewer-only report (90-day
+      // auto-delete) so the team can improve safety handling. Never add bot text.
+      await postIssueReport({
+        reason: "knowledge_gap",
+        question: clipReportText(questions.join("\n\n"), REPORT_LIMITS.question),
+        answer: "",
+        comment: "",
+        include_conversation: false
+      });
+    } catch (error) {
+      const note = document.createElement("p");
+      note.setAttribute("role", "status");
+      note.textContent = "The report could not be sent. Opening your advisor email draft.";
+      document.body.appendChild(note);
+      window.setTimeout(() => note.remove(), 10000);
+    }
+    window.location.href = mailto;
+  });
+  no.addEventListener("click", () => {
+    if (decided) return;
+    decided = true;
+    close();
+    window.location.href = mailto;
+  });
+  dialog.showModal();
+  title.focus(); // Neither Yes nor No is preselected or the default action.
 }
 
 function updateAdvisorHandoffNotes() {
@@ -1123,7 +1225,7 @@ function ensureReportDialog() {
   privacy.id = "report-issue-privacy";
   privacy.className = "report-privacy";
   privacy.textContent =
-    "Only the reason, your comment, and this answer are saved unless you include the conversation. Reports, including any conversation you share, are automatically deleted after 90 days.";
+    "Only the reason, your comment, and this answer are saved unless you include the conversation. " + REPORT_RETENTION_NOTICE;
 
   const fieldset = document.createElement("fieldset");
   fieldset.className = "report-reasons";
@@ -1276,6 +1378,30 @@ function reportPayload(report, form) {
   return payload;
 }
 
+async function postIssueReport(payload) {
+  const csrfResponse = await fetch(apiUrl("/api/issue-reports/csrf"), {
+    method: "GET",
+    credentials: "include"
+  });
+  const csrfBody = await csrfResponse.json();
+  if (!csrfResponse.ok || !csrfBody.csrf) {
+    throw new Error(csrfBody.error || "The report could not be sent. Please try again.");
+  }
+  const response = await fetch(apiUrl("/api/issue-reports"), {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Issue-Report-CSRF": csrfBody.csrf
+    },
+    body: JSON.stringify(payload)
+  });
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body.error || "The report could not be sent. Please try again.");
+  }
+}
+
 async function submitIssueReport(form) {
   const dialog = reportDialog;
   const error = dialog.querySelector("#report-issue-error");
@@ -1291,27 +1417,7 @@ async function submitIssueReport(form) {
   error.textContent = "";
   submit.disabled = true;
   try {
-    const csrfResponse = await fetch(apiUrl("/api/issue-reports/csrf"), {
-      method: "GET",
-      credentials: "include"
-    });
-    const csrfBody = await csrfResponse.json();
-    if (!csrfResponse.ok || !csrfBody.csrf) {
-      throw new Error(csrfBody.error || "The report could not be sent. Please try again.");
-    }
-    const response = await fetch(apiUrl("/api/issue-reports"), {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Issue-Report-CSRF": csrfBody.csrf
-      },
-      body: JSON.stringify(reportPayload(pendingReport, form))
-    });
-    const body = await response.json();
-    if (!response.ok) {
-      throw new Error(body.error || "The report could not be sent. Please try again.");
-    }
+    await postIssueReport(reportPayload(pendingReport, form));
     form.hidden = true;
     const thanks = dialog.querySelector("#report-issue-thanks");
     thanks.hidden = false;

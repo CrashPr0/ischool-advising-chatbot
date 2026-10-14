@@ -508,7 +508,7 @@ def test_reason_summary_includes_zeros_and_stable_ties(tmp_path):
     assert summary["total"] == 5
     assert summary["reasons"] == [
         {"key": key, "label": issue_reports.REASON_LABELS[key], "count": count}
-        for key, count in [("made_up", 2), ("other", 2), ("incorrect_info", 1), ("outdated", 0)]
+        for key, count in [("made_up", 2), ("other", 2), ("incorrect_info", 1), ("outdated", 0), ("knowledge_gap", 0)]
     ]
     assert len(store.list_reports(limit=1)) == 1
     assert store.reason_counts() == summary  # Counts cover more than the list limit.
@@ -526,7 +526,7 @@ def test_summary_excludes_expired_reports(tmp_path, retention_clock):
     summary = store.reason_counts()
     assert summary["total"] == 2
     assert {item["key"]: item["count"] for item in summary["reasons"]} == {
-        "incorrect_info": 1, "made_up": 0, "outdated": 0, "other": 1,
+        "incorrect_info": 1, "made_up": 0, "outdated": 0, "other": 1, "knowledge_gap": 0,
     }
     assert len(store.list_reports()) == 2
 
@@ -546,7 +546,7 @@ def test_reviewer_report_summary_and_reason_filter(report_client):
     assert len(body["reports"]) == 3
     assert body["summary"]["total"] == 3
     assert [reason["key"] for reason in body["summary"]["reasons"]] == [
-        "other", "made_up", "incorrect_info", "outdated",
+        "other", "made_up", "incorrect_info", "outdated", "knowledge_gap",
     ]
     for reason in issue_reports.REASON_LABELS:
         response = report_client.get(endpoint, query_string={"reason": reason})
