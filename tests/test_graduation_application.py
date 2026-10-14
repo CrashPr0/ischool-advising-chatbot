@@ -611,6 +611,37 @@ def test_reply_marks_only_past_source_deadline_dates(reply, expected):
     ) == expected
 
 
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Deadline 1: October 9, 2026 (this deadline has passed)",
+        "Deadline 1: October 9, 2026 - this date has already passed.",
+        "Deadline 1: October 9, 2026, which was already closed.",
+    ],
+)
+def test_reply_that_already_says_passed_is_not_double_labeled(reply):
+    context = "\n".join(DEADLINE_ROWS)
+    assert mark_passed_graduation_deadlines(
+        reply, context, today=date(2026, 10, 14)
+    ) == reply
+
+
+def test_passed_wording_for_a_later_date_does_not_suppress_label():
+    context = "\n".join(DEADLINE_ROWS)
+    reply = "October 9, 2026 or March 19, 2027 (has passed)"
+    assert mark_passed_graduation_deadlines(
+        reply, context, today=date(2026, 10, 14)
+    ).startswith("October 9, 2026 (already passed) or")
+
+
+def test_passed_wording_on_next_line_does_not_suppress_label():
+    context = "\n".join(DEADLINE_ROWS)
+    reply = "Deadline 1: October 9, 2026\nThat window has passed."
+    assert "October 9, 2026 (already passed)\n" in mark_passed_graduation_deadlines(
+        reply, context, today=date(2026, 10, 14)
+    )
+
+
 def test_reply_without_source_deadline_dates_is_unchanged():
     reply = "Orientation is October 9, 2026."
     assert mark_passed_graduation_deadlines(

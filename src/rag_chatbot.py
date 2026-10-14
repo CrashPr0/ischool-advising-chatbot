@@ -1249,6 +1249,12 @@ def _graduation_today() -> date:
         return date.today()
 
 
+_ALREADY_PASSED_WORDING = re.compile(
+    r"\b(?:has|have|had|is|was|already)\s+(?:already\s+)?(?:passed|closed|expired)\b|\bpast\s+deadline\b",
+    re.IGNORECASE,
+)
+
+
 def mark_passed_graduation_deadlines(
     text: str, context: str, today: Optional[date] = None
 ) -> str:
@@ -1275,6 +1281,14 @@ def mark_passed_graduation_deadlines(
             return match.group(0)
         # Keep the transformation idempotent for replies already annotated.
         if re.match(r"\s*\(already passed\)", text[match.end():], re.IGNORECASE):
+            return match.group(0)
+        # Skip when the model already says this date passed later on the same
+        # line (before the next date), e.g. "(this deadline has passed)".
+        rest = text[match.end():].split("\n", 1)[0]
+        next_date = _CALENDAR_DATE.search(rest)
+        if next_date:
+            rest = rest[:next_date.start()]
+        if _ALREADY_PASSED_WORDING.search(rest):
             return match.group(0)
         return match.group(0) + " (already passed)"
 
