@@ -4,7 +4,8 @@ import logging
 import os
 import re
 import time
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from typing import List, Optional, Dict
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
 
@@ -860,10 +861,11 @@ Assistant Response:""",
 
             # Step 3: Build context from retrieved documents
             program_context = _program_prompt_context(program, user_message)
+            source_context = self._build_context(user_message, prompt_docs)
             context = (
                 program_context
                 + _prior_turns_context(prior_turns)
-                + self._build_context(user_message, prompt_docs)
+                + source_context
             )
 
             if not prompt_docs:
@@ -875,9 +877,10 @@ Assistant Response:""",
             # Step 4: Generate response with LLM. 429 / timeout / 5xx try the
             # optional fallback deployment immediately. Content-filter errors
             # do not.
+            deadline_today = _graduation_today()
             payload = {
                 "catalog_note": catalog_prompt_note(),
-                "graduation_note": graduation_deadline_note(context),
+                "graduation_note": graduation_deadline_note(context, today=deadline_today),
                 "context": context,
                 "language_instruction": self._response_language_instruction(
                     user_message
@@ -901,6 +904,9 @@ Assistant Response:""",
                     list(prompt_docs) + list(retrieved_docs),
                 )
                 cleaned = _strip_document_labels(cleaned)
+                cleaned = mark_passed_graduation_deadlines(
+                    cleaned, source_context, today=deadline_today
+                )
                 if dropped:
                     metrics["dropped_links"] = dropped
                 if dropped and not _reply_has_substance(cleaned):
@@ -1172,11 +1178,14 @@ _MONTHS = {
     "november": 11,
     "december": 12,
 }
-_DEADLINE_DATE = re.compile(
-    r"Deadline\s+[12]:\s*"
+_CALENDAR_DATE = re.compile(
+    r"\b"
     r"(January|February|March|April|May|June|July|August|September|October|November|December)"
-    r"\s+(\d{1,2}),\s+(\d{4})",
+    r"\s+(\d{1,2}),\s+(\d{4})\b",
     re.IGNORECASE,
+)
+_DEADLINE_DATE = re.compile(
+    r"Deadline\s+[12]:\s*" + _CALENDAR_DATE.pattern, re.IGNORECASE
 )
 
 
@@ -1227,6 +1236,51 @@ def _format_deadline_date(value: date) -> str:
     return f"{value.strftime('%B')} {value.day}, {value.year}"
 
 
+def _graduation_today() -> date:
+    """Use the campus calendar date even when the server runs in UTC.
+
+    Falls back to the server date if the time zone database is unavailable,
+    so a missing tzdata package can never break a chat reply.
+    """
+    try:
+        return datetime.now(ZoneInfo("America/Los_Angeles")).date()
+    except Exception:  # pragma: no cover - depends on host tzdata
+        logger.warning("America/Los_Angeles time zone unavailable; using server date")
+        return date.today()
+
+
+def mark_passed_graduation_deadlines(
+    text: str, context: str, today: Optional[date] = None
+) -> str:
+    """Label past source Deadline 1/2 dates wherever the model lists them.
+
+    Match dates independently of reply labels so Markdown bullets, bold
+    headings, and tables receive the same correction. Preserve the date text
+    and only annotate dates identified as Deadline 1/2 in this turn's sources.
+    """
+    as_of = today if today is not None else _graduation_today()
+    past = {value for value in _deadline_dates_in_context(context) if value < as_of}
+    if not past:
+        return text
+
+    def annotate(match):
+        try:
+            value = date(
+                int(match.group(3)), _MONTHS[match.group(1).casefold()],
+                int(match.group(2)),
+            )
+        except ValueError:
+            return match.group(0)
+        if value not in past:
+            return match.group(0)
+        # Keep the transformation idempotent for replies already annotated.
+        if re.match(r"\s*\(already passed\)", text[match.end():], re.IGNORECASE):
+            return match.group(0)
+        return match.group(0) + " (already passed)"
+
+    return _CALENDAR_DATE.sub(annotate, text)
+
+
 def graduation_deadline_note(context: str, today: Optional[date] = None) -> str:
     """How to read Application Central, or "" when that page is not in context.
 
@@ -1244,7 +1298,7 @@ def graduation_deadline_note(context: str, today: Optional[date] = None) -> str:
     folded = context.casefold()
     if "add deadline" not in folded or "priority registration" not in folded:
         return ""
-    as_of = today if isinstance(today, date) else date.today()
+    as_of = today if isinstance(today, date) else _graduation_today()
     sentences = [
         "Answer from the registrar Application Central page before any MySJSU tutorial steps.",
         "You must apply for graduation no later than the add deadline of the term in which you wish to graduate.",
