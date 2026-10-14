@@ -5,6 +5,9 @@ from hashlib import sha256
 from pathlib import Path
 
 import yaml
+import pytest
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 from langchain_core.documents import Document
 
@@ -19,6 +22,7 @@ from src.rag_chatbot import (
     _graduation_prompt_corpus,
     _program_prompt_context,
     graduation_deadline_note,
+    mark_passed_graduation_deadlines,
     order_graduation_prompt_docs,
 )
 
@@ -581,3 +585,110 @@ def test_both_program_graduation_prompt_labels_isda_and_invites_mlis():
     assert "Selected Program: ISDA" in _program_prompt_context(
         "isda", "When do I need to apply for graduation?"
     )
+
+
+@pytest.mark.parametrize(
+    "reply, expected",
+    [
+        ("- Deadline 1: October 9, 2026 (allows two semesters)",
+         "- Deadline 1: October 9, 2026 (already passed) (allows two semesters)"),
+        ("**Deadline 2:** October 9, 2026",
+         "**Deadline 2:** October 9, 2026 (already passed)"),
+        ("| Fall 2027 | October 9, 2026 | March 19, 2027 |",
+         "| Fall 2027 | October 9, 2026 (already passed) | March 19, 2027 |"),
+        ("Deadline 2: March 19, 2027", "Deadline 2: March 19, 2027"),
+        ("Apply through MySJSU.", "Apply through MySJSU."),
+        ("October 14, 2026", "October 14, 2026"),
+        ("Deadline 1: October 9, 2026 (already passed)",
+         "Deadline 1: October 9, 2026 (already passed)"),
+        ("October 8, 2026", "October 8, 2026"),
+    ],
+)
+def test_reply_marks_only_past_source_deadline_dates(reply, expected):
+    context = "\n".join(DEADLINE_ROWS) + " Deadline 1: October 14, 2026."
+    assert mark_passed_graduation_deadlines(
+        reply, context, today=date(2026, 10, 14)
+    ) == expected
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Deadline 1: October 9, 2026 (this deadline has passed)",
+        "Deadline 1: October 9, 2026 - this date has already passed.",
+        "Deadline 1: October 9, 2026, which was already closed.",
+    ],
+)
+def test_reply_that_already_says_passed_is_not_double_labeled(reply):
+    context = "\n".join(DEADLINE_ROWS)
+    assert mark_passed_graduation_deadlines(
+        reply, context, today=date(2026, 10, 14)
+    ) == reply
+
+
+def test_passed_wording_for_a_later_date_does_not_suppress_label():
+    context = "\n".join(DEADLINE_ROWS)
+    reply = "October 9, 2026 or March 19, 2027 (has passed)"
+    assert mark_passed_graduation_deadlines(
+        reply, context, today=date(2026, 10, 14)
+    ).startswith("October 9, 2026 (already passed) or")
+
+
+def test_passed_wording_on_next_line_does_not_suppress_label():
+    context = "\n".join(DEADLINE_ROWS)
+    reply = "Deadline 1: October 9, 2026\nThat window has passed."
+    assert "October 9, 2026 (already passed)\n" in mark_passed_graduation_deadlines(
+        reply, context, today=date(2026, 10, 14)
+    )
+
+
+def test_reply_without_source_deadline_dates_is_unchanged():
+    reply = "Orientation is October 9, 2026."
+    assert mark_passed_graduation_deadlines(
+        reply, "Orientation is October 9, 2026.", today=date(2026, 10, 14)
+    ) == reply
+
+
+@pytest.mark.parametrize("program", ["isda", "both"])
+def test_chat_corrects_model_ignoring_past_deadline_note(monkeypatch, program):
+    from src import rag_chatbot
+
+    monkeypatch.setattr(rag_chatbot, "_graduation_today", lambda: date(2026, 10, 14))
+    table = _deadline_chunk()
+    bot = RAGAdvisingChatbot.__new__(RAGAdvisingChatbot)
+    bot.knowledge_base = SimpleNamespace(find_answer=Mock(return_value=None))
+    bot.doc_processor = SimpleNamespace(
+        retrieve_relevant_docs=Mock(return_value=[table])
+    )
+    # Reproduce the live response even though the prompt says this date passed.
+    reply = (
+        "Here are the upcoming application deadlines:\n"
+        "- Planned Graduation Term: Fall 2027\n"
+        "  - Deadline 1: October 9, 2026 (allows two semesters with priority registration)\n"
+        "  - Deadline 2: March 19, 2027"
+    )
+    bot.chain = SimpleNamespace(invoke=Mock(return_value=SimpleNamespace(content=reply)))
+    history = []
+    result = bot.chat("When do I need to apply for graduation?", history, program)
+    assert result["source"] == "rag"
+    assert result["response"] == reply.replace(
+        "October 9, 2026", "October 9, 2026 (already passed)"
+    )
+    assert history[0]["response"] == result["response"]
+    payload = bot.chain.invoke.call_args.args[0]
+    assert "Today is 2026-10-14" in payload["graduation_note"]
+
+
+def test_graduation_today_uses_los_angeles_at_utc_midnight(monkeypatch):
+    from datetime import datetime, timezone
+    from src import rag_chatbot
+
+    utc_now = datetime(2026, 10, 10, 1, tzinfo=timezone.utc)
+    clock = Mock()
+    clock.now.side_effect = lambda tz: utc_now.astimezone(tz)
+    monkeypatch.setattr(rag_chatbot, "datetime", clock)
+    # October 9 is still open in California, even though UTC is October 10.
+    assert rag_chatbot._graduation_today() == date(2026, 10, 9)
+    reply = "Deadline 1: October 9, 2026"
+    assert mark_passed_graduation_deadlines(reply, reply) == reply
+    assert "Today is 2026-10-09" in graduation_deadline_note(_deadline_chunk().page_content)
