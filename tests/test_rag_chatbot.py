@@ -462,3 +462,28 @@ def test_invalid_chat_program_is_ignored():
         result = bot.chat("What are the required courses?", program=program)
         assert result["source"] == "rag"
         assert "Selected Program:" not in bot.chain.payloads[-1]["context"]
+
+
+def test_both_program_apply_to_graduate_adds_dual_program_guidance():
+    bot = _bare_bot()
+
+    def retrieve(query, k, program=None):
+        return [
+            _Doc(
+                "You must apply for graduation no later than the add deadline of the term "
+                "in which you wish to graduate. If you apply by the dates shown below, "
+                "you will receive priority registration.\n"
+                "Planned Graduation Term: Fall 2027. Deadline 1: October 9, 2026. "
+                "Deadline 2: March 19, 2027."
+            )
+        ]
+
+    bot.doc_processor.retrieve_relevant_docs = retrieve
+    result = bot.chat("When do I need to apply for graduation?", program="both")
+    assert result["source"] == "rag"
+    payload = bot.chain.payloads[-1]
+    assert "Selected Program: BOTH" in payload["context"]
+    assert "Never silently answer as ISDA-only" in payload["context"]
+    note = payload["graduation_note"]
+    assert "Do not present application deadlines that are before today as upcoming" in note
+

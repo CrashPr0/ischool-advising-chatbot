@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import time
+from datetime import date
 from typing import List, Optional, Dict
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
 
@@ -858,13 +859,7 @@ Assistant Response:""",
             ]
 
             # Step 3: Build context from retrieved documents
-            program_context = ""
-            if program in {"isda", "mlis"}:
-                program_context = (
-                    f"Selected Program: {program.upper()}. Apply this program to the student’s question. "
-                    "This explicit selection takes precedence over program hints in the question or earlier turns. "
-                    "Use requirements for this program and applicable shared SJSU policies.\n\n"
-                )
+            program_context = _program_prompt_context(program, user_message)
             context = (
                 program_context
                 + _prior_turns_context(prior_turns)
@@ -1163,33 +1158,143 @@ _APPLICATION_CENTRAL = "/registrar/graduation/application-central.php"
 _TUTORIAL_URL = "gradapponlinetutorial.pdf"
 
 
-def graduation_deadline_note(context: str) -> str:
+_MONTHS = {
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+}
+_DEADLINE_DATE = re.compile(
+    r"Deadline\s+[12]:\s*"
+    r"(January|February|March|April|May|June|July|August|September|October|November|December)"
+    r"\s+(\d{1,2}),\s+(\d{4})",
+    re.IGNORECASE,
+)
+
+
+def _program_prompt_context(program, query: str) -> str:
+    """Selected-program instructions for the LLM context, or "".
+
+    Explicit isda/mlis selection always wins. For both on apply-to-graduate
+    questions, Application Central is undergraduate/ISDA and must not be
+    answered as if it covered MLIS silently.
+    """
+    if program in {"isda", "mlis"}:
+        return (
+            f"Selected Program: {program.upper()}. Apply this program to the student’s question. "
+            "This explicit selection takes precedence over program hints in the question or earlier turns. "
+            "Use requirements for this program and applicable shared SJSU policies.\n\n"
+        )
+    if program == "both" and is_apply_to_graduate_query(query):
+        return (
+            "Selected Program: BOTH (ISDA and MLIS). "
+            "Registrar Application Central deadlines and the undergraduate MySJSU "
+            "apply-to-graduate path apply to bachelor's / BS ISDA students. "
+            "MLIS graduation uses a separate candidacy / culminating-experience process "
+            "(for example e-Portfolio or thesis) from MLIS sources. "
+            "Clearly label BS ISDA vs MLIS guidance. "
+            "If the retrieved sources only cover undergraduate Application Central, "
+            "say that part is for BS ISDA and invite the student to ask about MLIS "
+            "graduation or candidacy, or to switch the program selector to MLIS. "
+            "Never silently answer as ISDA-only when BOTH is selected.\n\n"
+        )
+    return ""
+
+
+def _deadline_dates_in_context(context: str) -> list:
+    """Parse Deadline 1/2 calendar dates already present in the context text."""
+    found = []
+    for match in _DEADLINE_DATE.finditer(context or ""):
+        month = _MONTHS.get(match.group(1).casefold())
+        if month is None:
+            continue
+        try:
+            found.append(date(int(match.group(3)), month, int(match.group(2))))
+        except ValueError:
+            continue
+    return found
+
+
+def _format_deadline_date(value: date) -> str:
+    return f"{value.strftime('%B')} {value.day}, {value.year}"
+
+
+def graduation_deadline_note(context: str, today: Optional[date] = None) -> str:
     """How to read Application Central, or "" when that page is not in context.
 
     Deadline 1 and Deadline 2 are priority-registration dates. The cutoff is
     the add deadline of the graduation term. Term rows are detected by
     season and year, not by a fixed list of terms. The catalog-year note
     must not replace those rows. Rules 3, 4, and 8 are unchanged.
+
+    When ``today`` is set (tests) or defaults to the current date, past
+    Deadline 1/2 dates from the sources must not be presented as upcoming.
+    No new deadline dates are invented.
     """
     if not isinstance(context, str) or not _TERM_ROW.search(context):
         return ""
     folded = context.casefold()
     if "add deadline" not in folded or "priority registration" not in folded:
         return ""
+    as_of = today if isinstance(today, date) else date.today()
     sentences = [
         "Answer from the registrar Application Central page before any MySJSU tutorial steps.",
         "You must apply for graduation no later than the add deadline of the term in which you wish to graduate.",
         "Deadline 1 and Deadline 2 are the dates to apply by to receive priority registration, not that cutoff.",
         "Deadline 1 allows two semesters with priority registration.",
         "Deadline 2 allows one semester with priority registration.",
-        "Quote every Planned Graduation Term row in the sources before tutorial steps.",
+        "List Planned Graduation Term rows from the sources before tutorial steps.",
+        "Do not present application deadlines that are before today as upcoming.",
         "The catalog sentence about applying approximately two semesters ahead does not replace those rows.",
+        "Do not invent deadline dates that are not written in the sources.",
     ]
     if "85 units" in folded:
         sentences.insert(
             1,
             "Include the eligibility rule: at least 85 units (90 units for some colleges).",
         )
+    deadlines = _deadline_dates_in_context(context)
+    if deadlines:
+        past = [d for d in deadlines if d < as_of]
+        upcoming = [d for d in deadlines if d >= as_of]
+        # Unique while preserving order
+        def unique(values):
+            seen = set()
+            ordered = []
+            for item in values:
+                if item in seen:
+                    continue
+                seen.add(item)
+                ordered.append(item)
+            return ordered
+
+        past = unique(past)
+        upcoming = unique(upcoming)
+        sentences.append(f"Today is {as_of.isoformat()}.")
+        if past:
+            labeled = ", ".join(_format_deadline_date(d) for d in past)
+            sentences.append(
+                f"These Deadline 1/Deadline 2 dates from the sources have already passed: {labeled}."
+            )
+        if upcoming:
+            labeled = ", ".join(_format_deadline_date(d) for d in upcoming)
+            sentences.append(
+                f"Prefer still-open deadlines from the sources (for example: {labeled})."
+            )
+        elif past:
+            sentences.append(
+                "Every listed Deadline 1/Deadline 2 date in the sources has already passed. "
+                "Say those dates have passed and point the student to the Application Central "
+                "source URL already cited for current deadlines; do not invent replacement dates."
+            )
     return " ".join(sentences)
 
 

@@ -132,6 +132,7 @@ _GRADUATION_QUERY_TERMS = {
     "information",
     "isda",
     "major",
+    "need",
     "science",
     "should",
     "sjsu",

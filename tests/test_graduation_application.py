@@ -11,10 +11,13 @@ from langchain_core.documents import Document
 from src.config import Config
 from src.document_processor import GRADUATION_RETRIEVAL_HEADER, DocumentProcessor
 from src.hybrid_retrieval import expand_graduation_application_query
+from datetime import date
+
 from src.rag_chatbot import (
     DEFAULT_RAG_TOP_K,
     RAGAdvisingChatbot,
     _graduation_prompt_corpus,
+    _program_prompt_context,
     graduation_deadline_note,
     order_graduation_prompt_docs,
 )
@@ -51,6 +54,7 @@ APPLY_QUESTIONS = (
     "How do I apply to graduate?",
     "graduation application deadline",
     "when should I apply for graduation",
+    "When do I need to apply for graduation?",
     "how do I graduate",
     "How do I apply to graduate from ISDA?",
 )
@@ -351,7 +355,8 @@ def test_prompt_leads_with_every_term_row_and_leaves_rules_3_4_and_8():
         "approximately two semesters"
     )
     note = graduation_deadline_note(context)
-    assert "Quote every Planned Graduation Term row" in note
+    assert "List Planned Graduation Term rows from the sources" in note
+    assert "Do not present application deadlines that are before today as upcoming" in note
     assert "add deadline of the term in which you wish to graduate" in note
     assert "priority registration" in note
     assert "not that cutoff" in note
@@ -432,7 +437,8 @@ def test_apply_to_graduate_prompt_pins_application_central_when_ranking_misses_i
     note = graduation_deadline_note(context)
     assert "at least 85 units" in note
     assert "priority registration" in note
-    assert "Quote every Planned Graduation Term row" in note
+    assert "List Planned Graduation Term rows from the sources" in note
+    assert "Do not present application deadlines that are before today as upcoming" in note
 
 
 def test_pinned_context_keeps_the_short_mysjsu_navigation_path():
@@ -529,3 +535,49 @@ def test_pinning_does_not_run_for_course_questions_and_accepts_a_new_term():
     )
     assert ordered[0].page_content == winter.page_content
     assert "Winter 2031" in ordered[0].page_content
+
+
+def test_graduation_deadline_note_marks_past_dates_for_fixed_today():
+    """Past Deadline 1/2 dates must not be framed as upcoming."""
+    table = _deadline_chunk().page_content
+    note = graduation_deadline_note(table, today=date(2026, 10, 13))
+    assert "Today is 2026-10-13." in note
+    assert "Do not present application deadlines that are before today as upcoming" in note
+    assert "October 10, 2025" in note
+    assert "March 20, 2026" in note
+    assert "already passed" in note
+    # Oct 9, 2026 is also past as of Oct 13; March 19, 2027 remains open.
+    assert "October 9, 2026" in note
+    assert "March 19, 2027" in note
+    assert "Prefer still-open deadlines from the sources" in note
+    assert "upcoming" in note  # only in the "do not present ... as upcoming" sentence
+    assert "invent" in note.casefold()
+
+
+def test_graduation_deadline_note_when_all_listed_deadlines_passed():
+    context = (
+        "You must apply for graduation no later than the add deadline of the term "
+        "in which you wish to graduate. If you apply by the dates shown below, "
+        "you will receive priority registration.\n"
+        "Planned Graduation Term: Fall 2026. Deadline 1: October 10, 2025. "
+        "Deadline 2: March 20, 2026."
+    )
+    note = graduation_deadline_note(context, today=date(2026, 10, 13))
+    assert "Every listed Deadline 1/Deadline 2 date in the sources has already passed" in note
+    assert "Application Central" in note
+    assert "do not invent replacement dates" in note.casefold()
+    assert "Prefer still-open" not in note
+
+
+def test_both_program_graduation_prompt_labels_isda_and_invites_mlis():
+    guidance = _program_prompt_context("both", "When do I need to apply for graduation?")
+    assert "Selected Program: BOTH" in guidance
+    assert "BS ISDA" in guidance
+    assert "MLIS" in guidance
+    assert "Never silently answer as ISDA-only" in guidance
+    assert "invite the student to ask about MLIS" in guidance
+    # Non-graduation both keeps prior behavior (no selected-program banner).
+    assert _program_prompt_context("both", "What are the master's core courses?") == ""
+    assert "Selected Program: ISDA" in _program_prompt_context(
+        "isda", "When do I need to apply for graduation?"
+    )
