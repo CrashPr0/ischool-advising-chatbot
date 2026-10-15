@@ -96,6 +96,7 @@ _COURSE_CODE_IN_CORPUS = re.compile(
     re.IGNORECASE,
 )
 _ISDA_LISTING_SOURCE = f"Source URL: {_ISDA_LISTING_URL}"
+_MLIS_REQUIRED_COURSES = "/mlis-required-courses"
 
 
 @lru_cache(maxsize=4)
@@ -1025,6 +1026,12 @@ Assistant Response:""",
             prompt_docs = order_graduation_prompt_docs(
                 user_message, retrieved_docs, corpus, program=program
             )
+            mlis_core_corpus = _mlis_core_prompt_corpus(
+                self.doc_processor, user_message, program=program
+            )
+            prompt_docs = order_mlis_core_prompt_docs(
+                user_message, prompt_docs, mlis_core_corpus, program=program
+            )
             response_data["retrieved_docs"] = [
                 {
                     "content": doc.page_content,
@@ -1036,9 +1043,13 @@ Assistant Response:""",
             # Step 3: Build context from retrieved documents
             program_context = _program_prompt_context(program, user_message)
             source_context = self._build_context(user_message, prompt_docs)
+            mlis_core_context = mlis_core_courses_note(
+                user_message, source_context, program=program
+            )
             context = (
                 program_context
                 + _prior_turns_context(prior_turns)
+                + mlis_core_context
                 + source_context
             )
 
@@ -1822,6 +1833,83 @@ def _graduation_prompt_corpus(processor, query: str, program=None) -> List:
         except Exception:
             continue
     return found
+
+
+_MLIS_CORE_QUERY = re.compile(r"\b(?:core|required|requirements?)\b", re.IGNORECASE)
+_MLIS_COURSE_QUERY = re.compile(r"\b(?:courses?|classes?)\b", re.IGNORECASE)
+_MLIS_CORE_EVIDENCE = (
+    "all core classes (INFO 203, 200, 202, 204)",
+    "within the first four weeks of their first semester",
+    "must complete INFO 285 (Research Methods) before graduating",
+    "does not reduce the total units required for the MLIS degree",
+    "either INFO 289 e-Portfolio or INFO 299 Thesis",
+)
+
+
+def is_mlis_core_courses_query(query: str, program=None) -> bool:
+    """True only for MLIS/both questions asking about core or required courses."""
+    if program not in {"mlis", "both"} or not isinstance(query, str):
+        return False
+    return bool(_MLIS_CORE_QUERY.search(query) and _MLIS_COURSE_QUERY.search(query))
+
+
+def order_mlis_core_prompt_docs(
+    query: str,
+    retrieved: Optional[List] = None,
+    corpus: Optional[List] = None,
+    program=None,
+) -> List:
+    """Pin the official MLIS required-course distinctions for matching questions."""
+    documents = list(retrieved or [])
+    if not is_mlis_core_courses_query(query, program):
+        return documents
+    pool = list(corpus or []) + documents
+    pinned = []
+    pinned_text = set()
+    for evidence in _MLIS_CORE_EVIDENCE:
+        match = _best_source_chunk(pool, _MLIS_REQUIRED_COURSES, evidence)
+        if (
+            match is not None
+            and evidence.casefold() in match.page_content.casefold()
+            and match.page_content not in pinned_text
+        ):
+            pinned.append(match)
+            pinned_text.add(match.page_content)
+    return pinned + [doc for doc in documents if doc.page_content not in pinned_text]
+
+
+def _mlis_core_prompt_corpus(processor, query: str, program=None) -> List:
+    """Return indexed MLIS required-course chunks, without any network call."""
+    if not is_mlis_core_courses_query(query, program):
+        return []
+    finder = getattr(processor, "chunks_matching_source", None)
+    if not callable(finder):
+        return []
+    try:
+        return list(finder(_MLIS_REQUIRED_COURSES) or [])
+    except Exception:
+        return []
+
+
+def mlis_core_courses_note(query: str, context: str, program=None) -> str:
+    """Source-grounded prompt guidance that prevents merging MLIS categories."""
+    if not is_mlis_core_courses_query(query, program):
+        return ""
+    folded = context.casefold() if isinstance(context, str) else ""
+    if not all(evidence.casefold() in folded for evidence in _MLIS_CORE_EVIDENCE):
+        return ""
+    return (
+        "MLIS core-course instruction, based on the official required-courses source below: "
+        "The core classes are INFO 203 (1 unit), INFO 200, INFO 202, and INFO 204 "
+        "(3 units each), and all four belong within the first 16 units. INFO 203 must "
+        "also be completed within the first four weeks of the first semester. "
+        "Distinguish INFO 285 from the core: it is a separately required course to "
+        "complete before graduating; a granted waiver does not reduce the MLIS degree's "
+        "total units. Distinguish INFO 289 e-Portfolio or INFO 299 Thesis from the core: "
+        "they are the culminating-experience alternatives. Never describe INFO 285 or "
+        "INFO 289/299 as core classes or as courses that must be taken within the first "
+        "16 units.\n\n"
+    )
 
 
 def _session_turns(history: Optional[List[dict]]) -> List[dict]:
