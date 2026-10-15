@@ -415,6 +415,118 @@ def _url_key(raw: str) -> str:
     return urlunsplit((scheme, netloc, path, query, fragment))
 
 
+def _source_url_key(raw: str) -> str:
+    """Canonical page identity used only to associate links with source titles.
+
+    Unlike the link allowlist key, this intentionally ignores presentation
+    differences that do not identify a different page. Keeping this separate
+    ensures title cleanup does not make the security allowlist less strict.
+    """
+    text = _trim_url_suffix(raw)
+    if not text:
+        return ""
+    if text.lower().startswith("www."):
+        text = "https://" + text
+    try:
+        parts = urlsplit(text)
+        if parts.scheme.casefold() not in {"http", "https"}:
+            return ""
+        host = (parts.hostname or "").casefold()
+        port = parts.port
+    except ValueError:
+        return ""
+    if not host:
+        return ""
+    if host.startswith("www."):
+        host = host[4:]
+    if port and port not in {80, 443}:
+        host = f"{host}:{port}"
+    path = unquote(parts.path or "/")
+    if path != "/":
+        path = path.rstrip("/") or "/"
+    query_pairs = [
+        (unquote(key), unquote(value))
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+    ]
+    query = urlencode(sorted(query_pairs), quote_via=quote)
+    return urlunsplit(("", host, path, query, ""))
+
+
+_SOURCE_TITLE_SUFFIX_RE = re.compile(
+    r"\s*(?:\||-)\s*(?:"
+    r"Graduate Admissions and Program Evaluations"
+    r"|SJSU\s*-\s*School of Information"
+    r"|Office of the Registrar"
+    r"|San Jos[eé] State University"
+    r")\s*$",
+    re.IGNORECASE,
+)
+_TITLE_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
+
+
+def _clean_source_title(raw: str) -> str:
+    """Remove an institutional site suffix from a page title."""
+    title = re.sub(r"\s+", " ", raw or "").strip()
+    previous = None
+    while title and title != previous:
+        previous = title
+        title = _SOURCE_TITLE_SUFFIX_RE.sub("", title).strip(" |-–—")
+    return title
+
+
+def _title_tokens(raw: str) -> set:
+    return {token.casefold() for token in _TITLE_TOKEN_RE.findall(raw or "")}
+
+
+def _repair_markdown_link_labels(text: str, documents: Optional[List]) -> str:
+    """Use a known source page's title when its Markdown label is implausible."""
+    titles_by_url: Dict[str, str] = {}
+    urls_by_title: Dict[str, set] = {}
+    for document in documents or []:
+        metadata = getattr(document, "metadata", None) or {}
+        if not isinstance(metadata, dict):
+            continue
+        raw_url = metadata.get("source_url")
+        raw_title = metadata.get("title")
+        if not isinstance(raw_url, str) or not isinstance(raw_title, str):
+            continue
+        url_key = _source_url_key(raw_url)
+        title = _clean_source_title(raw_title)
+        if not url_key or not title:
+            continue
+        titles_by_url.setdefault(url_key, title)
+        urls_by_title.setdefault(" ".join(title.casefold().split()), set()).add(url_key)
+
+    if not titles_by_url:
+        return text
+    parts: List[str] = []
+    cursor = 0
+    changed = False
+    for start, end, kind, label, url in _link_spans(text):
+        if kind != "markdown" or start < cursor:
+            continue
+        url_key = _source_url_key(url)
+        source_title = titles_by_url.get(url_key)
+        if not source_title:
+            continue
+        normalized_label = " ".join(_clean_source_title(label).casefold().split())
+        mislabeled_as_other_source = bool(
+            normalized_label
+            and any(other != url_key for other in urls_by_title.get(normalized_label, set()))
+        )
+        plausible = bool(_title_tokens(label) & _title_tokens(source_title))
+        if plausible and not mislabeled_as_other_source:
+            continue
+        parts.append(text[cursor:start])
+        parts.append(f"[{source_title}]({url})")
+        cursor = end
+        changed = True
+    if not changed:
+        return text
+    parts.append(text[cursor:])
+    return "".join(parts)
+
+
 def _link_spans(text: str) -> List[tuple]:
     """Markdown links, then bare URLs that are not already inside one.
 
@@ -604,8 +716,8 @@ def _apply_link_allowlist(
 ) -> tuple:
     """Return cleaned text, how many links were removed, and those URLs.
 
-    Allowed links are copied unchanged, including a real ``source_url``.
-    The original string is returned as-is when nothing is removed.
+    Allowed URLs are copied unchanged. Markdown labels for known source URLs
+    are corrected when they do not plausibly match that source's page title.
     """
     if not isinstance(text, str) or not text:
         return text or "", 0, []
@@ -619,8 +731,9 @@ def _apply_link_allowlist(
         removed.extend(urls)
         if not dropped:
             break
+    current = _repair_markdown_link_labels(current, documents)
     if not total:
-        return text, 0, []
+        return current, 0, []
     unique: List[str] = []
     seen: set = set()
     for url in removed:
@@ -633,8 +746,8 @@ def _apply_link_allowlist(
 def _restrict_reply_links(text: str, documents: Optional[List] = None) -> tuple:
     """Drop links that are not in *documents* or a vetted template.
 
-    Allowed links are copied unchanged, including a real ``source_url``.
-    The original string is returned as-is when nothing is removed. The
+    Allowed URLs are copied unchanged; implausible labels on known source
+    links are replaced with the source page title. The
     caller substitutes the missing-context fallback when the remainder
     has no words left.
     """
@@ -738,7 +851,8 @@ priority rule applies to conflicting facts, not to whether other official \
 sources can be cited. If a document has no Source URL, only use a link \
 explicitly present in its text; do not fabricate a citation. Never refer to \
 context documents by number (e.g. "Document 3"), since students cannot see \
-those labels; cite with the Source URL link instead.
+those labels; cite with the Source URL link instead. Label each Markdown link \
+with that source page's title.
 10. A current-catalog course listing is authoritative about which course numbers \
 exist for that prefix. If a requested INFO or ISDA number is absent from the \
 current catalog evidence, say it is not listed; do not infer course details from \

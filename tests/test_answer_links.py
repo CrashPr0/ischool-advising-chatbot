@@ -21,11 +21,13 @@ QUESTION = "What is ISDA 150?"
 
 
 class _Doc:
-    def __init__(self, content, source_url=""):
+    def __init__(self, content, source_url="", title=""):
         self.page_content = content
         self.metadata = {"source": "page.txt"}
         if source_url:
             self.metadata["source_url"] = source_url
+        if title:
+            self.metadata["title"] = title
 
 
 class _Processor:
@@ -208,6 +210,89 @@ def test_markdown_real_source_link_is_not_rewritten():
     reply = f"See [ISDA 150]({REAL_SOURCE}) for the title and units."
     result = _bot([_page()], reply).chat(QUESTION)
     assert result["response"] == reply
+
+
+def test_wrong_title_from_another_source_is_replaced_with_matching_page_title():
+    gape = "https://www.sjsu.edu/gape/deadlines/fall-graduation.php"
+    registrar = "https://www.sjsu.edu/registrar/graduation/application-central.php"
+    documents = [
+        _Doc(
+            "Fall 2026 graduation application deadline: September 1, 2026.",
+            source_url=gape,
+            title=(
+                "Fall Graduation Deadlines | Graduate Admissions and Program "
+                "Evaluations"
+            ),
+        ),
+        _Doc(
+            "Undergraduate graduation application information.",
+            source_url=registrar,
+            title="Application Central | Office of the Registrar",
+        ),
+    ]
+    reply = f"The deadline is September 1. [Application Central]({gape})"
+
+    result = _bot(documents, reply).chat("What is the MLIS Fall 2026 deadline?")
+
+    assert result["response"] == (
+        f"The deadline is September 1. [Fall Graduation Deadlines]({gape})"
+    )
+
+
+def test_another_documents_exact_title_is_corrected_despite_token_overlap():
+    gape = "https://www.sjsu.edu/gape/deadlines/fall-graduation.php"
+    registrar = "https://www.sjsu.edu/registrar/graduation/application-central.php"
+    documents = [
+        _Doc(
+            "Graduate deadline details.",
+            source_url=gape,
+            title="Fall Graduation Deadlines | Graduate Admissions and Program Evaluations",
+        ),
+        _Doc(
+            "Undergraduate application details.",
+            source_url=registrar,
+            title="Apply for Graduation - Registrar | Office of the Registrar",
+        ),
+    ]
+    reply = f"See [Apply for Graduation - Registrar]({gape})."
+
+    assert _restrict_reply_links(reply, documents) == (
+        f"See [Fall Graduation Deadlines]({gape}).",
+        0,
+    )
+
+
+def test_reasonable_source_title_label_and_unknown_url_label_are_unchanged():
+    source = "https://www.sjsu.edu/gape/deadlines/fall-graduation.php"
+    document = _Doc(
+        "Details.",
+        source_url=source,
+        title="Fall Graduation Deadlines | Graduate Admissions and Program Evaluations",
+    )
+    plausible = f"See [Fall 2026 deadlines]({source})."
+    assert _restrict_reply_links(plausible, [document]) == (plausible, 0)
+
+    unknown = "See [Application Central](https://unknown.example/graduation)."
+    # Put the unknown link in the retrieved text so this test isolates label repair
+    # rather than the separate link allowlist behavior.
+    document.page_content += " " + unknown
+    assert _restrict_reply_links(unknown, [document]) == (unknown, 0)
+
+
+def test_source_title_matching_normalizes_scheme_www_slash_and_fragment():
+    canonical = "https://www.sjsu.edu/gape/deadlines/fall-graduation.php"
+    variant = "http://sjsu.edu/gape/deadlines/fall-graduation.php/#dates"
+    document = _Doc(
+        f"The page also contains {variant}",
+        source_url=canonical,
+        title="Fall Graduation Deadlines | Graduate Admissions and Program Evaluations",
+    )
+    reply = f"See [Application Central]({variant})."
+
+    assert _restrict_reply_links(reply, [document]) == (
+        f"See [Fall Graduation Deadlines]({variant}).",
+        0,
+    )
 
 
 def test_scheme_and_host_rewrites_are_dropped():
