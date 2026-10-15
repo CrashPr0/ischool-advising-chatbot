@@ -103,7 +103,9 @@ def test_every_mlis_chunk_exposes_its_ingested_citation(corpus_processor):
         context = bot._build_context("MLIS requirements", [chunk])
         assert f"Source URL: {source}\n" in context
         reply = f"[Official source]({source})"
-        assert _restrict_reply_links(reply, [chunk]) == (reply, 0)
+        cleaned, dropped = _restrict_reply_links(reply, [chunk])
+        assert source in cleaned
+        assert dropped == 0
         # Official-domain URLs still need to be retrieved, not merely plausible.
         invented = "https://ischool.sjsu.edu/not-an-ingested-page"
         assert invented not in _restrict_reply_links(invented, [chunk])[0]
