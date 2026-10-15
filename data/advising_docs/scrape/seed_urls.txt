@@ -31,6 +31,7 @@ https://www.sjsu.edu/faso/types-of-aid/scholarships/index.php
 # Official 2026-2027 SJSU catalog course descriptions (ISDA prefix).
 # Text is the published course block: number, title, units, requisites,
 # description, source URL, and retrieval date.
+https://catalog.sjsu.edu/content.php?catoid=23&navoid=8469&filter%5B27%5D=ISDA&filter%5Bcpage%5D=1&cur_cat_oid=23&search_database=Filter
 https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202908
 https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202909
 https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=202910
@@ -54,6 +55,9 @@ https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203440
 https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203441
 https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203442
 https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203443
+
+# Official 2026-2027 SJSU catalog course description for MLIS INFO 210.
+https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200282
 
 # Official 2026-2027 SJSU catalog program requirements for the BS ISDA.
 # Text is the published program page: core courses, units, electives,

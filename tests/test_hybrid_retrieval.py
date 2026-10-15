@@ -9,6 +9,7 @@ from src.document_processor import DocumentProcessor
 from src.hybrid_retrieval import (
     BM25Index,
     compact_course_codes,
+    course_codes_in_query,
     expand_course_codes,
     hybrid_retrieval_enabled,
     hybrid_retrieve,
@@ -101,6 +102,13 @@ def test_spaced_and_compact_course_codes_share_a_token():
         "Compare ISDA 150 with ISDA 20A"
     )
     assert compact_course_codes("ISDA 150") == "isda150"
+
+
+def test_course_code_lookup_extracts_only_supported_prefixes():
+    assert course_codes_in_query("Compare ISDA105, INFO 210, and DATA 200") == [
+        "ISDA 105",
+        "INFO 210",
+    ]
 
 
 def test_requisite_spellings_share_a_token_and_course_codes_stay_intact():
