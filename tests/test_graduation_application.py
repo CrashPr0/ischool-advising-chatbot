@@ -45,6 +45,13 @@ PAGES = {
     "https://www.sjsu.edu/commencement/participation/grad-vs-comm.php": "web-90bf6cc5164dbaf9",
 }
 
+FALL_2026_PAGES = {
+    "https://www.sjsu.edu/registrar/calendar/fall-2026.php": ("web-8ea16420cf98e932", ["ISDA"]),
+    "https://www.sjsu.edu/gape/deadlines/fall-graduation.php": ("web-5125cd4de9efc5f1", ["MLIS"]),
+    "https://ischool.sjsu.edu/application-award-graduate-degree": ("web-f6477eb77f755c3e", ["MLIS"]),
+    "https://ischool.sjsu.edu/candidacy-approval-form-information": ("web-f27df85d156e0e80", ["MLIS"]),
+}
+
 # The iSchool graduation page is master's candidacy, not the ISDA bachelor's.
 NOT_INGESTED = "https://ischool.sjsu.edu/graduation"
 
@@ -61,6 +68,7 @@ APPLY_QUESTIONS = (
     "When do I need to apply for graduation?",
     "how do I graduate",
     "How do I apply to graduate from ISDA?",
+    "What is the deadline to graduate in Fall 2026?",
 )
 
 
@@ -137,6 +145,54 @@ def test_application_central_keeps_published_terms_and_does_not_invent_a_fee():
     assert "no fee" not in text.casefold()
     assert meta["atomic_section"] == "Application Deadlines"
     assert meta["retrieval_header"] == GRADUATION_RETRIEVAL_HEADER
+
+
+def test_fall_2026_undergraduate_and_mlis_deadline_sources_are_ingested():
+    manifest = json.loads(
+        (DOCS / "scrape" / "manifest.json").read_text(encoding="utf-8")
+    )
+    listed = {item["source_url"]: item for item in manifest["documents"]}
+    seeds = (DOCS / "scrape" / "seed_urls.txt").read_text(encoding="utf-8")
+
+    for url, (doc_id, programs) in FALL_2026_PAGES.items():
+        path, text, meta = _snapshot(url)
+        digest = sha256(text.encode("utf-8")).hexdigest()
+        assert path.stem == doc_id
+        assert url in seeds
+        assert listed[url]["doc_id"] == doc_id
+        assert listed[url]["content_sha256"] == digest
+        assert meta["content_sha256"] == digest
+        assert meta["programs"] == programs
+        assert meta["retrieved_at"].startswith("2026-10-15")
+        assert f"Source URL: {url}" in text
+        assert text.splitlines()[-1] == "Retrieved: 2026-10-15"
+
+    _path, calendar, calendar_meta = _snapshot(
+        "https://www.sjsu.edu/registrar/calendar/fall-2026.php"
+    )
+    assert "Tue, Sep. 15" in calendar
+    assert 'Last Day to Add/Drop Classes via MySJSU (ends at 11:59 pm)' in calendar
+    assert calendar_meta["atomic_section"] == "Important Dates and Deadlines"
+
+    _path, gape, gape_meta = _snapshot(
+        "https://www.sjsu.edu/gape/deadlines/fall-graduation.php"
+    )
+    assert "Deadline: 04/01/2026\nRequirement: Candidacy Form Submission to GAPE" in gape
+    assert "Deadline: 09/01/2026\nRequirement: Graduation Application (First-Time Applicants)" in gape
+    assert "Deadline: 09/01/2026\nRequirement: Graduation Date Change Request" in gape
+    assert "12/16/2026: Degree Conferral" in gape
+    assert gape_meta["atomic_section"] == "Fall Graduation Deadlines"
+
+    _path, award, _meta = _snapshot(
+        "https://ischool.sjsu.edu/application-award-graduate-degree"
+    )
+    assert "Due date for December graduation: September 1" in award
+    assert "after your candidacy has been approved" in award
+
+    _path, candidacy, _meta = _snapshot(
+        "https://ischool.sjsu.edu/candidacy-approval-form-information"
+    )
+    assert "For December graduation, submit to iSchool by March 25." in candidacy
 
 
 def test_related_pages_keep_published_process_details():
@@ -235,6 +291,10 @@ def test_apply_to_graduate_questions_retrieve_steps_and_term_deadlines(
             assert "at least 85 units" in prompt
             assert "add deadline" in prompt.casefold()
             assert "priority registration" in prompt.casefold()
+            assert "final graduation application deadline is the Fall 2026 add deadline: September 15, 2026" in prompt
+            assert "September 1, 2026 as the graduation application deadline" in prompt
+            assert "Apply to graduate with GAPE only after candidacy has been approved" in prompt
+            assert "submit the candidacy form to the iSchool by March 25" in prompt
             assert "Apply for graduation link" in prompt
             assert "Login to MySJSU" in prompt
             assert "Verify graduation data" in prompt
@@ -573,17 +633,54 @@ def test_graduation_deadline_note_when_all_listed_deadlines_passed():
     assert "Prefer still-open" not in note
 
 
-def test_both_program_graduation_prompt_labels_isda_and_invites_mlis():
+def test_both_or_unspecified_graduation_prompt_requires_both_programs():
     guidance = _program_prompt_context("both", "When do I need to apply for graduation?")
     assert "Selected Program: BOTH" in guidance
     assert "BS ISDA" in guidance
     assert "MLIS" in guidance
-    assert "Never silently answer as ISDA-only" in guidance
-    assert "invite the student to ask about MLIS" in guidance
+    assert "Never silently answer for only one program" in guidance
+    assert _program_prompt_context(None, "When do I need to apply for graduation?") == guidance
     # Non-graduation both keeps prior behavior (no selected-program banner).
     assert _program_prompt_context("both", "What are the master's core courses?") == ""
     assert "Selected Program: ISDA" in _program_prompt_context(
         "isda", "When do I need to apply for graduation?"
+    )
+
+
+def test_graduation_corpus_respects_explicit_scope_and_defaults_to_both(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(Config, "EMBEDDING_PROVIDER", "hashing")
+    monkeypatch.setattr(Config, "VECTOR_STORE_PATH", str(tmp_path / "scope-chroma"))
+    processor = DocumentProcessor(str(DOCS))
+    assert processor.process_and_index() is not None
+    question = "What is the deadline to graduate in Fall 2026?"
+
+    def urls(program):
+        return {
+            doc.metadata.get("source_url")
+            for doc in _graduation_prompt_corpus(processor, question, program=program)
+        }
+
+    assert set(FALL_2026_PAGES) <= urls(None)
+    assert "https://www.sjsu.edu/registrar/calendar/fall-2026.php" in urls("isda")
+    assert not any("/gape/" in url for url in urls("isda"))
+    assert "https://www.sjsu.edu/gape/deadlines/fall-graduation.php" in urls("mlis")
+    assert not any("/registrar/" in url for url in urls("mlis"))
+
+
+def test_passed_labeling_includes_actual_fall_2026_program_deadlines():
+    context = (
+        "For a BS ISDA undergraduate, the final graduation application deadline "
+        "is September 15, 2026. For MLIS, the graduation application deadline for "
+        "first-time applicants is September 1, 2026."
+    )
+    reply = "BS ISDA: September 15, 2026. MLIS: September 1, 2026."
+    assert mark_passed_graduation_deadlines(
+        reply, context, today=date(2026, 10, 15)
+    ) == (
+        "BS ISDA: September 15, 2026 (already passed). "
+        "MLIS: September 1, 2026 (already passed)."
     )
 
 

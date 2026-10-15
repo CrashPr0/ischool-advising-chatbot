@@ -419,6 +419,19 @@
       ]
     },
     {
+      "doc_id": "web-f6477eb77f755c3e",
+      "source_url": "https://ischool.sjsu.edu/application-award-graduate-degree",
+      "title": "Application for Award of Graduate Degree - SJSU - School of Information",
+      "content_sha256": "e4f7f2904bb606ccfeab59fb0a16b71ea4baf4e766dec0a8f9cd32ee1f27f9f4",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "graduation"
+      ]
+    },
+    {
       "doc_id": "web-a2e9fbe533774212",
       "source_url": "https://ischool.sjsu.edu/application-deadlines",
       "title": "Application Deadlines - SJSU - School of Information",
@@ -640,6 +653,19 @@
         "degree-requirements",
         "financial-aid",
         "registration"
+      ]
+    },
+    {
+      "doc_id": "web-f27df85d156e0e80",
+      "source_url": "https://ischool.sjsu.edu/candidacy-approval-form-information",
+      "title": "Candidacy Approval Form Information - SJSU - School of Information",
+      "content_sha256": "9f07460054d350bf81ebf07eca09933fa8eb033c56abb74b09465e0a25a2d121",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "graduation"
       ]
     },
     {
@@ -869,6 +895,19 @@
       ]
     },
     {
+      "doc_id": "web-5125cd4de9efc5f1",
+      "source_url": "https://www.sjsu.edu/gape/deadlines/fall-graduation.php",
+      "title": "Fall Graduation Deadlines | Graduate Admissions and Program Evaluations",
+      "content_sha256": "ed30a688b0acbdbafa607834983a39b4d21f351dd8414f17a552c98a8b6eb461",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "graduation"
+      ]
+    },
+    {
       "doc_id": "web-edbfa6b9a49cba68",
       "source_url": "https://www.sjsu.edu/online/programs/information-science-and-data-analytics-bachelors-degree.php",
       "title": "Bachelor's Degree in Information Science and Data Analytics | SJSU",
@@ -895,6 +934,20 @@
         "admissions",
         "advising",
         "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-8ea16420cf98e932",
+      "source_url": "https://www.sjsu.edu/registrar/calendar/fall-2026.php",
+      "title": "Fall 2026 Dates and Deadlines | Office of the Registrar",
+      "content_sha256": "62a0a5308382df2277aaed7036c42239766aa165951fe2d66e3cba30dfca6c60",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "graduation",
+        "registration"
       ]
     },
     {

@@ -15,7 +15,7 @@ from langchain_core.prompts import PromptTemplate
 try:
     from .catalog_recency import catalog_prompt_note, document_heading
     from .config import Config
-    from .program_scope import normalize_program
+    from .program_scope import metadata_programs, normalize_program
     from .hybrid_retrieval import is_apply_to_graduate_query
     from .llm_providers import LLMFactory, REASONING_RETRY
     from .knowledge_base import get_knowledge_base
@@ -33,7 +33,7 @@ except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
     from catalog_recency import catalog_prompt_note, document_heading
     from config import Config
-    from program_scope import normalize_program
+    from program_scope import metadata_programs, normalize_program
     from hybrid_retrieval import is_apply_to_graduate_query
     from llm_providers import LLMFactory, REASONING_RETRY
     from knowledge_base import get_knowledge_base
@@ -847,9 +847,11 @@ Assistant Response:""",
             # Pin Application Central even when ranking missed it, and keep a
             # short MySJSU navigation path after it. Login is a different
             # chunk from the overview that usually ranks.
-            corpus = _graduation_prompt_corpus(self.doc_processor, user_message)
+            corpus = _graduation_prompt_corpus(
+                self.doc_processor, user_message, program=program
+            )
             prompt_docs = order_graduation_prompt_docs(
-                user_message, retrieved_docs, corpus
+                user_message, retrieved_docs, corpus, program=program
             )
             response_data["retrieved_docs"] = [
                 {
@@ -1162,6 +1164,10 @@ _TUTORIAL_NAV_STEPS = (
 _TUTORIAL_PATH_RANKS = frozenset(range(2, 9))
 _APPLICATION_CENTRAL = "/registrar/graduation/application-central.php"
 _TUTORIAL_URL = "gradapponlinetutorial.pdf"
+_FALL_2026_CALENDAR = "/registrar/calendar/fall-2026.php"
+_GAPE_FALL_GRADUATION = "/gape/deadlines/fall-graduation.php"
+_ISCHOOL_GRADUATE_APPLICATION = "/application-award-graduate-degree"
+_ISCHOOL_CANDIDACY = "/candidacy-approval-form-information"
 
 
 _MONTHS = {
@@ -1202,18 +1208,13 @@ def _program_prompt_context(program, query: str) -> str:
             "This explicit selection takes precedence over program hints in the question or earlier turns. "
             "Use requirements for this program and applicable shared SJSU policies.\n\n"
         )
-    if program == "both" and is_apply_to_graduate_query(query):
+    if program not in {"isda", "mlis"} and is_apply_to_graduate_query(query):
         return (
             "Selected Program: BOTH (ISDA and MLIS). "
-            "Registrar Application Central deadlines and the undergraduate MySJSU "
-            "apply-to-graduate path apply to bachelor's / BS ISDA students. "
-            "MLIS graduation uses a separate candidacy / culminating-experience process "
-            "(for example e-Portfolio or thesis) from MLIS sources. "
-            "Clearly label BS ISDA vs MLIS guidance. "
-            "If the retrieved sources only cover undergraduate Application Central, "
-            "say that part is for BS ISDA and invite the student to ask about MLIS "
-            "graduation or candidacy, or to switch the program selector to MLIS. "
-            "Never silently answer as ISDA-only when BOTH is selected.\n\n"
+            "Answer separately for BS ISDA (undergraduate Registrar rules) and MLIS "
+            "(graduate GAPE and iSchool rules), using the retrieved sources for each. "
+            "Never silently answer for only one program when BOTH is selected or no "
+            "program is selected. Never silently answer as ISDA-only.\n\n"
         )
     return ""
 
@@ -1229,6 +1230,32 @@ def _deadline_dates_in_context(context: str) -> list:
             found.append(date(int(match.group(3)), month, int(match.group(2))))
         except ValueError:
             continue
+    return found
+
+
+def _graduation_dates_in_context(context: str) -> list:
+    """Dates explicitly identified as graduation deadlines in source context."""
+    found = list(_deadline_dates_in_context(context))
+    for match in _CALENDAR_DATE.finditer(context or ""):
+        nearby = context[
+            max(0, match.start() - 180):min(len(context), match.end() + 180)
+        ].casefold()
+        if not (
+            "final graduation application deadline" in nearby
+            or "graduation application deadline for first-time applicants" in nearby
+            or "candidacy form submission deadline to gape" in nearby
+        ):
+            continue
+        try:
+            value = date(
+                int(match.group(3)),
+                _MONTHS[match.group(1).casefold()],
+                int(match.group(2)),
+            )
+        except ValueError:
+            continue
+        if value not in found:
+            found.append(value)
     return found
 
 
@@ -1258,14 +1285,14 @@ _ALREADY_PASSED_WORDING = re.compile(
 def mark_passed_graduation_deadlines(
     text: str, context: str, today: Optional[date] = None
 ) -> str:
-    """Label past source Deadline 1/2 dates wherever the model lists them.
+    """Label past, sourced graduation-deadline dates in the model reply.
 
     Match dates independently of reply labels so Markdown bullets, bold
     headings, and tables receive the same correction. Preserve the date text
-    and only annotate dates identified as Deadline 1/2 in this turn's sources.
+    and only annotate dates identified as deadlines in this turn's sources.
     """
     as_of = today if today is not None else _graduation_today()
-    past = {value for value in _deadline_dates_in_context(context) if value < as_of}
+    past = {value for value in _graduation_dates_in_context(context) if value < as_of}
     if not past:
         return text
 
@@ -1307,29 +1334,55 @@ def graduation_deadline_note(context: str, today: Optional[date] = None) -> str:
     Deadline 1/2 dates from the sources must not be presented as upcoming.
     No new deadline dates are invented.
     """
-    if not isinstance(context, str) or not _TERM_ROW.search(context):
+    if not isinstance(context, str):
         return ""
     folded = context.casefold()
-    if "add deadline" not in folded or "priority registration" not in folded:
+    has_undergraduate = bool(
+        _TERM_ROW.search(context)
+        and "add deadline" in folded
+        and "priority registration" in folded
+    )
+    has_fall_calendar = _FALL_2026_CALENDAR in folded
+    has_mlis = _GAPE_FALL_GRADUATION in folded
+    if not has_undergraduate and not has_mlis:
         return ""
     as_of = today if isinstance(today, date) else _graduation_today()
-    sentences = [
-        "Answer from the registrar Application Central page before any MySJSU tutorial steps.",
-        "You must apply for graduation no later than the add deadline of the term in which you wish to graduate.",
-        "Deadline 1 and Deadline 2 are the dates to apply by to receive priority registration, not that cutoff.",
-        "Deadline 1 allows two semesters with priority registration.",
-        "Deadline 2 allows one semester with priority registration.",
-        "List Planned Graduation Term rows from the sources before tutorial steps.",
-        "Do not present application deadlines that are before today as upcoming.",
-        "The catalog sentence about applying approximately two semesters ahead does not replace those rows.",
-        "Do not invent deadline dates that are not written in the sources.",
-    ]
-    if "85 units" in folded:
-        sentences.insert(
-            1,
-            "Include the eligibility rule: at least 85 units (90 units for some colleges).",
+    sentences = []
+    if has_undergraduate:
+        sentences.extend([
+            "Answer from the registrar Application Central page before any MySJSU tutorial steps.",
+            "You must apply for graduation no later than the add deadline of the term in which you wish to graduate.",
+            "Deadline 1 and Deadline 2 are the dates to apply by to receive priority registration, not that cutoff.",
+            "Deadline 1 allows two semesters with priority registration.",
+            "Deadline 2 allows one semester with priority registration.",
+            "List Planned Graduation Term rows from the sources before tutorial steps.",
+            "The catalog sentence about applying approximately two semesters ahead does not replace those rows.",
+        ])
+        if has_fall_calendar:
+            sentences.append(
+                "For BS ISDA Fall 2026, explicitly state that the final application "
+                "deadline is the Fall 2026 add deadline, September 15, 2026, and "
+                "list October 10, 2025 and March 20, 2026 separately as priority-registration dates."
+            )
+        if "85 units" in folded:
+            sentences.insert(
+                1,
+                "Include the eligibility rule: at least 85 units (90 units for some colleges).",
+            )
+    if has_mlis:
+        sentences.append(
+            "For MLIS Fall 2026 (December graduation), explicitly state that GAPE's "
+            "first-time graduation application deadline is September 1, 2026 and "
+            "that the student applies only after candidacy is approved. Distinguish "
+            "the iSchool March 25 candidacy submission date and GAPE April 1, 2026 "
+            "candidacy deadline from the graduation application deadline."
         )
-    deadlines = _deadline_dates_in_context(context)
+    sentences.extend([
+        "Clearly label BS ISDA and MLIS rules when sources for both are present.",
+        "Do not present application deadlines that are before today as upcoming.",
+        "Do not invent deadline dates that are not written in the sources.",
+    ])
+    deadlines = _graduation_dates_in_context(context)
     if deadlines:
         past = [d for d in deadlines if d < as_of]
         upcoming = [d for d in deadlines if d >= as_of]
@@ -1382,6 +1435,25 @@ def _is_tutorial(document) -> bool:
         return True
     text = getattr(document, "page_content", "") or ""
     return "Apply for graduation link" in text and not _TERM_ROW.search(text)
+
+
+def _source_contains(document, part: str) -> bool:
+    return part in _source_url(document)
+
+
+def _best_source_chunk(documents: List, part: str, required: str) -> Optional[Document]:
+    """Choose the substantive atomic chunk, not a title or citation fragment."""
+    matches = [doc for doc in documents if _source_contains(doc, part)]
+    if not matches:
+        return None
+    needle = required.casefold()
+    return max(
+        matches,
+        key=lambda doc: (
+            needle in (getattr(doc, "page_content", "") or "").casefold(),
+            len(getattr(doc, "page_content", "") or ""),
+        ),
+    )
 
 
 def _is_deadline_table(text: str) -> bool:
@@ -1449,8 +1521,9 @@ def order_graduation_prompt_docs(
     query: str,
     retrieved: Optional[List] = None,
     corpus: Optional[List] = None,
+    program=None,
 ) -> List:
-    """Pin Application Central and place a short MySJSU path after it.
+    """Pin the official undergraduate and/or MLIS graduation evidence.
 
     Other questions are returned unchanged. When the indexed page is missing,
     the retrieved list is left as it is rather than filled with invented text.
@@ -1459,20 +1532,47 @@ def order_graduation_prompt_docs(
     if not is_apply_to_graduate_query(query):
         return documents
     pool = list(corpus or []) + documents
-    eligibility = _prefer(pool, _is_eligibility)
-    table = _prefer(pool, _is_deadline_table)
-    pinned = [doc for doc in (eligibility, table) if doc is not None]
+    scope = program if program in {"isda", "mlis"} else "both"
+    pinned = []
+    if scope in {"isda", "both"}:
+        eligibility = _prefer(pool, _is_eligibility)
+        table = _prefer(pool, _is_deadline_table)
+        calendar = _best_source_chunk(
+            pool, _FALL_2026_CALENDAR, "Last Day to Add/Drop Classes via MySJSU"
+        )
+        pinned.extend(
+            doc for doc in (eligibility, table, calendar) if doc is not None
+        )
+    if scope in {"mlis", "both"}:
+        for part, required in (
+            (_GAPE_FALL_GRADUATION, "Graduation Application (First-Time Applicants)"),
+            (_ISCHOOL_GRADUATE_APPLICATION, "after candidacy has been approved"),
+            (_ISCHOOL_CANDIDACY, "For December graduation, submit to iSchool by March 25"),
+        ):
+            match = _best_source_chunk(pool, part, required)
+            if match is not None:
+                pinned.append(match)
     pinned_text = {doc.page_content for doc in pinned}
     rest = [doc for doc in documents if doc.page_content not in pinned_text]
+    if scope in {"isda", "mlis"}:
+        expected = scope.upper()
+        rest = [
+            doc for doc in rest
+            if expected in metadata_programs(doc.metadata or {})
+        ]
     others = [doc for doc in rest if not _is_tutorial(doc)]
-    tutorial_docs = [doc for doc in rest + list(corpus or []) if _is_tutorial(doc)]
-    navigation = _tutorial_navigation(tutorial_docs)
+    tutorial_docs = (
+        [doc for doc in rest + list(corpus or []) if _is_tutorial(doc)]
+        if scope in {"isda", "both"}
+        else []
+    )
+    navigation = _tutorial_navigation(tutorial_docs) if tutorial_docs else None
     tutorial = [navigation] if navigation is not None else []
     return pinned + others + tutorial
 
 
-def _graduation_prompt_corpus(processor, query: str) -> List:
-    """Indexed Application Central and tutorial chunks, or [].
+def _graduation_prompt_corpus(processor, query: str, program=None) -> List:
+    """Indexed official graduation deadline chunks for the requested scope.
 
     No network call. A processor without ``chunks_matching_source`` yields
     an empty list so tests can pass documents in directly.
@@ -1483,7 +1583,17 @@ def _graduation_prompt_corpus(processor, query: str) -> List:
     if not callable(finder):
         return []
     found: List = []
-    for part in (_APPLICATION_CENTRAL, _TUTORIAL_URL):
+    scope = program if program in {"isda", "mlis"} else "both"
+    parts = []
+    if scope in {"isda", "both"}:
+        parts.extend((_APPLICATION_CENTRAL, _FALL_2026_CALENDAR, _TUTORIAL_URL))
+    if scope in {"mlis", "both"}:
+        parts.extend((
+            _GAPE_FALL_GRADUATION,
+            _ISCHOOL_GRADUATE_APPLICATION,
+            _ISCHOOL_CANDIDACY,
+        ))
+    for part in parts:
         try:
             found.extend(list(finder(part) or []))
         except Exception:
