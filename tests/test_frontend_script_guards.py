@@ -135,10 +135,10 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "confidence: data.confidence" not in script
     assert 'id="confidence-badge"' not in template
     assert 'id="confidence-badge"' not in docs
-    assert "filename='style.css', v='20261012-mobile-ui'" in template
-    assert "style.css?v=20261012-mobile-ui" in docs
-    assert "filename='script.js', v='20261014-chat-errors'" in template
-    assert "script.js?v=20261014-chat-errors" in docs
+    assert "filename='style.css', v='20261014-advisor-handoff'" in template
+    assert "style.css?v=20261014-advisor-handoff" in docs
+    assert "filename='script.js', v='20261014-advisor-handoff'" in template
+    assert "script.js?v=20261014-advisor-handoff" in docs
     assert "20261001-reveal-tabs" not in template
     assert "20260927-tabs" not in docs
     assert "20261002-letter-reveal" not in template

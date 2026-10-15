@@ -1409,3 +1409,32 @@ button.clear-btn:active {
     flex: 0 0 20px;
   }
 }
+
+/* Advisor email drafts: touch-friendly controls in the composer and replies. */
+.advisor-handoff { margin: 10px 0; }
+.advisor-handoff-button {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 14px;
+  border: 1px solid #95b8dc;
+  border-radius: 10px;
+  background: #eaf3fd;
+  color: var(--sjsu-blue-dark);
+  font: inherit;
+  font-size: .88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.advisor-handoff-button:hover { background: #d7e5f3; }
+.advisor-handoff-button:focus-visible {
+  outline: 3px solid var(--sjsu-blue);
+  outline-offset: 2px;
+}
+.advisor-handoff-note {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: .78rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.advisor-handoff-note a { color: var(--sjsu-blue-dark); text-underline-offset: 3px; }

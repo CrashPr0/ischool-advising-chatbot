@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261012-mobile-ui') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261014-advisor-handoff') }}" />
 </head>
 
 <body>
@@ -284,6 +284,10 @@
                 <option value="mlis">MLIS</option>
               </select>
             </div>
+            <div class="advisor-handoff">
+              <button type="button" id="advisor-handoff-button" class="advisor-handoff-button" aria-label="Email an advisor: open a draft to review and edit">Email an advisor</button>
+              <p class="advisor-handoff-note">Add a recipient before sending. Confirm the contact with iSchool: <a href="https://ischool.sjsu.edu/advising-appointments">Advising page</a></p>
+            </div>
 
             <div class="input-row-wrapper">
               <div class="input-container">
@@ -393,5 +397,5 @@
   </div>
 
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
-  <script src="{{ url_for('static', filename='script.js', v='20261014-chat-errors') }}"></script></body>
+  <script src="{{ url_for('static', filename='script.js', v='20261014-advisor-handoff') }}"></script></body>
 </html>

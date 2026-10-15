@@ -7,7 +7,7 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 CSS = (ROOT / "static/style.css").read_text()
 HTML_FILES = ("templates/index.html", "docs/index.html")
-ASSET_PINS = {"style.css": "20261012-mobile-ui", "script.js": "20261014-chat-errors"}
+ASSET_PINS = {"style.css": "20261014-advisor-handoff", "script.js": "20261014-advisor-handoff"}
 
 
 def mobile_rules():
