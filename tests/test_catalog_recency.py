@@ -19,7 +19,11 @@ from src.catalog_recency import (
 from src.config import Config
 from src.document_processor import CORE_RETRIEVAL_HEADER, DocumentProcessor
 from src.hybrid_retrieval import hybrid_retrieve
-from src.rag_chatbot import DEFAULT_RAG_TOP_K
+from src.rag_chatbot import (
+    DEFAULT_RAG_TOP_K,
+    _graduation_prompt_corpus,
+    order_graduation_prompt_docs,
+)
 from tests.test_catalog_program_requirements import (
     BS_URL,
     CATALOG_YEAR,
@@ -584,8 +588,17 @@ def test_real_corpus_keeps_core_graduation_and_current_isda_150(monkeypatch, tmp
     )
     # Registrar graduation pages are not an older catalog, so preference must
     # not drop the apply-to-graduate steps or the published deadline table.
-    before_blob = "\n".join(hit.page_content for hit in graduation_before)
-    graduation_blob = "\n".join(hit.page_content for hit in graduation)
+    corpus = _graduation_prompt_corpus(processor, "How do I apply to graduate?")
+    before_blob = "\n".join(
+        hit.page_content for hit in order_graduation_prompt_docs(
+            "How do I apply to graduate?", graduation_before, corpus
+        )
+    )
+    graduation_blob = "\n".join(
+        hit.page_content for hit in order_graduation_prompt_docs(
+            "How do I apply to graduate?", graduation, corpus
+        )
+    )
     for blob in (before_blob, graduation_blob):
         assert "Apply for graduation link" in blob
         assert "Planned Graduation Term: Fall 2026" in blob

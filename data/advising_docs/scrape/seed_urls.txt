@@ -66,6 +66,7 @@ https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
 # Registrar pages, the undergraduate MySJSU tutorial, commencement, and the
 # 2026-2027 catalog graduation requirements. Term deadlines stay as published.
 https://www.sjsu.edu/registrar/graduation/application-central.php
+https://www.sjsu.edu/registrar/calendar/fall-2026.php
 https://www.sjsu.edu/registrar/graduation/index.php
 https://www.sjsu.edu/registrar/graduation/graduation-checklist.php
 https://www.sjsu.edu/registrar/graduation/faq.php
@@ -96,3 +97,9 @@ https://ischool.sjsu.edu/graduate-application
 https://ischool.sjsu.edu/advising-appointments
 https://ischool.sjsu.edu/info-289-e-portfolio-faqs
 https://www.sjsu.edu/online/programs/library-and-information-science-masters-degree.php
+
+# MLIS candidacy and Fall/December graduation deadlines.
+# These reviewed seeds are labeled MLIS; GAPE publishes the official graduate deadlines.
+https://www.sjsu.edu/gape/deadlines/fall-graduation.php
+https://ischool.sjsu.edu/application-award-graduate-degree
+https://ischool.sjsu.edu/candidacy-approval-form-information

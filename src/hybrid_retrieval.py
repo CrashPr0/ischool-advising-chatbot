@@ -127,16 +127,23 @@ _GRADUATION_QUERY_TERMS = {
     "apply",
     "data",
     "deadline",
+    "december",
+    "fall",
     "graduate",
     "graduation",
     "information",
     "isda",
     "major",
+    "master",
+    "mlis",
     "need",
     "science",
     "should",
+    "spring",
     "sjsu",
+    "summer",
     "undergraduate",
+    "winter",
 }
 _GRADUATION_QUERY_EXPANSION = "apply graduation application deadline"
 
@@ -161,7 +168,10 @@ def expand_graduation_application_query(query: str) -> str:
     """
     if not isinstance(query, str) or not query.strip():
         return query if isinstance(query, str) else ""
-    tokens = set(tokenize(query))
+    tokens = {
+        token for token in tokenize(query)
+        if not re.fullmatch(r"(?:19|20)\d{2}", token)
+    }
     if not tokens or not tokens <= _GRADUATION_QUERY_TERMS:
         return query
     if "graduate" not in tokens and "graduation" not in tokens:

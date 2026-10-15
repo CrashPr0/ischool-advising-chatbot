@@ -49,7 +49,7 @@ def test_isda_still_leads_core_retrieval(corpus_processor):
 def test_all_official_mlis_pages_load_program_metadata(corpus_processor):
     loaded = corpus_processor.load_documents()
     mlis = [doc for doc in loaded if doc.metadata.get("programs") == ["MLIS"]]
-    assert len(mlis) == 15
+    assert len(mlis) == 18
     assert all(doc.metadata.get("source_url", "").startswith("https://") for doc in mlis)
     assert all(
         sha256(Path(doc.metadata["source"]).read_bytes()).hexdigest()
