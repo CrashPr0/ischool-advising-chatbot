@@ -46,7 +46,10 @@ CATALOG_TOPICS = [
     "registration",
 ]
 
-_COURSE_TEXT = re.compile(r"^ISDA\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE)
+_COURSE_TEXT = re.compile(
+    r"^(?:INFO|ISDA)\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE
+)
+_ISDA_COURSE_TEXT = re.compile(r"^ISDA\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE)
 _SHOW_COURSE = re.compile(
     r"show(?:Hide)?Course\(\s*(?:this\s*,\s*)?'(\d+)'\s*,\s*'(\d+)'",
     re.IGNORECASE,
@@ -242,7 +245,7 @@ def course_links(html: str, catoid: str) -> list[str]:
     found: list[str] = []
     for anchor in soup.find_all("a"):
         text = _clean(anchor.get_text(" ", strip=True))
-        if not _COURSE_TEXT.match(text):
+        if not _ISDA_COURSE_TEXT.match(text):
             continue
         url = _course_url_from_anchor(anchor, catoid)
         if url:
@@ -320,7 +323,7 @@ def _normalize_course_title(raw: str) -> str:
 def extract_course_snapshot(html: str, source_url: str, retrieved: str) -> str:
     """Turn an Acalog course preview into the committed snapshot text.
 
-    An empty string means the page did not contain an ISDA course block.
+    An empty string means the page did not contain a supported iSchool course block.
     """
     soup = BeautifulSoup(html or "", "html.parser")
     title_node = soup.find(id="course_preview_title")
@@ -416,6 +419,63 @@ def extract_course_snapshot(html: str, source_url: str, retrieved: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def course_listing_entries(html: str, prefix: str = "ISDA") -> list[tuple[str, str]]:
+    """Return course code/title pairs from one official prefix listing.
+
+    The listing is useful evidence that a number is (or is not) in a catalog
+    even when an individual course preview was not captured. Entries stay in
+    the order published by Acalog and duplicates are removed by course code.
+    """
+    normalized_prefix = str(prefix or "").strip().upper()
+    if normalized_prefix not in {"INFO", "ISDA"}:
+        return []
+    pattern = re.compile(
+        rf"^({re.escape(normalized_prefix)}\s+\d{{2,3}}[A-Za-z]?)\s+-\s+(.+)$",
+        re.IGNORECASE,
+    )
+    soup = BeautifulSoup(html or "", "html.parser")
+    entries: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for anchor in soup.find_all("a"):
+        text = _normalize_course_title(anchor.get_text(" ", strip=True))
+        match = pattern.match(text)
+        if not match:
+            continue
+        code = _clean(match.group(1)).upper()
+        title = _clean(match.group(2))
+        if code in seen or not title:
+            continue
+        seen.add(code)
+        entries.append((code, title))
+    return entries
+
+
+def extract_course_listing_snapshot(
+    html: str,
+    source_url: str,
+    retrieved: str,
+    catalog_year: str,
+    prefix: str = "ISDA",
+) -> str:
+    """Turn an Acalog prefix listing into a sourced catalog inventory."""
+    normalized_prefix = str(prefix or "").strip().upper()
+    entries = course_listing_entries(html, normalized_prefix)
+    if not entries:
+        return ""
+    lines = [
+        f"{catalog_year} Academic Catalog",
+        f"{normalized_prefix} Course Descriptions",
+        (
+            f"The {catalog_year} catalog lists these {len(entries)} "
+            f"{normalized_prefix} courses:"
+        ),
+        *[f"{code} - {title}" for code, title in entries],
+        f"Source URL: {source_url}",
+        f"Retrieved: {retrieved}",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def _isolate_core_heading(text: str) -> str:
     return _CORE_HEADING.sub(lambda match: f"\n{match.group(0)}\n", text)
 
@@ -478,7 +538,13 @@ def _doc_id(url: str) -> str:
     return f"web-{sha256(url.encode('utf-8')).hexdigest()[:16]}"
 
 
-def _snapshot_record(url: str, text: str, title: str, catalog_year: str) -> dict:
+def _snapshot_record(
+    url: str,
+    text: str,
+    title: str,
+    catalog_year: str,
+    programs: Optional[list[str]] = None,
+) -> dict:
     content = text if text.endswith("\n") else text + "\n"
     record = {
         "url": url,
@@ -487,10 +553,13 @@ def _snapshot_record(url: str, text: str, title: str, catalog_year: str) -> dict
         "catalog_year": catalog_year,
         "doc_id": _doc_id(url),
         "content_sha256": sha256(content.encode("utf-8")).hexdigest(),
+        "programs": list(programs or ["ISDA"]),
     }
     heading = core_heading(content)
     if "preview_program.php" in url and heading:
         record["atomic_section"] = heading
+    elif title.endswith("Course Descriptions"):
+        record["atomic_section"] = title
     return record
 
 
@@ -509,13 +578,13 @@ def _write_snapshot(docs_root: Path, record: dict, retrieved_at: str) -> None:
         "source_url": record["url"],
         "retrieved_at": retrieved_at,
         "content_sha256": record["content_sha256"],
-        "programs": ["ISDA"],
+        "programs": list(record.get("programs") or ["ISDA"]),
         "topics": list(CATALOG_TOPICS),
     }
     if "preview_program.php" in record["url"]:
         metadata["catalog_year"] = record["catalog_year"]
-        if record.get("atomic_section"):
-            metadata["atomic_section"] = record["atomic_section"]
+    if record.get("atomic_section"):
+        metadata["atomic_section"] = record["atomic_section"]
     meta_path.write_text(
         yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
@@ -545,7 +614,7 @@ def _merge_manifest(docs_root: Path, records: list[dict]) -> None:
             "source_url": record["url"],
             "title": record["title"],
             "content_sha256": record["content_sha256"],
-            "programs": ["ISDA"],
+            "programs": list(record.get("programs") or ["ISDA"]),
             "topics": list(CATALOG_TOPICS),
         }
     manifest = {

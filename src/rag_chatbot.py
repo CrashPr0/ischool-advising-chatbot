@@ -5,6 +5,8 @@ import os
 import re
 import time
 from datetime import date, datetime
+from functools import lru_cache
+from pathlib import Path
 from zoneinfo import ZoneInfo
 from typing import List, Optional, Dict
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
@@ -13,10 +15,14 @@ from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 
 try:
-    from .catalog_recency import catalog_prompt_note, document_heading
+    from .catalog_recency import (
+        catalog_prompt_note,
+        current_catalog_year,
+        document_heading,
+    )
     from .config import Config
     from .program_scope import metadata_programs, normalize_program
-    from .hybrid_retrieval import is_apply_to_graduate_query
+    from .hybrid_retrieval import course_codes_in_query, is_apply_to_graduate_query
     from .llm_providers import LLMFactory, REASONING_RETRY
     from .knowledge_base import get_knowledge_base
     from .document_processor import (
@@ -31,10 +37,14 @@ try:
     )
 except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
-    from catalog_recency import catalog_prompt_note, document_heading
+    from catalog_recency import (
+        catalog_prompt_note,
+        current_catalog_year,
+        document_heading,
+    )
     from config import Config
     from program_scope import metadata_programs, normalize_program
-    from hybrid_retrieval import is_apply_to_graduate_query
+    from hybrid_retrieval import course_codes_in_query, is_apply_to_graduate_query
     from llm_providers import LLMFactory, REASONING_RETRY
     from knowledge_base import get_knowledge_base
     from document_processor import (
@@ -76,6 +86,43 @@ _ERROR_RESPONSE = (
     "Please try again or contact the iSchool advising team."
 )
 _TRUE_ENV = {"1", "true", "yes", "on"}
+_ISDA_LISTING_URL = (
+    "https://catalog.sjsu.edu/content.php?catoid=23&navoid=8469&"
+    "filter%5B27%5D=ISDA&filter%5Bcpage%5D=1&cur_cat_oid=23&"
+    "search_database=Filter"
+)
+_COURSE_CODE_IN_CORPUS = re.compile(
+    r"(?<![A-Za-z0-9])(INFO|ISDA)\s*(\d{2,3}[A-Za-z]?)(?![A-Za-z0-9])",
+    re.IGNORECASE,
+)
+_ISDA_LISTING_SOURCE = f"Source URL: {_ISDA_LISTING_URL}"
+
+
+@lru_cache(maxsize=4)
+def _catalog_course_inventory(docs_root: str) -> tuple[frozenset[str], frozenset[str]]:
+    """Read course codes from the committed corpus and authoritative ISDA list."""
+    root = Path(docs_root)
+    corpus_codes: set[str] = set()
+    listed_isda_codes: set[str] = set()
+    try:
+        paths = sorted(root.rglob("*.txt"))
+    except OSError:
+        paths = []
+    for path in paths:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            continue
+        codes = {
+            f"{match.group(1).upper()} {match.group(2).upper()}"
+            for match in _COURSE_CODE_IN_CORPUS.finditer(text)
+        }
+        corpus_codes.update(codes)
+        if _ISDA_LISTING_SOURCE in text:
+            listed_isda_codes.update(
+                code for code in codes if code.startswith("ISDA ")
+            )
+    return frozenset(corpus_codes), frozenset(listed_isda_codes)
 
 
 class _Busy(Exception):
@@ -691,7 +738,11 @@ priority rule applies to conflicting facts, not to whether other official \
 sources can be cited. If a document has no Source URL, only use a link \
 explicitly present in its text; do not fabricate a citation. Never refer to \
 context documents by number (e.g. "Document 3"), since students cannot see \
-those labels; cite with the Source URL link instead."""
+those labels; cite with the Source URL link instead.
+10. A current-catalog course listing is authoritative about which course numbers \
+exist for that prefix. If a requested INFO or ISDA number is absent from the \
+current catalog evidence, say it is not listed; do not infer course details from \
+a nearby number, and recommend checking with an advisor."""
 
     def __init__(
         self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None
@@ -798,7 +849,7 @@ Assistant Response:""",
         response_data = {
             "user_message": user_message,
             "response": None,
-            "source": None,  # "knowledge_base", "rag", "llm", "busy", "filtered", or "error"
+            "source": None,  # knowledge_base, catalog_lookup, rag, fallback, etc.
             "retrieved_docs": [],
             "confidence": None,
         }
@@ -821,6 +872,13 @@ Assistant Response:""",
         started: float,
         program=None,
     ) -> Dict:
+        catalog_answer = self._unlisted_course_response(user_message)
+        if catalog_answer:
+            response_data["response"] = catalog_answer
+            response_data["source"] = "catalog_lookup"
+            response_data["confidence"] = 1.0
+            return self._finalize(response_data, history, metrics, started)
+
         # Step 1: Check knowledge base first
         kb_answer = self.knowledge_base.find_answer(user_message)
 
@@ -1079,6 +1137,57 @@ Assistant Response:""",
             "I couldn't find enough information in the available advising "
             "documents to answer that question. Please contact the iSchool "
             f"advising team or visit {advising_url} for help."
+        )
+
+    def _unlisted_course_response(self, user_message: str) -> str:
+        """Answer explicit missing-course lookups without asking the model to guess."""
+        requested = course_codes_in_query(user_message)
+        if not requested:
+            return ""
+        configured_root = getattr(self.doc_processor, "docs_path", "")
+        if configured_root:
+            root = Path(str(configured_root)).expanduser().resolve()
+        else:
+            root = Path(__file__).resolve().parents[1] / "data" / "advising_docs"
+        corpus_codes, listed_isda_codes = _catalog_course_inventory(str(root))
+        missing = []
+        for code in requested:
+            if code.startswith("ISDA ") and listed_isda_codes:
+                present = code in listed_isda_codes
+            else:
+                present = code in corpus_codes
+            if not present:
+                missing.append(code)
+        if not missing:
+            return ""
+
+        codes = ", ".join(missing)
+        year = current_catalog_year()
+        advising_url = _ADVISING_URL
+        if "Simplified Chinese" in self._response_language_instruction(user_message):
+            if all(code.startswith("ISDA ") for code in missing):
+                return (
+                    f"{codes} 未列在 {year} SJSU 官方目录的 ISDA 课程清单中，"
+                    "因此我不能提供或推测这门课的信息。"
+                    f"请查看 [SJSU 课程目录]({_ISDA_LISTING_URL})，并向 "
+                    f"[iSchool 咨询老师]({advising_url}) 核实。"
+                )
+            return (
+                f"{codes} 不在现有的 {year} SJSU 目录资料库中，"
+                "因此我无法确认它是当前 INFO 课程，也不会推测课程信息。"
+                f"请向 [iSchool 咨询老师]({advising_url}) 核实。"
+            )
+        if all(code.startswith("ISDA ") for code in missing):
+            return (
+                f"{codes} is not listed in the {year} SJSU catalog's ISDA "
+                "Course Descriptions, so I can't provide or infer course details "
+                f"for that number. See the [SJSU catalog]({_ISDA_LISTING_URL}) "
+                f"and check with an [iSchool advisor]({advising_url})."
+            )
+        return (
+            f"{codes} is not present in the available {year} SJSU catalog "
+            "corpus, so I can't verify it as a current INFO course or infer its "
+            f"details. Please check with an [iSchool advisor]({advising_url})."
         )
 
     def _build_context(self, query: str, documents: List) -> str:

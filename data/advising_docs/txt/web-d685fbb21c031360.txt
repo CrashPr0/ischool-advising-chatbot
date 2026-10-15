@@ -1,0 +1,29 @@
+2026-2027 Academic Catalog
+ISDA Course Descriptions
+The 2026-2027 catalog lists these 24 ISDA courses:
+ISDA 20A - Query Languages
+ISDA 20B - Python Programming
+ISDA 20C - Web Development
+ISDA 20D - Computer Operating Systems
+ISDA 80 - Introduction to Human-Centered Artificial Intelligence
+ISDA 81 - Ethics of AI
+ISDA 100 - Technical Writing for Information
+ISDA 101 - Online Learning: Tools and Strategies for Success
+ISDA 110 - Technology, Culture, and Society
+ISDA 111 - Information and Data Science
+ISDA 120 - Information Security
+ISDA 121 - Human Centered Cybersecurity
+ISDA 122 - Privacy, Security, Ethics
+ISDA 123 - Information Assurance
+ISDA 130 - User Centered Interface Architecture
+ISDA 131 - Information Architecture
+ISDA 140 - Big Data Analytics and Management
+ISDA 141 - Information Visualization
+ISDA 150 - Topics in Information Science and Data Analytics
+ISDA 160 - User Experience (UX) Research and Design
+ISDA 170 - The Emerging Future: Technology Issues and Trends
+ISDA 180 - Responsible Human-AI Interaction
+ISDA 181 - AI and Knowledge Management
+ISDA 194 - Professional Experience: Internship
+Source URL: https://catalog.sjsu.edu/content.php?catoid=23&navoid=8469&filter%5B27%5D=ISDA&filter%5Bcpage%5D=1&cur_cat_oid=23&search_database=Filter
+Retrieved: 2026-10-15

@@ -195,6 +195,24 @@ def canonical_course_code(department: str, number: str) -> str:
     return f"{department.casefold()}{number.casefold()}"
 
 
+def course_codes_in_query(
+    text: str, departments: Sequence[str] = ("ISDA", "INFO")
+) -> list[str]:
+    """Return distinct supported course codes explicitly written in a query."""
+    allowed = {str(department).strip().upper() for department in departments}
+    found: list[str] = []
+    seen: set[str] = set()
+    for match in _COURSE_CODE.finditer(text if isinstance(text, str) else ""):
+        department = match.group(1).upper()
+        if department not in allowed:
+            continue
+        code = f"{department} {match.group(2).upper()}"
+        if code not in seen:
+            seen.add(code)
+            found.append(code)
+    return found
+
+
 def compact_course_codes(text: str) -> str:
     """Collapse spaced and compact course codes onto one token."""
 

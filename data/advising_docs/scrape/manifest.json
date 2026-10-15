@@ -2,6 +2,21 @@
   "schema_version": 1,
   "documents": [
     {
+      "doc_id": "web-d685fbb21c031360",
+      "source_url": "https://catalog.sjsu.edu/content.php?catoid=23&navoid=8469&filter%5B27%5D=ISDA&filter%5Bcpage%5D=1&cur_cat_oid=23&search_database=Filter",
+      "title": "ISDA Course Descriptions",
+      "content_sha256": "8f51339873f06d562618687bacb4400aa5d295ed21144dbf079af76fc4bce320",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
       "doc_id": "web-40a52cbd73c9bde9",
       "source_url": "https://catalog.sjsu.edu/content.php?catoid=23&navoid=8473",
       "title": "Undergraduate University Graduation Requirements",
@@ -13,6 +28,21 @@
         "advising",
         "degree-requirements",
         "graduation"
+      ]
+    },
+    {
+      "doc_id": "web-8eb5f38331bef2d2",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200282",
+      "title": "INFO 210 - Reference and Information Services",
+      "content_sha256": "c0aa31cef2185deceac172e5ea77b8e683a10a079bda35994dc81dcbdad7ccd9",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
       ]
     },
     {

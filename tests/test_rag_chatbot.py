@@ -107,6 +107,37 @@ def test_missing_context_fallback_matches_chinese_question():
     assert "https://ischoolapps.sjsu.edu/advising/index.php" in response
 
 
+def test_unlisted_isda_course_uses_catalog_response_without_model_or_retrieval():
+    bot = _bare_bot()
+    answer = bot.chat("What are the prerequisites for ISDA 105?")
+
+    assert answer["source"] == "catalog_lookup"
+    assert "ISDA 105 is not listed in the 2026-2027 SJSU catalog" in answer["response"]
+    assert "catalog.sjsu.edu/content.php?catoid=23&navoid=8469" in answer["response"]
+    assert "iSchool advisor" in answer["response"]
+    assert bot.doc_processor.queries == []
+    assert bot.chain.payloads == []
+
+
+def test_isda_194_exists_in_listing_and_is_not_rejected_as_missing():
+    bot = _bare_bot()
+    answer = bot.chat("Does ISDA 194 exist?")
+
+    assert answer["source"] == "fallback"
+    assert bot.doc_processor.queries == ["Does ISDA 194 exist?"]
+
+
+def test_unknown_info_course_is_rejected_from_the_available_catalog_corpus():
+    bot = _bare_bot()
+    answer = bot.chat("What is INFO 999?")
+
+    assert answer["source"] == "catalog_lookup"
+    assert "INFO 999 is not present in the available 2026-2027 SJSU catalog corpus" in answer["response"]
+    assert "iSchool advisor" in answer["response"]
+    assert bot.doc_processor.queries == []
+    assert bot.chain.payloads == []
+
+
 class _Doc:
     def __init__(self, content):
         self.page_content = content
@@ -486,4 +517,3 @@ def test_both_program_apply_to_graduate_adds_dual_program_guidance():
     assert "Never silently answer as ISDA-only" in payload["context"]
     note = payload["graduation_note"]
     assert "Do not present application deadlines that are before today as upcoming" in note
-

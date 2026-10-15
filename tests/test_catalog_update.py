@@ -10,7 +10,9 @@ from src.catalog_update import (
     CatalogCheckResult,
     FetchResult,
     check_for_newer_catalog,
+    course_listing_entries,
     extract_course_snapshot,
+    extract_course_listing_snapshot,
     extract_program_snapshot,
     is_newer_catalog,
     parse_published_catalogs,
@@ -107,6 +109,33 @@ def test_course_snapshot_matches_the_published_block():
         extract_course_snapshot("<html><h1>Not a course</h1></html>", url, "2027-09-01")
         == ""
     )
+
+
+def test_info_course_snapshot_and_isda_listing_are_supported():
+    info_html = """
+    <p><h1 id="course_preview_title">INFO 210 - Reference Services</h1>
+    <em>3</em> <em>unit(s)</em><br>Reference description.<br><br>
+    <strong>Prerequisite(s):</strong> INFO 202.<br>
+    <p>Class Schedule | Syllabus Information</p></p>
+    """
+    info_url = "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=1"
+    assert extract_course_snapshot(info_html, info_url, "2026-10-15").startswith(
+        "INFO 210 - Reference Services\n3 unit(s)\nPrerequisite(s): INFO 202.\n"
+    )
+
+    listing_html = """
+    <a href="preview_course_nopop.php?catoid=23&coid=1">ISDA 20A - Query Languages</a>
+    <a href="preview_course_nopop.php?catoid=23&coid=2">ISDA 194 - Professional Experience: Internship</a>
+    """
+    assert course_listing_entries(listing_html) == [
+        ("ISDA 20A", "Query Languages"),
+        ("ISDA 194", "Professional Experience: Internship"),
+    ]
+    listing = extract_course_listing_snapshot(
+        listing_html, "https://catalog.sjsu.edu/list", "2026-10-15", "2026-2027"
+    )
+    assert "lists these 2 ISDA courses" in listing
+    assert "ISDA 194 - Professional Experience: Internship" in listing
 
 
 def test_program_snapshot_keeps_the_core_heading():
