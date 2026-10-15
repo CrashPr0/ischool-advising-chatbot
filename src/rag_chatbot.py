@@ -569,9 +569,121 @@ def _reply_has_substance(text: str) -> bool:
     return bool(re.search(r"[^\W_]", text or "", flags=re.UNICODE))
 
 
+_DROPPED_LINK_MARKER = "\ufff0"
+_GENERIC_LINK_LABEL_RE = re.compile(
+    r"(?:"
+    r"(?:click\s+)?here"
+    r"|here(?:'|\u2019)s\s+the\s+link"
+    r"|(?:this|that|the)\s+(?:link|page)(?:\s+(?:here|below))?"
+    r"|link"
+    r"|(?:more\s+(?:info(?:rmation)?)|learn\s+more|read\s+more|details)"
+    r"(?:\s+(?:here|below|at\s+(?:this|the)\s+link))?"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _is_generic_link_label(label: str) -> bool:
+    """True for an English label whose only purpose is to point at its URL."""
+    normalized = re.sub(r"\s+", " ", label or "").strip()
+    normalized = normalized.strip(
+        " \t\r\n.,;:!?()[]{}<>\"'\u2018\u2019\u201c\u201d-\u2013\u2014_*"
+    )
+    return bool(normalized and _GENERIC_LINK_LABEL_RE.fullmatch(normalized))
+
+
+def _is_pointer_only_fragment(text: str) -> bool:
+    """True when an English sentence or clause only directs readers to a link."""
+    if _link_spans(text):
+        return False
+    fragment = text.replace(_DROPPED_LINK_MARKER, " ").strip()
+    fragment = re.sub(r"^(?:>\s*)?(?:[-+*]|\d+[.)])\s+", "", fragment)
+    fragment = re.sub(r"\s+", " ", fragment).strip(" \t.,;:!?\u2013\u2014-")
+    if not fragment:
+        return True
+    # Dates, course identifiers, quantities, and similar facts must survive link
+    # removal even when the surrounding prose begins like a pointer.
+    if re.search(r"\d", fragment) or re.search(
+        r"\b(?:january|february|march|april|june|july|august|"
+        r"september|october|november|december)\b",
+        fragment,
+        re.IGNORECASE,
+    ) or re.search(r"\bMay\b", fragment):
+        return False
+
+    # A pointer may carry a short subject ("about the internship program"),
+    # but these bounded pieces must not absorb an advising fact or instruction.
+    short_topic = r"(?:\s+(?:about|for)\s+(?:[A-Za-z][A-Za-z'\u2019-]*\s*){1,6})?"
+    location = r"(?:\s+(?:at|on|via|here|below))?"
+    patterns = (
+        r"(?:also\s+)?(?:(?:you\s+)?(?:can|may)\s+|please\s+)?"
+        r"(?:click|visit|see|follow|use|open|go\s+to)"
+        r"(?:\s+(?:here|there|this|that|the|link|page|website|online|now)){0,3}",
+        r"(?:(?:you\s+)?(?:can|may)\s+|please\s+)?"
+        r"(?:find|get|read|view)\s+(?:(?:more|additional)\s+)?"
+        rf"(?:information|info|details){short_topic}{location}",
+        r"(?:for\s+)?(?:more\s+(?:information|info)|additional\s+information|details)"
+        rf"{short_topic}{location}",
+        rf"(?:learn|read)\s+more{short_topic}(?:\s+(?:here|below))?",
+        r"(?:(?:you\s+)?(?:can|may)\s+|please\s+)?(?:to\s+)?apply"
+        r"(?:\s+(?:here|there|online|now|below)){0,2}",
+        r"(?:the|this)\s+(?:information|info|details|application|form|page|website|link)"
+        r"\s+(?:is|are)\s+(?:available|located|found|posted|provided)"
+        r"(?:\s+(?:at|on|via|here|below))?",
+        r"please|you\s+(?:can|may)",
+    )
+    return any(re.fullmatch(pattern, fragment, re.IGNORECASE) for pattern in patterns)
+
+
+def _drop_dangling_link_fragments(text: str) -> str:
+    """Remove English pointer-only text associated with a stripped link."""
+    cleaned = text
+    while _DROPPED_LINK_MARKER in cleaned:
+        marker = cleaned.index(_DROPPED_LINK_MARKER)
+        prior_boundaries = list(re.finditer(r"[.!?](?=\s|$)|\n", cleaned[:marker]))
+        sentence_start = prior_boundaries[-1].end() if prior_boundaries else 0
+        next_boundary = re.search(r"[.!?](?=\s|$)|\n", cleaned[marker + 1 :])
+        sentence_end = (
+            marker + 1 + next_boundary.end() if next_boundary else len(cleaned)
+        )
+        sentence = cleaned[sentence_start:sentence_end]
+        if _is_pointer_only_fragment(sentence):
+            if (
+                (sentence_start == 0 or cleaned[sentence_start - 1] == "\n")
+                and sentence_end < len(cleaned)
+                and cleaned[sentence_end] in "\r\n"
+            ):
+                if cleaned[sentence_end : sentence_end + 2] == "\r\n":
+                    sentence_end += 2
+                else:
+                    sentence_end += 1
+            cleaned = cleaned[:sentence_start] + cleaned[sentence_end:]
+            continue
+
+        clause_start = max(
+            cleaned.rfind(char, sentence_start, marker) for char in ",;\u2013\u2014"
+        )
+        if clause_start != -1 and _is_pointer_only_fragment(
+            cleaned[clause_start + 1 : sentence_end]
+        ):
+            terminator_start = sentence_end
+            if sentence_end and cleaned[sentence_end - 1] in ".!?\r\n":
+                terminator_start = sentence_end - 1
+            cleaned = cleaned[:clause_start] + cleaned[terminator_start:]
+            continue
+        cleaned = cleaned[:marker] + cleaned[marker + len(_DROPPED_LINK_MARKER) :]
+    # A removed bullet should not leave a line containing only its marker syntax.
+    cleaned = re.sub(
+        r"(?m)^[ \t]*(?:>\s*)?(?:[-+*]|\d+[.)])[ \t]*(?:\r?\n|$)",
+        "",
+        cleaned,
+    )
+    return cleaned
+
+
 def _tidy_dropped_link_text(text: str) -> str:
     """Close the gaps left after a link is removed."""
-    cleaned = text.replace("\u00a0", " ")
+    cleaned = _drop_dangling_link_fragments(text).replace("\u00a0", " ")
     cleaned = re.sub(r"<\s*>", "", cleaned)
     cleaned = re.sub(r"`\s*`", "", cleaned)
     cleaned = re.sub(r"\(\s*\)", "", cleaned)
@@ -703,8 +815,12 @@ def _replace_disallowed_once(text: str, allowed: set) -> tuple:
                 for extra in label_urls:
                     if extra and extra != url:
                         removed.append(extra)
-                if kept:
+                if _is_generic_link_label(kept):
+                    parts.append(_DROPPED_LINK_MARKER)
+                elif kept:
                     parts.append(kept)
+            else:
+                parts.append(_DROPPED_LINK_MARKER)
         cursor = end
     parts.append(text[cursor:])
     if not dropped:

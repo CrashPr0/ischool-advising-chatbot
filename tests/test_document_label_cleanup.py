@@ -130,8 +130,6 @@ def test_real_chat_path_removes_labels_and_keeps_link_filtering():
 
     result = bot.chat("What is the MLIS course load?", history=history)
 
-    assert result["response"] == (
-        f"INFO 200 is 3 units. See [course load]({url}). Also see this page."
-    )
+    assert result["response"] == f"INFO 200 is 3 units. See [course load]({url})."
     assert result["source"] == "rag"
     assert history[-1]["response"] == result["response"]
