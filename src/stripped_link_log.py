@@ -8,8 +8,9 @@ scores are left untouched.
 
 One row is one failed check. The columns are the question from that turn,
 the URLs that were removed, and whether the reply was edited in place or
-replaced by the missing-context fallback. Kept links, session ids, and other
-request metadata are not stored.
+replaced by the missing-context fallback. The question is scrubbed before
+it is written. Kept links, session ids, and other request metadata are not
+stored.
 """
 
 from __future__ import annotations
@@ -22,8 +23,10 @@ from pathlib import Path
 
 try:
     from .durable_storage import resolve_stripped_link_log_path
+    from .pii_scrubber import scrub_pii
 except ImportError:  # pragma: no cover
     from durable_storage import resolve_stripped_link_log_path
+    from pii_scrubber import scrub_pii
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +73,7 @@ class StrippedLinkLog:
         if outcome not in _OUTCOMES:
             raise ValueError(f"Unknown stripped-link outcome: {outcome}")
         payload = json.dumps(list(stripped_urls), ensure_ascii=False)
+        stored_question = scrub_pii(question) if isinstance(question, str) else question
         with self._connect() as connection:
             connection.execute(
                 """
@@ -77,7 +81,7 @@ class StrippedLinkLog:
                     (created_at, question, outcome, stripped_urls)
                 VALUES (?, ?, ?, ?)
                 """,
-                (_utc_now(), question, outcome, payload),
+                (_utc_now(), stored_question, outcome, payload),
             )
 
     def records(self) -> list[dict]:

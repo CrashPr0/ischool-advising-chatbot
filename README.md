@@ -532,6 +532,16 @@ Cleanup runs when the report store initializes, then on writes or lists at most
 once per hour per worker, without a separate scheduler. Only deletion counts
 are logged, never report contents.
 
+Free-text fields are scrubbed before they are written. `scrub_pii` replaces
+SJSU 9-digit student IDs (including `012-345-678`), email addresses, US phone
+numbers, and US street addresses with `[REDACTED_STUDENT_ID]`,
+`[REDACTED_EMAIL]`, `[REDACTED_PHONE]`, and `[REDACTED_ADDRESS]`. That scrub
+covers issue-report comments, questions, answers, and opted-in transcripts,
+reviewer comments, and the question stored in the stripped-link log. Course
+codes such as INFO 202 and ISDA 150, years, dates, and shorter numbers are
+left unchanged. `src/durable_storage.py` copies the reviews database file and
+does not write those free-text fields.
+
 Students can use **Export chat** to keep the current conversation on their
 own device with a one-click PDF download. The locally vendored jsPDF 4.2.1
 build creates the export entirely client-side, sends no network request, and
