@@ -1,0 +1,264 @@
+{
+  "questions": [
+    {
+      "text": "Who is my assigned ISDA advisor?",
+      "topic": "General Advising",
+      "programs": ["isda"]
+    },
+    {
+      "text": "How do I schedule an advising appointment?",
+      "topic": "General Advising",
+      "programs": ["both"]
+    },
+    {
+      "text": "Where is the iSchool advising office?",
+      "topic": "General Advising",
+      "programs": ["both"]
+    },
+    {
+      "text": "How do I apply to graduate from ISDA?",
+      "topic": "Graduation",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is a graduation petition?",
+      "topic": "Graduation",
+      "programs": ["both"]
+    },
+    {
+      "text": "What are the graduation deadlines?",
+      "topic": "Graduation",
+      "programs": ["both"]
+    },
+    {
+      "text": "How do I plan my courses for next semester?",
+      "topic": "Course Planning",
+      "programs": ["both"]
+    },
+    {
+      "text": "What classes should I take first?",
+      "topic": "Course Planning",
+      "programs": ["both"]
+    },
+    {
+      "text": "Can I take two core courses at the same time?",
+      "topic": "Course Planning",
+      "programs": ["both"]
+    },
+    {
+      "text": "How many total units are required for ISDA?",
+      "topic": "Degree Requirements",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What are the ISDA core courses?",
+      "topic": "Degree Requirements",
+      "programs": ["isda"]
+    },
+    {
+      "text": "How many elective units do I need?",
+      "topic": "Degree Requirements",
+      "programs": ["isda"]
+    },
+    {
+      "text": "How do I add or drop a course?",
+      "topic": "Registration",
+      "programs": ["both"]
+    },
+    {
+      "text": "How do waitlists work at SJSU?",
+      "topic": "Registration",
+      "programs": ["both"]
+    },
+    {
+      "text": "How do I clear a registration hold?",
+      "topic": "Registration",
+      "programs": ["both"]
+    },
+    {
+      "text": "Can I transfer community college credits?",
+      "topic": "Transfer Credits",
+      "programs": ["both"]
+    },
+    {
+      "text": "How do I get transfer credits evaluated?",
+      "topic": "Transfer Credits",
+      "programs": ["both"]
+    },
+    {
+      "text": "Do AP credits count toward ISDA requirements?",
+      "topic": "Transfer Credits",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What GPA do I need to stay in good standing?",
+      "topic": "Academic Standing",
+      "programs": ["both"]
+    },
+    {
+      "text": "What happens if I go on academic probation?",
+      "topic": "Academic Standing",
+      "programs": ["both"]
+    },
+    {
+      "text": "How do I file an academic appeal?",
+      "topic": "Academic Standing",
+      "programs": ["both"]
+    },
+    {
+      "text": "Are there scholarships for ISDA students?",
+      "topic": "Financial Aid",
+      "programs": ["isda"]
+    },
+    {
+      "text": "How does financial aid affect my enrollment?",
+      "topic": "Financial Aid",
+      "programs": ["both"]
+    },
+    {
+      "text": "What is the fee payment deadline?",
+      "topic": "Financial Aid",
+      "programs": ["both"]
+    },
+    {
+      "text": "What are the MLIS core courses?",
+      "topic": "MLIS core courses",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "How do I apply to the MLIS program?",
+      "topic": "Apply to the MLIS program",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "What is the MLIS e-portfolio?",
+      "topic": "MLIS e-portfolio / culminating experience",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "How do I schedule an MLIS advising appointment?",
+      "topic": "MLIS advising",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "What is INFO 200: Information Communities?",
+      "topic": "Courses",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "What is INFO 202: Information Retrieval System Design?",
+      "topic": "Courses",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "What is INFO 203: Online Learning?",
+      "topic": "Courses",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "What is INFO 204: Information Professions?",
+      "topic": "Courses",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "What is INFO 285: Applied Research Methods?",
+      "topic": "Courses",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "What is INFO 289: e-Portfolio?",
+      "topic": "Courses",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "What is INFO 299: Thesis?",
+      "topic": "Courses",
+      "programs": ["mlis"]
+    },
+    {
+      "text": "What is ISDA 80: Introduction to Human-Centered Artificial Intelligence?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 100: Technical Writing for Information?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 101: Online Learning: Tools and Strategies for Success?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 110: Technology, Culture, and Society?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 111: Information and Data Science?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 120: Information Security?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 121: Human Centered Cybersecurity?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 122: Privacy, Security, Ethics?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 123: Information Assurance?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 130: User Centered Interface Architecture?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 131: Information Architecture?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 140: Big Data Analytics and Management?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 141: Information Visualization?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 150: Topics in Information Science and Data Analytics?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 160: User Experience (UX) Research and Design?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 170: The Emerging Future: Technology Issues and Trends?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    },
+    {
+      "text": "What is ISDA 180: Responsible Human-AI Interaction?",
+      "topic": "Courses",
+      "programs": ["isda"]
+    }
+  ]
+}

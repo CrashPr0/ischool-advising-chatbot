@@ -59,6 +59,7 @@ from issue_reports import (
     IssueReportValidationError,
     build_issue_report,
 )
+from question_suggestions import suggestion_payload
 from voice_config import get_voice_config
 from program_scope import normalize_program
 
@@ -1536,7 +1537,9 @@ def history():
             conversation_id = _optional_conversation_id(request.args)
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
-        return jsonify({"history": _history_store.snapshot(_history_key(conversation_id))})
+        return jsonify(
+            {"history": _history_store.snapshot(_history_key(conversation_id))}
+        )
     except Exception:
         logger.exception("Unable to read conversation history")
         return jsonify({"error": "Unable to read conversation history"}), 500
@@ -1613,7 +1616,9 @@ def issue_report_csrf():
         f"issue-report-csrf:{_client_key()}", 30, 60
     )
     if not allowed:
-        response = jsonify({"error": "Too many report requests; please try again later"})
+        response = jsonify(
+            {"error": "Too many report requests; please try again later"}
+        )
         response.headers["Retry-After"] = str(retry_after)
         return response, 429
     return jsonify({"csrf": _issue_report_csrf_token()})
@@ -1631,7 +1636,9 @@ def create_issue_report():
         _env_int("ISSUE_REPORT_RATE_WINDOW_SECONDS", 600, 10, 86_400),
     )
     if not allowed:
-        response = jsonify({"error": "Too many report requests; please try again later"})
+        response = jsonify(
+            {"error": "Too many report requests; please try again later"}
+        )
         response.headers["Retry-After"] = str(retry_after)
         return response, 429
 
@@ -1774,6 +1781,18 @@ def get_questions():
 def voice_config():
     """Expose non-secret browser voice settings to the web client."""
     return jsonify(get_voice_config().as_dict())
+
+
+@app.route("/api/question-suggestions", methods=["GET"])
+def question_suggestions():
+    """Curated questions for browser autocomplete.
+
+    Matching happens in the browser. This handler ignores query parameters
+    and does not log them, so a partial question never reaches the server.
+    """
+    response = jsonify(suggestion_payload())
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.errorhandler(404)

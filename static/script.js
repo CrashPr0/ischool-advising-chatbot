@@ -233,6 +233,7 @@ function createSpeechRecognition() {
       .trim()
       .slice(0, voiceConfig.max_utterance_chars);
     userInput.value = combined;
+    scheduleQuestionSuggestions();
     if (combined) {
       setVoiceStatus(interimTranscript ? "Listening…" : "Transcript ready to send.");
     }
@@ -270,6 +271,7 @@ function createSpeechRecognition() {
     }
 
     userInput.value = transcript.slice(0, voiceConfig.max_utterance_chars);
+    scheduleQuestionSuggestions();
     if (voiceConfig.auto_send) {
       setVoiceStatus("Sending your voice question…");
       sendMessage(userInput.value);
@@ -392,14 +394,11 @@ topicButtons.forEach((btn) => {
     activeTopicLabel.textContent = `Topic: ${activeTopic}`;
     activeBanner.classList.remove("hidden");
 
-    const samples = JSON.parse(btn.dataset.samples || "[]");
-    showSampleChips(activeTopic, samples);
-
-    // Selecting a topic only focuses the chips. The hint is not a question the
-    // student asked, so it must not spend a completion. Sample chips below
-    // call sendMessage and show the answer.
+    // Selecting a topic focuses the assistant. The hint is not a question the
+    // student asked, so it must not spend a completion. Starter chips stay on
+    // the empty state, and typed matches stay in the input until Send.
     addMessage(
-      `Got it! I'm now focused on ${activeTopic}. Choose a sample question below or type your own!`,
+      `Got it! I'm now focused on ${activeTopic}. Type your question whenever you're ready.`,
       "bot-message",
       "iSchool Bot"
     );
@@ -407,6 +406,7 @@ topicButtons.forEach((btn) => {
 });
 
 function showSampleChips(topic, samples) {
+  if (!sampleChipsArea || !sampleChipsLabel || !sampleChipsContainer) return;
   sampleChipsLabel.textContent = `Try asking about ${topic}:`;
   sampleChipsContainer.innerHTML = "";
 
@@ -1092,6 +1092,7 @@ async function sendMessage(prefilledMessage = null) {
   replyOperations.set(key, operation);
 
   hideSampleChips();
+  if (typeof closeQuestionSuggestions === "function") closeQuestionSuggestions();
   userInput.value = "";
   conversationDrafts.delete(key);
   updateMeta({});
@@ -1540,6 +1541,7 @@ async function clearHistory(conversationId) {
 sendButton.addEventListener("click", () => sendMessage());
 
 userInput.addEventListener("keydown", (event) => {
+  if (handleSuggestionKeydown(event)) return;
   if (event.key === "Enter" && !event.isComposing) {
     event.preventDefault();
     sendMessage();
@@ -1595,6 +1597,13 @@ document.querySelectorAll(".starter-chip").forEach((chip) => {
   });
 });
 
+document.querySelectorAll(".prompt-chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const question = String(chip.textContent || "").trim();
+    if (question) sendMessage(question);
+  });
+});
+
 if (voiceListenButton) {
   voiceListenButton.addEventListener("click", () => {
     if (isListening) {
@@ -1646,6 +1655,7 @@ function normalizeProgram(value) {
 function onProgramChange() {
   lastSelectedProgram = normalizeProgram(programSelect.value);
   updateAdvisorHandoffNotes();
+  scheduleQuestionSuggestions();
   const convo = tabsEnabled() ? getActiveConversation() : null;
   if (convo) {
     convo.program = lastSelectedProgram;
@@ -1811,6 +1821,7 @@ function paintConversation(convo) {
   if (programSelect) programSelect.value = normalizeProgram(convo.program);
   updateAdvisorHandoffNotes();
   userInput.value = conversationDrafts.get(convo.id) || "";
+  scheduleQuestionSuggestions();
   updateReplyControls();
   hideSampleChips();
 
@@ -2275,9 +2286,297 @@ if (exportChatButton) {
   });
 }
 
+// Curated autocomplete. The catalog is fetched once. Typed text is matched
+// locally and is not logged or sent until the student submits a question.
+const suggestionList = document.getElementById("question-suggestions");
+const suggestionStatus = document.getElementById("question-suggestions-status");
+let suggestionCatalog = [];
+let suggestionsEnabled = false;
+let visibleSuggestions = [];
+let suggestionsOpen = false;
+let suggestionActiveIndex = -1;
+let suggestionTimer = null;
+let suggestionBlurTimer = null;
+let lastSuggestionAnnouncement = 0;
+
+function suggestionsActive() {
+  return Boolean(
+    suggestionsEnabled &&
+    userInput &&
+    suggestionList &&
+    typeof rankQuestionSuggestions === "function"
+  );
+}
+
+function suggestionOptions() {
+  if (!suggestionList || typeof suggestionList.querySelectorAll !== "function") return [];
+  return Array.from(suggestionList.querySelectorAll("[role='option']"));
+}
+
+function closeQuestionSuggestions() {
+  if (suggestionTimer) {
+    clearTimeout(suggestionTimer);
+    suggestionTimer = null;
+  }
+  if (suggestionBlurTimer) {
+    clearTimeout(suggestionBlurTimer);
+    suggestionBlurTimer = null;
+  }
+  suggestionsOpen = false;
+  suggestionActiveIndex = -1;
+  visibleSuggestions = [];
+  if (suggestionList) {
+    suggestionList.hidden = true;
+    if (typeof suggestionList.replaceChildren === "function") {
+      suggestionList.replaceChildren();
+    } else {
+      suggestionList.textContent = "";
+    }
+  }
+  if (userInput) {
+    userInput.setAttribute("aria-expanded", "false");
+    if (typeof userInput.removeAttribute === "function") {
+      userInput.removeAttribute("aria-activedescendant");
+    }
+  }
+  if (suggestionStatus) suggestionStatus.textContent = "";
+  lastSuggestionAnnouncement = 0;
+}
+
+function announceSuggestionCount(count) {
+  if (!suggestionStatus || count === lastSuggestionAnnouncement) return;
+  lastSuggestionAnnouncement = count;
+  suggestionStatus.textContent = count === 1
+    ? "1 suggested question."
+    : `${count} suggested questions.`;
+}
+
+function appendSuggestionHighlight(element, question, query) {
+  const source = String(question || "");
+  const needle = String(query || "").trim();
+  const index = needle ? source.toLowerCase().indexOf(needle.toLowerCase()) : -1;
+  if (!element || index < 0) {
+    if (element) element.textContent = source;
+    return;
+  }
+  element.textContent = "";
+  element.appendChild(document.createTextNode(source.slice(0, index)));
+  const mark = document.createElement("mark");
+  mark.textContent = source.slice(index, index + needle.length);
+  element.appendChild(mark);
+  element.appendChild(document.createTextNode(source.slice(index + needle.length)));
+}
+
+function renderQuestionSuggestions(matches, query) {
+  visibleSuggestions = matches;
+  if (typeof suggestionList.replaceChildren === "function") {
+    suggestionList.replaceChildren();
+  } else {
+    suggestionList.textContent = "";
+  }
+  matches.forEach((item, index) => {
+    const option = document.createElement("li");
+    option.id = `question-suggestion-option-${index}`;
+    option.className = "suggest-option";
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", "false");
+    option.setAttribute("data-text", item.text);
+    const label = document.createElement("span");
+    label.className = "suggest-text";
+    appendSuggestionHighlight(label, item.text, query);
+    option.appendChild(label);
+    if (item.topic) {
+      const topic = document.createElement("span");
+      topic.className = "suggest-topic";
+      topic.textContent = item.topic;
+      option.appendChild(topic);
+    }
+    suggestionList.appendChild(option);
+  });
+}
+
+function setSuggestionActiveIndex(index) {
+  const options = suggestionOptions();
+  if (!options.length) {
+    suggestionActiveIndex = -1;
+    return;
+  }
+  suggestionActiveIndex = Math.max(0, Math.min(options.length - 1, index));
+  options.forEach((option, optionIndex) => {
+    const selected = optionIndex === suggestionActiveIndex;
+    option.setAttribute("aria-selected", selected ? "true" : "false");
+    if (selected && typeof option.scrollIntoView === "function") {
+      option.scrollIntoView({ block: "nearest" });
+    }
+  });
+  const active = options[suggestionActiveIndex];
+  if (active && active.id) {
+    userInput.setAttribute("aria-activedescendant", active.id);
+  }
+  suggestionsOpen = true;
+  suggestionList.hidden = false;
+  userInput.setAttribute("aria-expanded", "true");
+}
+
+function refreshQuestionSuggestions() {
+  if (!suggestionsActive()) {
+    closeQuestionSuggestions();
+    return;
+  }
+  const query = userInput.value;
+  const normalized = typeof normalizeSuggestionText === "function"
+    ? normalizeSuggestionText(query)
+    : String(query || "").trim();
+  if (normalized.length < 2) {
+    closeQuestionSuggestions();
+    return;
+  }
+  const program = normalizeProgram(programSelect ? programSelect.value : lastSelectedProgram);
+  const matches = rankQuestionSuggestions(query, suggestionCatalog, {
+    program,
+    limit: 6
+  }).slice(0, 6);
+  if (!matches.length) {
+    closeQuestionSuggestions();
+    return;
+  }
+  renderQuestionSuggestions(matches, query);
+  setSuggestionActiveIndex(0);
+  announceSuggestionCount(matches.length);
+}
+
+function scheduleQuestionSuggestions() {
+  if (suggestionTimer) {
+    clearTimeout(suggestionTimer);
+    suggestionTimer = null;
+  }
+  if (!suggestionsActive()) return;
+  const normalized = typeof normalizeSuggestionText === "function"
+    ? normalizeSuggestionText(userInput.value)
+    : "";
+  if (normalized.length < 2) {
+    closeQuestionSuggestions();
+    return;
+  }
+  const wait = typeof SUGGESTION_DEBOUNCE_MS === "number" ? SUGGESTION_DEBOUNCE_MS : 120;
+  suggestionTimer = setTimeout(refreshQuestionSuggestions, wait);
+}
+
+function applyQuestionSuggestion(text) {
+  const question = String(text || "");
+  if (!question || !userInput) return;
+  userInput.value = question;
+  closeQuestionSuggestions();
+  if (typeof userInput.focus === "function") userInput.focus();
+  if (typeof userInput.setSelectionRange === "function") {
+    const end = question.length;
+    try {
+      userInput.setSelectionRange(end, end);
+    } catch (_error) {
+      // Some input types reject a selection range. The filled text still stands.
+    }
+  }
+}
+
+function suggestionOptionFromEvent(event) {
+  const target = event && event.target;
+  if (!target || typeof target.closest !== "function") return null;
+  return target.closest("[role='option']");
+}
+
+function onSuggestionPointerDown(event) {
+  const option = suggestionOptionFromEvent(event);
+  if (!option) return;
+  event.preventDefault();
+  const text = typeof option.getAttribute === "function" ? option.getAttribute("data-text") : "";
+  if (text) applyQuestionSuggestion(text);
+}
+
+function onSuggestionPointerMove(event) {
+  const option = suggestionOptionFromEvent(event);
+  if (!option) return;
+  const index = suggestionOptions().indexOf(option);
+  if (index >= 0 && index !== suggestionActiveIndex) setSuggestionActiveIndex(index);
+}
+
+function handleSuggestionKeydown(event) {
+  if (!event || !suggestionsActive() || typeof suggestionKeyAction !== "function") return false;
+  const wasOpen = suggestionsOpen;
+  if (!event.isComposing && !wasOpen && event.key === "ArrowDown") {
+    refreshQuestionSuggestions();
+  }
+  const action = suggestionKeyAction(event.key, {
+    isComposing: Boolean(event.isComposing),
+    open: wasOpen,
+    activeIndex: suggestionActiveIndex,
+    count: visibleSuggestions.length
+  });
+  if (action.type === "close") {
+    event.preventDefault();
+    closeQuestionSuggestions();
+    return true;
+  }
+  if (action.type === "move") {
+    event.preventDefault();
+    setSuggestionActiveIndex(action.index);
+    return true;
+  }
+  if (action.type === "select") {
+    event.preventDefault();
+    const item = visibleSuggestions[action.index];
+    const text = item ? String(item.text || "") : "";
+    if (!text) return true;
+    if (event.key === "Enter" && text === userInput.value.trim()) {
+      closeQuestionSuggestions();
+      sendMessage();
+      return true;
+    }
+    applyQuestionSuggestion(text);
+    return true;
+  }
+  return false;
+}
+
+async function loadQuestionSuggestions() {
+  if (!suggestionList || typeof rankQuestionSuggestions !== "function") return;
+  try {
+    const response = await fetch(apiUrl("/api/question-suggestions"), {
+      headers: { Accept: "application/json" }
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (!data || data.enabled !== true || !Array.isArray(data.questions)) return;
+    suggestionCatalog = data.questions.filter((item) => (
+      item && typeof item.text === "string" && item.text.trim()
+    ));
+    suggestionsEnabled = suggestionCatalog.length > 0;
+  } catch (_error) {
+    suggestionsEnabled = false;
+    suggestionCatalog = [];
+  }
+  if (!suggestionsEnabled && userInput && typeof userInput.removeAttribute === "function") {
+    userInput.removeAttribute("aria-describedby");
+  }
+  if (suggestionsEnabled && userInput && String(userInput.value || "").trim()) {
+    refreshQuestionSuggestions();
+  }
+}
+
+function initQuestionSuggestions() {
+  if (!userInput || !suggestionList || typeof rankQuestionSuggestions !== "function") return;
+  userInput.addEventListener("input", scheduleQuestionSuggestions);
+  userInput.addEventListener("blur", () => {
+    suggestionBlurTimer = setTimeout(closeQuestionSuggestions, 150);
+  });
+  suggestionList.addEventListener("pointerdown", onSuggestionPointerDown);
+  suggestionList.addEventListener("pointermove", onSuggestionPointerMove);
+  loadQuestionSuggestions();
+}
+
 initConversations();
 const advisorHandoffButton = document.getElementById("advisor-handoff-button");
 if (advisorHandoffButton) advisorHandoffButton.addEventListener("click", openAdvisorHandoff);
 updateAdvisorHandoffNotes();
 if (programSelect) programSelect.addEventListener("change", onProgramChange);
 loadVoiceConfig();
+initQuestionSuggestions();

@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
- <link rel="stylesheet" href="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/style.css?v=20261017-scope-notice" />
+ <link rel="stylesheet" href="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/style.css?v=20261017-question-suggestions" />
 
 <style>
   .header-image {
@@ -88,17 +88,23 @@
         <div class="panel-card prompts-card">
           <h3>Try a sample question</h3>
           <div class="prompt-list">
-            <button class="prompt-chip">What are the MLIS core courses?</button>
-            <button class="prompt-chip">How do I apply to the MLIS program?</button>
-            <button class="prompt-chip">What is the MLIS e-portfolio?</button>
-            <button class="prompt-chip">How do I schedule an MLIS advising appointment?</button>
-            <button class="prompt-chip">Who is my assigned ISDA advisor?</button>
-            <button class="prompt-chip">How do I schedule an advising appointment?</button>
-            <button class="prompt-chip">How many total units are required for ISDA?</button>
-            <button class="prompt-chip">What are the ISDA core courses?</button>
-            <button class="prompt-chip">Can I transfer community college credits?</button>
-            <button class="prompt-chip">What GPA do I need to stay in good standing?</button>
+            <button type="button" class="prompt-chip">Who is my assigned ISDA advisor?</button>
+            <button type="button" class="prompt-chip">What are the ISDA core courses?</button>
+            <button type="button" class="prompt-chip">What are the MLIS core courses?</button>
+            <button type="button" class="prompt-chip">How do I add or drop a course?</button>
           </div>
+          <details class="prompt-more">
+            <summary>More sample questions</summary>
+            <div class="prompt-list">
+              <button type="button" class="prompt-chip">How do I apply to the MLIS program?</button>
+              <button type="button" class="prompt-chip">What is the MLIS e-portfolio?</button>
+              <button type="button" class="prompt-chip">How do I schedule an MLIS advising appointment?</button>
+              <button type="button" class="prompt-chip">How do I schedule an advising appointment?</button>
+              <button type="button" class="prompt-chip">How many total units are required for ISDA?</button>
+              <button type="button" class="prompt-chip">Can I transfer community college credits?</button>
+              <button type="button" class="prompt-chip">What GPA do I need to stay in good standing?</button>
+            </div>
+          </details>
         </div>
 
         <div class="panel-card links-card">
@@ -162,14 +168,29 @@
               <p class="advisor-handoff-note">Add a recipient before sending. Confirm the contact with iSchool: <a href="https://ischool.sjsu.edu/advising-appointments">Advising page</a></p>
             </div>
             <div class="input-container">
+            <span id="question-suggestions-hint" class="sr-only">
+              Suggested questions appear as you type. Up and down arrows
+              choose one. Enter or Tab fills it in so you can edit it
+              before sending. Escape closes the list.
+            </span>
             <input
               type="text"
               id="user-input"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="question-suggestions"
+              aria-describedby="question-suggestions-hint"
               placeholder="Type your question here..."
               autocomplete="off"
+              enterkeyhint="send"
             />
-            <button id="send-button">Send</button>
+            <ul id="question-suggestions" class="suggest-list" role="listbox"
+                aria-label="Suggested questions" hidden></ul>
+            <button id="send-button" type="button">Send</button>
           </div>
+          <p id="question-suggestions-status" class="sr-only" role="status"
+             aria-live="polite"></p>
 
           </div>
 
@@ -192,5 +213,6 @@
   window.API_BASE = "https://ischooladvisingchatbot-dx4ynl.azurewebsites.net";
 </script>
 <script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/markdown.js?v=20260927-mailto"></script>
-<script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/script.js?v=20261017-long-term-reports"></script></body>
+<script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/suggestions.js?v=20261017-question-suggestions"></script>
+<script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/script.js?v=20261017-question-suggestions"></script></body>
 </html>

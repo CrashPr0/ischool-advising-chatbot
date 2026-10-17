@@ -187,6 +187,7 @@ the large page header. API routes cannot be framed.
 - `GET /api/docs-stats` (same admin token; source-file and index counts)
 - `GET /api/questions`
 - `GET /api/voice-config`
+- `GET /api/question-suggestions`
 
 Chat history is isolated per browser session, bounded, and held in worker
 memory. Each `/api/chat` request passes that session's earlier turns into
@@ -222,6 +223,27 @@ safe browser defaults when an older deployment does not have the endpoint:
 - `VOICE_LANGUAGES` (comma-separated BCP-47 locales, default `en-US,zh-CN`)
 - `VOICE_DEFAULT_LANGUAGE`, `VOICE_AUTO_SEND` (default `false`)
 - `VOICE_MAX_UTTERANCE_CHARS` (bounded to 100–10,000)
+
+### Question suggestions
+
+The empty chat shows four starter questions. After the conversation starts,
+those chips hide. While the student types, the input offers a short dropdown
+of likely questions. Arrow keys move through it, Escape closes it, and Enter,
+Tab, or a click fills the question so they can edit it before sending.
+
+The dropdown is a browser-side prefix and token match over
+`data/question_suggestions.json`. `GET /api/question-suggestions` sends that
+curated list once. It does not receive the text being typed, and it does not
+call the model. The file repeats the topic-button samples already on the chat
+page and adds course prompts whose titles come from the advising catalog
+pages. Edit that file to tune the list: each entry needs `text`, and may set
+`topic` plus `programs` (`isda`, `mlis`, or `both`). A starter chip's
+`data-question` has to stay in both that file and a topic button's
+`data-samples`.
+
+`QUESTION_SUGGESTIONS_ENABLED` defaults on because the list is staff-written.
+Set it to `false` to hide the dropdown. This is separate from reviewer
+popular-question counts, which are not shown to students.
 
 Keep `VOICE_AUTO_SEND=false` unless the deployment has reviewed microphone
 consent and transcript-review requirements. A future server-side STT/TTS
