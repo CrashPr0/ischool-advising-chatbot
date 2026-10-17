@@ -54,16 +54,19 @@ release unless you set it.
 
 Student answer reports use `answer_issue_reports` in the reviews database.
 `ISSUE_REPORT_RATE_LIMIT` (10) and `ISSUE_REPORT_RATE_WINDOW_SECONDS` (600)
-control report submissions. `ISSUE_REPORT_RETENTION_DAYS` defaults to 90;
-set a positive integer in App Service application settings to override it,
-then restart the app. Invalid values fall back to 90. Reports older than the
-window, including any opted-in conversation transcripts, are deleted when
-each worker initializes its report store and opportunistically on report
-writes or lists, at most once per hour per worker. No scheduler is needed;
-idle workers clean up on the next report operation. Concurrent workers use
-an atomic SQLite deletion. Logs record the number of deleted rows without
-report contents. Keep the dialog's 90-day privacy note aligned if you change
-the deployment's retention window.
+control report submissions. Reports, including any shared conversation, are
+kept long-term by the iSchool to improve the assistant. iSchool leadership
+wants long-term retention for ALA accreditation. Leave
+`ISSUE_REPORT_RETENTION_DAYS` unset to keep that default. Set it to a positive
+integer in App Service application settings, then restart the app, to delete
+reports older than that many days. Unset, empty, zero, and invalid values
+delete nothing. Invalid values log a warning. When a positive window is set,
+reports older than the window, including any opted-in conversation transcripts,
+are deleted when each worker initializes its report store and opportunistically
+on report writes or lists, at most once per hour per worker. No scheduler is
+needed; idle workers clean up on the next report operation. Concurrent workers
+use an atomic SQLite deletion. Logs record the number of deleted rows without
+report contents. The chat dialog says reports are kept long-term.
 
 ## Reviews database backup
 
