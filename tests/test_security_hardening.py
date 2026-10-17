@@ -289,18 +289,26 @@ def test_security_headers_and_healthz_stay_lightweight(monkeypatch):
     for path in ("/healthz", "/", "/evaluation", "/api/does-not-exist"):
         response = client.get(path)
         assert response.headers["X-Content-Type-Options"] == "nosniff"
-        assert response.headers["X-Frame-Options"] == "DENY"
         assert (
             response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
         )
         policy = response.headers["Content-Security-Policy"]
         assert "default-src 'self'" in policy
-        assert "frame-ancestors 'none'" in policy
         assert "object-src 'none'" in policy
         assert "script-src 'self' https://cdn.jsdelivr.net" in policy
         assert "style-src 'self' https://fonts.googleapis.com" in policy
         assert "font-src 'self' https://fonts.gstatic.com" in policy
         assert "upgrade-insecure-requests" not in policy
+        if path == "/":
+            assert "X-Frame-Options" not in response.headers
+            assert (
+                "frame-ancestors 'self' https://sjsu.instructure.com "
+                "https://*.instructure.com"
+            ) in policy
+            assert "frame-ancestors 'none'" not in policy
+        else:
+            assert response.headers["X-Frame-Options"] == "DENY"
+            assert "frame-ancestors 'none'" in policy
 
     assert app_module.chatbot is None
     assert client.get("/healthz").get_json()["status"] == "ok"

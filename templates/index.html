@@ -8,14 +8,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261014-advisor-handoff') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261017-scope-notice') }}" />
 </head>
 
-<body>
+<body{% if embed %} class="is-embed"{% endif %}>
   <a class="skip-link" href="#user-input">Skip to chat</a>
 
   <div class="page-shell">
-    <header class="site-header">
+    <header class="site-header"{% if embed %} hidden{% endif %}>
       <div class="header-image"></div>
       <div class="header-overlay"></div>
 
@@ -225,6 +225,12 @@
                   I can help you explore degree requirements, plan your courses,
                   and navigate registration. Choose a topic or ask me a question
                   to get started.
+                </p>
+                <p class="scope-notice" role="note">
+                  This assistant only answers iSchool advising questions using official
+                  iSchool website information. It is not a replacement for an advisor,
+                  and it is not for personal, emergency, or wellbeing issues.
+                  <a href="https://ischool.sjsu.edu/advising-appointments">Contact an advisor</a>.
                 </p>
               </div>
 

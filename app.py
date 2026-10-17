@@ -236,15 +236,83 @@ def _session_cookie_should_be_secure() -> bool:
     return scheme in {"https", "wss"}
 
 
+def _embed_frame_ancestors() -> str | None:
+    """Return chat-page frame-ancestors sources, or None to refuse framing.
+
+    Unset or blank keeps the Canvas default. ``'none'`` refuses framing.
+    Any other invalid value logs a warning and keeps the default.
+    """
+    raw = os.getenv("EMBED_ALLOWED_ORIGINS")
+    if raw is None or not raw.strip():
+        return " ".join(_DEFAULT_EMBED_ANCESTORS)
+    tokens = [part for part in re.split(r"[\s,]+", raw.strip()) if part]
+    if (
+        not tokens
+        or any(_EMBED_ANCESTOR_TOKEN.fullmatch(token) is None for token in tokens)
+        or ("'none'" in tokens and len(tokens) != 1)
+    ):
+        logger.warning(
+            "Invalid EMBED_ALLOWED_ORIGINS value %r; using the Canvas default",
+            raw,
+        )
+        return " ".join(_DEFAULT_EMBED_ANCESTORS)
+    if tokens == ["'none'"]:
+        return None
+    return " ".join(tokens)
+
+
+def _chat_page_may_be_framed() -> bool:
+    """The student chat page is the only route Canvas may frame."""
+    return request.path == "/" and _embed_frame_ancestors() is not None
+
+
+def _request_is_canvas_embed() -> bool:
+    """True when this browser opened the compact Canvas embed."""
+    try:
+        if request.path == "/" and request.args.get("embed") == "1":
+            return True
+        return session.get("canvas_embed") is True
+    except RuntimeError:
+        return False
+
+
+def _embed_cookie_is_cross_site() -> bool:
+    """Use a cross-site cookie only for an HTTPS Canvas embed session.
+
+    SameSite=None is ignored by browsers unless Secure is set. Other visits
+    keep the configured SameSite value.
+    """
+    return _request_is_canvas_embed() and _session_cookie_should_be_secure()
+
+
 class _HttpsAwareSessionInterface(SecureCookieSessionInterface):
     def get_cookie_secure(self, app: Flask) -> bool:
         return _session_cookie_should_be_secure()
+
+    def get_cookie_samesite(self, app: Flask) -> str | None:
+        if _embed_cookie_is_cross_site():
+            return "None"
+        return app.config["SESSION_COOKIE_SAMESITE"]
+
+    def get_cookie_partitioned(self, app: Flask) -> bool:
+        # Partitioned limits the embed cookie to the Canvas top-level site.
+        return _embed_cookie_is_cross_site()
 
 
 _session_samesite = os.getenv("SESSION_COOKIE_SAMESITE", "Lax").strip().capitalize()
 if _session_samesite not in {"Lax", "Strict", "None"}:
     logger.warning("Invalid SESSION_COOKIE_SAMESITE; using Lax")
     _session_samesite = "Lax"
+
+# CSP frame-ancestors sources. 'self' and 'none' are the only quoted keywords.
+_EMBED_ANCESTOR_TOKEN = re.compile(
+    r"^('self'|'none'|https://(\*\.)?[A-Za-z0-9.-]+(?::\d+)?)$"
+)
+_DEFAULT_EMBED_ANCESTORS = (
+    "'self'",
+    "https://sjsu.instructure.com",
+    "https://*.instructure.com",
+)
 
 # Flask's signed session cookie carries only an opaque identifier. The actual
 # transcript stays server-side and is bounded by _SessionHistoryStore below.
@@ -261,28 +329,40 @@ app.session_interface = _HttpsAwareSessionInterface()
 
 # Templates load same-origin JS plus Google Fonts on the student page and
 # Chart.js from jsDelivr on the review page. No inline scripts.
-_CONTENT_SECURITY_POLICY = "; ".join(
-    [
-        "default-src 'self'",
-        "base-uri 'self'",
-        "object-src 'none'",
-        "frame-ancestors 'none'",
-        "form-action 'self'",
-        "script-src 'self' https://cdn.jsdelivr.net",
-        "style-src 'self' https://fonts.googleapis.com",
-        "font-src 'self' https://fonts.gstatic.com",
-        "img-src 'self' data:",
-        "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com",
-    ]
+_CSP_DIRECTIVES = (
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "form-action 'self'",
+    "script-src 'self' https://cdn.jsdelivr.net",
+    "style-src 'self' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data:",
+    "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com",
 )
+
+
+def _content_security_policy(frame_ancestors: str) -> str:
+    directives = list(_CSP_DIRECTIVES)
+    directives.insert(3, f"frame-ancestors {frame_ancestors}")
+    return "; ".join(directives)
 
 
 @app.after_request
 def _apply_security_headers(response):
-    """Attach browser hardening headers without touching the response body."""
-    response.headers["Content-Security-Policy"] = _CONTENT_SECURITY_POLICY
+    """Attach browser hardening headers without touching the response body.
+
+    The student chat page may be framed by the configured Canvas origins.
+    Every other response, including API routes, keeps framing denied.
+    """
+    if _chat_page_may_be_framed():
+        ancestors = _embed_frame_ancestors() or "'none'"
+        response.headers.pop("X-Frame-Options", None)
+    else:
+        ancestors = "'none'"
+        response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = _content_security_policy(ancestors)
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
@@ -704,9 +784,13 @@ def _normalize_reviewer(value: object) -> str:
 @app.route("/")
 def index():
     """Serve main page."""
+    embed = request.args.get("embed") == "1"
+    if embed:
+        # Later API calls in this browser keep the cross-site cookie settings.
+        session["canvas_embed"] = True
     try:
         # Prefer Jinja rendering so `url_for('static', ...)` resolves correctly.
-        return render_template("index.html")
+        return render_template("index.html", embed=embed)
     except Exception as e:
         logger.warning(
             "Failed to render templates/index.html, falling back to docs HTML: %s", e
