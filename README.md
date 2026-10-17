@@ -561,6 +561,16 @@ store a user, session, conversation, or network identifier. The table is
 created when the first question is saved, and creating it again is a no-op.
 A failure to write the row is logged and does not change the chat response.
 
+Signed-in reviewers see the most-asked of those questions on `/evaluation`,
+for the last 7, 30, or 90 days (30 is the default). Matching ignores
+capitalization and extra spaces, and the list shows how many times each
+question was asked. `GET /api/evaluation/popular-questions` uses the same
+sign-in as the rest of that page. `GET /api/popular-questions` returns the
+same counts only when `POPULAR_QUESTIONS_PUBLIC` is `1`, `true`, `yes`, or
+`on`. Otherwise it returns 404. Leave that flag unset until staff have
+reviewed the questions: turning it on publishes these counts, and there is
+no separate curated list.
+
 Students can use **Export chat** to keep the current conversation on their
 own device with a one-click PDF download. The locally vendored jsPDF 4.2.1
 build creates the export entirely client-side, sends no network request, and

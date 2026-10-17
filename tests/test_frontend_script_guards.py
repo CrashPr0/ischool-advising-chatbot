@@ -882,7 +882,7 @@ vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), sandbox);
 def test_evaluation_report_summary_and_filters_render_safely(tmp_path):
     template = (ROOT / "templates" / "evaluation.html").read_text(encoding="utf-8")
     for filename in ["evaluation.js", "evaluation.css"]:
-        assert f"filename='{filename}', v='20261010-report-breakdown'" in template
+        assert f"filename='{filename}', v='20261017-popular-questions'" in template
     assert 'role="status" aria-live="polite"' in template
     assert 'role="group" aria-label="Filter reports by reason"' in template
     runner = tmp_path / "check_evaluation_reports.js"

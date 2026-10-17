@@ -23,6 +23,7 @@ const state = {
   issueReports: [],
   issueReportTotal: 0,
   issueReportReason: "all",
+  popularWindowDays: 30,
   currentIndex: 0,
   selectedScores: { A: emptyScores(), B: emptyScores() }
 };
@@ -67,7 +68,10 @@ const elements = {
   issueReportsFilters: document.getElementById("issue-reports-filters"),
   issueReportsLimit: document.getElementById("issue-reports-limit"),
   issueReportsStatus: document.getElementById("issue-reports-status"),
-  refreshReportsButton: document.getElementById("refresh-reports-button")
+  refreshReportsButton: document.getElementById("refresh-reports-button"),
+  popularQuestions: document.getElementById("popular-questions"),
+  popularQuestionsList: document.getElementById("popular-questions-list"),
+  popularQuestionsStatus: document.getElementById("popular-questions-status")
 };
 
 function apiUrl(path) {
@@ -176,6 +180,10 @@ function showAuthenticatedSession(sessionData) {
   if (elements.issueReports) {
     elements.issueReports.classList.remove("hidden");
     loadIssueReports();
+  }
+  if (elements.popularQuestions) {
+    elements.popularQuestions.classList.remove("hidden");
+    loadPopularQuestions();
   }
 }
 
@@ -315,6 +323,60 @@ async function loadIssueReports() {
       elements.issueReportsStatus.textContent = error.message || "Unable to load reports.";
     }
   }
+}
+
+function popularWindowButtons() {
+  return document.querySelectorAll("#popular-questions-windows [data-days]");
+}
+
+function renderPopularQuestions(questions, days) {
+  if (!elements.popularQuestionsList || !elements.popularQuestionsStatus) return;
+  elements.popularQuestionsList.replaceChildren();
+  if (!questions.length) {
+    elements.popularQuestionsStatus.textContent = `No questions in the last ${days} days.`;
+    return;
+  }
+  const total = questions.reduce((sum, item) => sum + (Number(item.count) || 0), 0);
+  const questionLabel = questions.length === 1 ? "question" : "questions";
+  const askLabel = total === 1 ? "ask" : "asks";
+  elements.popularQuestionsStatus.textContent =
+    `${questions.length} ${questionLabel}, ${total} ${askLabel} in the last ${days} days.`;
+  questions.forEach((item) => {
+    const row = document.createElement("li");
+    const text = document.createElement("span");
+    text.className = "popular-questions__text";
+    text.textContent = String(item.question || "");
+    const count = document.createElement("span");
+    count.className = "popular-questions__count";
+    const asks = Number(item.count) || 0;
+    count.textContent = `${asks} ${asks === 1 ? "ask" : "asks"}`;
+    row.append(text, count);
+    elements.popularQuestionsList.appendChild(row);
+  });
+}
+
+async function loadPopularQuestions() {
+  if (!elements.popularQuestions || !state.reviewer) return;
+  const days = state.popularWindowDays;
+  if (elements.popularQuestionsStatus) {
+    elements.popularQuestionsStatus.textContent = "Loading questions…";
+  }
+  try {
+    const data = await api(`/api/evaluation/popular-questions?days=${days}`);
+    renderPopularQuestions(Array.isArray(data.questions) ? data.questions : [], days);
+  } catch (error) {
+    if (elements.popularQuestionsStatus) {
+      elements.popularQuestionsStatus.textContent = error.message || "Unable to load questions.";
+    }
+  }
+}
+
+function selectPopularWindow(days) {
+  state.popularWindowDays = days;
+  popularWindowButtons().forEach((button) => {
+    button.setAttribute("aria-pressed", String(Number(button.dataset.days) === days));
+  });
+  loadPopularQuestions();
 }
 
 async function initializeSession() {
@@ -638,9 +700,16 @@ async function signOut() {
     state.issueReports = [];
     state.issueReportTotal = 0;
     state.issueReportReason = "all";
+    state.popularWindowDays = 30;
     elements.app.classList.add("hidden");
     elements.summaryPanel.classList.add("hidden");
     if (elements.issueReports) elements.issueReports.classList.add("hidden");
+    if (elements.popularQuestions) elements.popularQuestions.classList.add("hidden");
+    if (elements.popularQuestionsList) elements.popularQuestionsList.replaceChildren();
+    if (elements.popularQuestionsStatus) elements.popularQuestionsStatus.textContent = "";
+    popularWindowButtons().forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.days === "30"));
+    });
     if (elements.issueReportsList) elements.issueReportsList.replaceChildren();
     if (elements.issueReportsSummary) elements.issueReportsSummary.replaceChildren();
     if (elements.issueReportsFilters) elements.issueReportsFilters.replaceChildren();
@@ -683,6 +752,9 @@ elements.logoutButton.addEventListener("click", signOut);
 if (elements.refreshReportsButton) {
   elements.refreshReportsButton.addEventListener("click", () => loadIssueReports());
 }
+popularWindowButtons().forEach((button) => {
+  button.addEventListener("click", () => selectPopularWindow(Number(button.dataset.days)));
+});
 
 initializeSession();
 

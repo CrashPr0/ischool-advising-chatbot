@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light" />
   <title>Model Review Workspace · SJSU iSchool</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css', v='20261010-report-breakdown') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css', v='20261017-popular-questions') }}" />
 </head>
 <body>
   <header class="review-header">
@@ -275,6 +275,29 @@
       <div id="issue-reports-status" class="issue-reports-status" role="status" aria-live="polite"></div>
       <div id="issue-reports-list" class="issue-reports-list"></div>
     </section>
+
+    <section id="popular-questions" class="popular-questions hidden" aria-labelledby="popular-questions-title">
+      <div class="popular-questions__heading">
+        <div>
+          <p class="eyebrow">Anonymized questions</p>
+          <h2 id="popular-questions-title">Most-asked questions</h2>
+        </div>
+      </div>
+      <p class="popular-questions__note">
+        Counts come from anonymized student questions in the reviews database.
+        Matching ignores capitalization and extra spaces. The wording shown is
+        the newest saved variant. This list is for reviewers. Students do not
+        see it unless POPULAR_QUESTIONS_PUBLIC is turned on, and that switch
+        publishes these same counts. Leave it off until staff have reviewed them.
+      </p>
+      <div id="popular-questions-windows" class="popular-questions-windows" role="group" aria-label="Time window">
+        <button type="button" class="button button--secondary" data-days="7" aria-pressed="false">7 days</button>
+        <button type="button" class="button button--secondary" data-days="30" aria-pressed="true">30 days</button>
+        <button type="button" class="button button--secondary" data-days="90" aria-pressed="false">90 days</button>
+      </div>
+      <p id="popular-questions-status" class="popular-questions-status" role="status" aria-live="polite"></p>
+      <ol id="popular-questions-list" class="popular-questions-list" aria-label="Most-asked questions"></ol>
+    </section>
   </main>
 
   <dialog id="auth-dialog" class="auth-dialog">
@@ -296,6 +319,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="{{ url_for('static', filename='evaluation.js', v='20261010-report-breakdown') }}"></script>
+  <script src="{{ url_for('static', filename='evaluation.js', v='20261017-popular-questions') }}"></script>
 </body>
 </html>
