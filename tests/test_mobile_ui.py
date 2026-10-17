@@ -7,7 +7,11 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 CSS = (ROOT / "static/style.css").read_text()
 HTML_FILES = ("templates/index.html", "docs/index.html")
-ASSET_PINS = {"style.css": "20261017-scope-notice", "script.js": "20261017-long-term-reports"}
+ASSET_PINS = {
+    "style.css": "20261017-question-suggestions",
+    "suggestions.js": "20261017-question-suggestions",
+    "script.js": "20261017-question-suggestions",
+}
 
 
 def mobile_rules():
@@ -50,7 +54,8 @@ def test_phone_tap_targets_and_report_rows():
         ".report-issue-button", ".chat-tab-close", "#export-chat-button",
         "#clear-button", "#user-input", "#voice-listen-button", "#send-button",
         ".resource-list a", ".report-primary", ".report-secondary",
-        "#report-issue-done", "#voice-language-select", "#voice-stop-button",
+        "#report-issue-done",         "#voice-language-select", "#voice-stop-button",
+        ".suggest-option", ".prompt-chip", ".prompt-more summary",
     ):
         assert phone_has(selector, "min-height: 44px;")
         assert phone_has(selector, "min-width: 44px;")

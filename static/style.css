@@ -701,6 +701,7 @@ button.clear-btn:active {
   display: flex;
   align-items: center;
   gap: 4px;
+  position: relative;
   padding: 5px 6px 5px 16px;
   min-width: 0;
   border: 1px solid #c6d1df;
@@ -728,6 +729,96 @@ button.clear-btn:active {
 }
 
 #user-input::placeholder { color: #5f6e82; }
+
+.suggest-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 6;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: min(280px, 42vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  border: 1px solid #c6d1df;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(23, 43, 67, 0.16);
+}
+
+.suggest-list[hidden] { display: none !important; }
+
+.suggest-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--text-main);
+  text-align: left;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.suggest-option[aria-selected="true"],
+.suggest-option:hover {
+  background: #eaf2fb;
+}
+
+.suggest-text { font-size: .95rem; font-weight: 600; }
+
+.suggest-text mark {
+  background: #fff4d2;
+  color: inherit;
+  font-weight: 800;
+  padding: 0;
+}
+
+.suggest-topic {
+  color: var(--sjsu-blue);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+body.is-embed .suggest-list { max-height: min(220px, 36vh); }
+
+.prompt-list { display: flex; flex-direction: column; gap: 8px; }
+
+.prompt-chip {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d5e0ec;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: var(--text-main);
+  text-align: left;
+  font-size: .92rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.prompt-chip:hover { background: #fff; border-color: #8eb0d4; }
+
+.prompt-more { margin-top: 10px; }
+
+.prompt-more summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--sjsu-blue-dark);
+  font-size: .84rem;
+  font-weight: 700;
+}
 
 #send-button,
 .composer-mic {
@@ -1373,7 +1464,10 @@ button.clear-btn:active {
   .report-secondary,
   #report-issue-done,
   #voice-language-select,
-  #voice-stop-button {
+  #voice-stop-button,
+  .suggest-option,
+  .prompt-chip,
+  .prompt-more summary {
     min-height: 44px;
     min-width: 44px;
   }

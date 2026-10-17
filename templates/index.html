@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261017-scope-notice') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261017-question-suggestions') }}" />
 </head>
 
 <body{% if embed %} class="is-embed"{% endif %}>
@@ -243,29 +243,19 @@
                     <span class="starter-question">Who is my assigned ISDA advisor?</span>
                   </button>
                   <button type="button" class="starter-chip"
-                          data-question="How do I apply to graduate from ISDA?">
-                    <span class="starter-topic">Graduation</span>
-                    <span class="starter-question">How do I apply to graduate from ISDA?</span>
-                  </button>
-                  <button type="button" class="starter-chip"
-                          data-question="How do I plan my courses for next semester?">
-                    <span class="starter-topic">Course Planning</span>
-                    <span class="starter-question">How do I plan my courses for next semester?</span>
-                  </button>
-                  <button type="button" class="starter-chip"
                           data-question="What are the ISDA core courses?">
                     <span class="starter-topic">Degree Requirements</span>
                     <span class="starter-question">What are the ISDA core courses?</span>
                   </button>
                   <button type="button" class="starter-chip"
+                          data-question="What are the MLIS core courses?">
+                    <span class="starter-topic">MLIS core courses</span>
+                    <span class="starter-question">What are the MLIS core courses?</span>
+                  </button>
+                  <button type="button" class="starter-chip"
                           data-question="How do I add or drop a course?">
                     <span class="starter-topic">Registration</span>
                     <span class="starter-question">How do I add or drop a course?</span>
-                  </button>
-                  <button type="button" class="starter-chip"
-                          data-question="Are there scholarships for ISDA students?">
-                    <span class="starter-topic">Financial Aid</span>
-                    <span class="starter-question">Are there scholarships for ISDA students?</span>
                   </button>
                 </div>
               </div>
@@ -274,11 +264,6 @@
             <div id="chat-box" class="chat-box is-empty" role="log"
                  aria-label="Conversation" aria-live="polite"
                  aria-relevant="additions"></div>
-          </div>
-
-          <div class="sample-chips-area hidden" id="sample-chips-area">
-            <p class="sample-chips-label" id="sample-chips-label">Try asking:</p>
-            <div class="sample-chips" id="sample-chips"></div>
           </div>
 
           <div class="composer">
@@ -301,9 +286,22 @@
                   Your advising question
                 </label>
 
+                <span id="question-suggestions-hint" class="sr-only">
+                  Suggested questions appear as you type. Up and down arrows
+                  choose one. Enter or Tab fills it in so you can edit it
+                  before sending. Escape closes the list.
+                </span>
                 <input type="text" id="user-input"
+                       role="combobox"
+                       aria-autocomplete="list"
+                       aria-expanded="false"
+                       aria-controls="question-suggestions"
+                       aria-describedby="question-suggestions-hint"
                        placeholder="Ask an advising question…"
-                       autocomplete="off" />
+                       autocomplete="off"
+                       enterkeyhint="send" />
+                <ul id="question-suggestions" class="suggest-list" role="listbox"
+                    aria-label="Suggested questions" hidden></ul>
 
                 <button id="voice-listen-button"
                         class="voice-btn composer-mic"
@@ -334,6 +332,8 @@
                 </button>
               </div>
             </div>
+            <p id="question-suggestions-status" class="sr-only" role="status"
+               aria-live="polite"></p>
 
           </div>
 
@@ -404,5 +404,6 @@
   </div>
 
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
-  <script src="{{ url_for('static', filename='script.js', v='20261017-long-term-reports') }}"></script></body>
+  <script src="{{ url_for('static', filename='suggestions.js', v='20261017-question-suggestions') }}"></script>
+  <script src="{{ url_for('static', filename='script.js', v='20261017-question-suggestions') }}"></script></body>
 </html>
