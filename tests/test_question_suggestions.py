@@ -199,6 +199,7 @@ def test_endpoint_serves_curated_list_without_chatbot_or_typed_text(
 
     monkeypatch.setattr(app_module, "get_chatbot", boom)
     monkeypatch.delenv("QUESTION_SUGGESTIONS_ENABLED", raising=False)
+    monkeypatch.delenv("DYNAMIC_SUGGESTIONS_ENABLED", raising=False)
     caplog.set_level(logging.DEBUG)
     secret = "partial-question-should-not-be-logged"
     response = app_module.app.test_client().get(
@@ -210,6 +211,9 @@ def test_endpoint_serves_curated_list_without_chatbot_or_typed_text(
     assert response.headers["Cache-Control"] == "no-store"
     body = response.get_json()
     assert body["enabled"] is True
+    assert body["dynamic"] is False
+    assert "starters" not in body
+    assert "popularity" not in body
     assert body["questions"] == _catalog()
     assert secret not in caplog.text
     assert secret not in response.get_data(as_text=True)
@@ -238,8 +242,8 @@ def test_combobox_markup_is_on_both_pages_and_client_does_not_send_partials():
         assert 'id="question-suggestions" class="suggest-list" role="listbox"' in html
         assert 'id="question-suggestions-status"' in html
         assert 'aria-live="polite"' in html
-        assert "suggestions.js?v=20261017-question-suggestions" in html or (
-            "filename='suggestions.js', v='20261017-question-suggestions'" in html
+        assert "suggestions.js?v=20261017-dynamic-suggestions" in html or (
+            "filename='suggestions.js', v='20261017-dynamic-suggestions'" in html
         )
 
     script = (ROOT / "static" / "script.js").read_text(encoding="utf-8")

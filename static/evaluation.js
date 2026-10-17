@@ -71,7 +71,11 @@ const elements = {
   refreshReportsButton: document.getElementById("refresh-reports-button"),
   popularQuestions: document.getElementById("popular-questions"),
   popularQuestionsList: document.getElementById("popular-questions-list"),
-  popularQuestionsStatus: document.getElementById("popular-questions-status")
+  popularQuestionsStatus: document.getElementById("popular-questions-status"),
+  suggestionRanking: document.getElementById("suggestion-ranking"),
+  suggestionRankingList: document.getElementById("suggestion-ranking-list"),
+  suggestionRankingStatus: document.getElementById("suggestion-ranking-status"),
+  suggestionRankingAudit: document.getElementById("suggestion-ranking-audit")
 };
 
 function apiUrl(path) {
@@ -184,6 +188,10 @@ function showAuthenticatedSession(sessionData) {
   if (elements.popularQuestions) {
     elements.popularQuestions.classList.remove("hidden");
     loadPopularQuestions();
+  }
+  if (elements.suggestionRanking) {
+    elements.suggestionRanking.classList.remove("hidden");
+    loadSuggestionRanking();
   }
 }
 
@@ -369,6 +377,119 @@ async function loadPopularQuestions() {
       elements.popularQuestionsStatus.textContent = error.message || "Unable to load questions.";
     }
   }
+}
+
+function suggestionCountLabel(count) {
+  const picks = Number(count) || 0;
+  return `${picks} ${picks === 1 ? "pick" : "picks"}`;
+}
+
+function renderSuggestionRanking(data) {
+  if (!elements.suggestionRankingList || !elements.suggestionRankingStatus) return;
+  const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+  const mode = data.ranking_mode || "all_time";
+  const minimum = Number(data.min_count) || 0;
+  const enabled = data.enabled === true ? "on" : "off";
+  elements.suggestionRankingStatus.textContent = suggestions.length
+    ? `${suggestions.length} curated suggestions. Ranking mode ${mode}. Minimum ${minimum} picks. Dynamic suggestions are ${enabled}.`
+    : "No curated suggestions are loaded.";
+  elements.suggestionRankingList.replaceChildren();
+  suggestions.forEach((item) => {
+    const row = document.createElement("li");
+    row.className = "suggestion-ranking__row";
+    row.setAttribute("data-suggestion-id", String(item.id || ""));
+    const text = document.createElement("span");
+    text.className = "suggestion-ranking__text";
+    text.textContent = String(item.text || "");
+    const count = document.createElement("span");
+    count.className = "suggestion-ranking__count";
+    count.textContent = suggestionCountLabel(item.count);
+    const meta = document.createElement("p");
+    meta.className = "suggestion-ranking__meta";
+    const marks = [];
+    if (item.starter) marks.push("starter");
+    if (item.pinned) marks.push("pinned");
+    if (item.hidden) marks.push("hidden");
+    if (item.hidden_by) marks.push(`hidden by ${item.hidden_by}`);
+    if (item.hide_reason) marks.push(item.hide_reason);
+    meta.textContent = marks.join(" · ");
+    const reason = document.createElement("input");
+    reason.className = "suggestion-ranking__reason";
+    reason.type = "text";
+    reason.maxLength = 500;
+    reason.setAttribute("aria-label", `Reason for ${item.text || "this suggestion"}`);
+    const hide = document.createElement("button");
+    hide.type = "button";
+    hide.className = "button button--secondary";
+    hide.dataset.action = "hide";
+    hide.textContent = "Hide";
+    hide.disabled = item.hidden === true;
+    const restore = document.createElement("button");
+    restore.type = "button";
+    restore.className = "button button--secondary";
+    restore.dataset.action = "restore";
+    restore.textContent = "Restore";
+    restore.disabled = item.hidden !== true;
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "button button--secondary";
+    reset.dataset.action = "reset";
+    reset.textContent = "Reset counts";
+    row.append(text, count, meta, reason, hide, restore, reset);
+    elements.suggestionRankingList.appendChild(row);
+  });
+  if (!elements.suggestionRankingAudit) return;
+  const audit = Array.isArray(data.audit) ? data.audit : [];
+  elements.suggestionRankingAudit.replaceChildren();
+  audit.forEach((entry) => {
+    const item = document.createElement("li");
+    item.textContent = `${entry.created_at || ""} · ${entry.reviewer || ""} · ${entry.action || ""} · ${entry.suggestion_id || ""} · ${entry.reason || ""}`;
+    elements.suggestionRankingAudit.appendChild(item);
+  });
+}
+
+async function loadSuggestionRanking() {
+  if (!elements.suggestionRanking || !state.reviewer) return;
+  if (elements.suggestionRankingStatus) {
+    elements.suggestionRankingStatus.textContent = "Loading suggestion ranking…";
+  }
+  try {
+    const data = await api("/api/evaluation/suggestion-ranking");
+    renderSuggestionRanking(data);
+  } catch (error) {
+    if (elements.suggestionRankingStatus) {
+      elements.suggestionRankingStatus.textContent = error.message || "Unable to load suggestion ranking.";
+    }
+  }
+}
+
+async function moderateSuggestion(suggestionId, action, reason) {
+  if (!suggestionId || !state.reviewer) return;
+  try {
+    await api(`/api/evaluation/suggestion-ranking/${encodeURIComponent(suggestionId)}/${action}`, {
+      method: "POST",
+      body: JSON.stringify({ reason })
+    });
+    showToast("Suggestion ranking updated.");
+    await loadSuggestionRanking();
+  } catch (error) {
+    showToast(error.message || "Unable to update this suggestion.", true);
+  }
+}
+
+function onSuggestionRankingClick(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== "function") return;
+  const button = target.closest("[data-action]");
+  if (!button || !elements.suggestionRankingList || !elements.suggestionRankingList.contains(button)) return;
+  const row = button.closest("[data-suggestion-id]");
+  if (!row) return;
+  const reasonInput = row.querySelector("input");
+  moderateSuggestion(
+    row.getAttribute("data-suggestion-id"),
+    button.getAttribute("data-action"),
+    reasonInput ? reasonInput.value : ""
+  );
 }
 
 function selectPopularWindow(days) {
@@ -707,6 +828,10 @@ async function signOut() {
     if (elements.popularQuestions) elements.popularQuestions.classList.add("hidden");
     if (elements.popularQuestionsList) elements.popularQuestionsList.replaceChildren();
     if (elements.popularQuestionsStatus) elements.popularQuestionsStatus.textContent = "";
+    if (elements.suggestionRanking) elements.suggestionRanking.classList.add("hidden");
+    if (elements.suggestionRankingList) elements.suggestionRankingList.replaceChildren();
+    if (elements.suggestionRankingAudit) elements.suggestionRankingAudit.replaceChildren();
+    if (elements.suggestionRankingStatus) elements.suggestionRankingStatus.textContent = "";
     popularWindowButtons().forEach((button) => {
       button.setAttribute("aria-pressed", String(button.dataset.days === "30"));
     });
@@ -755,6 +880,9 @@ if (elements.refreshReportsButton) {
 popularWindowButtons().forEach((button) => {
   button.addEventListener("click", () => selectPopularWindow(Number(button.dataset.days)));
 });
+if (elements.suggestionRankingList) {
+  elements.suggestionRankingList.addEventListener("click", onSuggestionRankingClick);
+}
 
 initializeSession();
 

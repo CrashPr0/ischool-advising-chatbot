@@ -6,6 +6,7 @@
   var TRUE_PROGRAMS = { isda: true, mlis: true, both: true };
   var DEFAULT_LIMIT = 6;
   var MAX_LIMIT = 8;
+  var POPULARITY_CAP = 60;
 
   function normalizeSuggestionText(value) {
     if (typeof value !== "string") return "";
@@ -89,6 +90,13 @@
     return -12;
   }
 
+  function popularityBoost(item, popularity) {
+    if (!popularity || !item || typeof item.id !== "string") return 0;
+    var count = Number(popularity[item.id]);
+    if (!isFinite(count) || count <= 0) return 0;
+    return Math.min(POPULARITY_CAP, Math.floor(count));
+  }
+
   function rankQuestionSuggestions(query, questions, options) {
     var settings = options || {};
     var selected = TRUE_PROGRAMS[settings.program] ? settings.program : "both";
@@ -105,6 +113,7 @@
       if (score <= 0) return;
       var programs = Array.isArray(item.programs) ? item.programs.map(String) : ["both"];
       score += programAdjustment(programs, selected);
+      score += popularityBoost(item, settings.popularity);
       if (score <= 0) return;
       seen[key] = true;
       ranked.push({ score: score, text: item.text, item: item });

@@ -1,264 +1,426 @@
 {
+  "fallback_starter_ids": [
+    "who-is-my-assigned-isda-advisor",
+    "what-are-the-isda-core-courses",
+    "what-are-the-mlis-core-courses",
+    "add-or-drop-a-course"
+  ],
   "questions": [
     {
+      "id": "who-is-my-assigned-isda-advisor",
       "text": "Who is my assigned ISDA advisor?",
       "topic": "General Advising",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "schedule-an-advising-appointment",
       "text": "How do I schedule an advising appointment?",
       "topic": "General Advising",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "where-is-the-ischool-advising-office",
       "text": "Where is the iSchool advising office?",
       "topic": "General Advising",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "apply-to-graduate-from-isda",
       "text": "How do I apply to graduate from ISDA?",
       "topic": "Graduation",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "a-graduation-petition",
       "text": "What is a graduation petition?",
       "topic": "Graduation",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "what-are-the-graduation-deadlines",
       "text": "What are the graduation deadlines?",
       "topic": "Graduation",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "plan-my-courses-for-next-semester",
       "text": "How do I plan my courses for next semester?",
       "topic": "Course Planning",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "what-classes-should-i-take-first",
       "text": "What classes should I take first?",
       "topic": "Course Planning",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "can-i-take-two-core-courses-at-the-same-time",
       "text": "Can I take two core courses at the same time?",
       "topic": "Course Planning",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "total-units-are-required-for-isda",
       "text": "How many total units are required for ISDA?",
       "topic": "Degree Requirements",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "what-are-the-isda-core-courses",
       "text": "What are the ISDA core courses?",
       "topic": "Degree Requirements",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "elective-units-do-i-need",
       "text": "How many elective units do I need?",
       "topic": "Degree Requirements",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "add-or-drop-a-course",
       "text": "How do I add or drop a course?",
       "topic": "Registration",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "how-do-waitlists-work-at-sjsu",
       "text": "How do waitlists work at SJSU?",
       "topic": "Registration",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "clear-a-registration-hold",
       "text": "How do I clear a registration hold?",
       "topic": "Registration",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "can-i-transfer-community-college-credits",
       "text": "Can I transfer community college credits?",
       "topic": "Transfer Credits",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "get-transfer-credits-evaluated",
       "text": "How do I get transfer credits evaluated?",
       "topic": "Transfer Credits",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "do-ap-credits-count-toward-isda-requirements",
       "text": "Do AP credits count toward ISDA requirements?",
       "topic": "Transfer Credits",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "what-gpa-do-i-need-to-stay-in-good-standing",
       "text": "What GPA do I need to stay in good standing?",
       "topic": "Academic Standing",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "what-happens-if-i-go-on-academic-probation",
       "text": "What happens if I go on academic probation?",
       "topic": "Academic Standing",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "file-an-academic-appeal",
       "text": "How do I file an academic appeal?",
       "topic": "Academic Standing",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "are-there-scholarships-for-isda-students",
       "text": "Are there scholarships for ISDA students?",
       "topic": "Financial Aid",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "financial-aid-affect-my-enrollment",
       "text": "How does financial aid affect my enrollment?",
       "topic": "Financial Aid",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "the-fee-payment-deadline",
       "text": "What is the fee payment deadline?",
       "topic": "Financial Aid",
-      "programs": ["both"]
+      "programs": [
+        "both"
+      ]
     },
     {
+      "id": "what-are-the-mlis-core-courses",
       "text": "What are the MLIS core courses?",
       "topic": "MLIS core courses",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "apply-to-the-mlis-program",
       "text": "How do I apply to the MLIS program?",
       "topic": "Apply to the MLIS program",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "the-mlis-e-portfolio",
       "text": "What is the MLIS e-portfolio?",
       "topic": "MLIS e-portfolio / culminating experience",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "schedule-an-mlis-advising-appointment",
       "text": "How do I schedule an MLIS advising appointment?",
       "topic": "MLIS advising",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "info-200-information-communities",
       "text": "What is INFO 200: Information Communities?",
       "topic": "Courses",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "info-202-information-retrieval-system-design",
       "text": "What is INFO 202: Information Retrieval System Design?",
       "topic": "Courses",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "info-203-online-learning",
       "text": "What is INFO 203: Online Learning?",
       "topic": "Courses",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "info-204-information-professions",
       "text": "What is INFO 204: Information Professions?",
       "topic": "Courses",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "info-285-applied-research-methods",
       "text": "What is INFO 285: Applied Research Methods?",
       "topic": "Courses",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "info-289-e-portfolio",
       "text": "What is INFO 289: e-Portfolio?",
       "topic": "Courses",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "info-299-thesis",
       "text": "What is INFO 299: Thesis?",
       "topic": "Courses",
-      "programs": ["mlis"]
+      "programs": [
+        "mlis"
+      ]
     },
     {
+      "id": "isda-80-introduction-to-human-centered-artificia",
       "text": "What is ISDA 80: Introduction to Human-Centered Artificial Intelligence?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-100-technical-writing-for-information",
       "text": "What is ISDA 100: Technical Writing for Information?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-101-online-learning-tools-and-strategies-fo",
       "text": "What is ISDA 101: Online Learning: Tools and Strategies for Success?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-110-technology-culture-and-society",
       "text": "What is ISDA 110: Technology, Culture, and Society?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-111-information-and-data-science",
       "text": "What is ISDA 111: Information and Data Science?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-120-information-security",
       "text": "What is ISDA 120: Information Security?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-121-human-centered-cybersecurity",
       "text": "What is ISDA 121: Human Centered Cybersecurity?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-122-privacy-security-ethics",
       "text": "What is ISDA 122: Privacy, Security, Ethics?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-123-information-assurance",
       "text": "What is ISDA 123: Information Assurance?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-130-user-centered-interface-architecture",
       "text": "What is ISDA 130: User Centered Interface Architecture?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-131-information-architecture",
       "text": "What is ISDA 131: Information Architecture?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-140-big-data-analytics-and-management",
       "text": "What is ISDA 140: Big Data Analytics and Management?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-141-information-visualization",
       "text": "What is ISDA 141: Information Visualization?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-150-topics-in-information-science-and-data",
       "text": "What is ISDA 150: Topics in Information Science and Data Analytics?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-160-user-experience-ux-research-and-design",
       "text": "What is ISDA 160: User Experience (UX) Research and Design?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-170-the-emerging-future-technology-issues-a",
       "text": "What is ISDA 170: The Emerging Future: Technology Issues and Trends?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     },
     {
+      "id": "isda-180-responsible-human-ai-interaction",
       "text": "What is ISDA 180: Responsible Human-AI Interaction?",
       "topic": "Courses",
-      "programs": ["isda"]
+      "programs": [
+        "isda"
+      ]
     }
   ]
 }

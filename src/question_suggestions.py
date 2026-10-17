@@ -26,6 +26,8 @@ _MAX_TEXT_LENGTH = 180
 _MAX_TOPIC_LENGTH = 60
 _DEFAULT_LIMIT = 6
 _MAX_LIMIT = 8
+_POPULARITY_CAP = 60
+_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 DEFAULT_SUGGESTIONS_PATH = (
     Path(__file__).resolve().parent.parent / "data" / "question_suggestions.json"
@@ -143,6 +145,28 @@ def _clean_programs(value: object) -> list[str] | None:
     return programs
 
 
+def _clean_id(value: object) -> str | None:
+    """Return an id, ``''`` when omitted, or None when the value is unusable."""
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        return None
+    name = value.strip().lower()
+    if not name:
+        return ""
+    if not 2 <= len(name) <= 64 or _ID.fullmatch(name) is None:
+        return None
+    return name
+
+
+def _clean_flag(value: object) -> bool | None:
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        return None
+    return value
+
+
 def _clean_item(item: object) -> dict | None:
     if not isinstance(item, dict):
         return None
@@ -163,11 +187,36 @@ def _clean_item(item: object) -> dict | None:
     programs = _clean_programs(item.get("programs"))
     if programs is None:
         return None
-    return {"text": text, "topic": topic, "programs": programs}
+    suggestion_id = _clean_id(item.get("id"))
+    pinned = _clean_flag(item.get("pinned"))
+    if suggestion_id is None or pinned is None:
+        return None
+    cleaned = {"text": text, "topic": topic, "programs": programs, "pinned": pinned}
+    if suggestion_id:
+        cleaned["id"] = suggestion_id
+    return cleaned
 
 
-def load_question_suggestions(path: Path | None = None) -> list[dict]:
-    """Return cleaned curated questions. Raises if the file is not readable."""
+def _clean_id_list(value: object, known: set[str]) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        return []
+    ordered: list[str] = []
+    for item in value:
+        name = _clean_id(item)
+        if not name or name not in known or name in ordered:
+            continue
+        ordered.append(name)
+    return ordered
+
+
+def load_suggestion_catalog(path: Path | None = None) -> dict:
+    """Return curated questions and the staff fallback starter ids.
+
+    Raises if the file is not readable. Items with a bad id, program, or
+    pinned flag are skipped. Duplicate text or ids are skipped.
+    """
     source = Path(path) if path is not None else DEFAULT_SUGGESTIONS_PATH
     raw = json.loads(source.read_text(encoding="utf-8"))
     items = raw.get("questions") if isinstance(raw, dict) else None
@@ -175,17 +224,46 @@ def load_question_suggestions(path: Path | None = None) -> list[dict]:
         raise ValueError("question suggestions file must contain a questions list")
 
     loaded: list[dict] = []
-    seen: set[str] = set()
+    seen_text: set[str] = set()
+    seen_ids: set[str] = set()
     for item in items:
         cleaned = _clean_item(item)
         if cleaned is None:
             continue
         key = normalize_suggestion_text(cleaned["text"])
-        if not key or key in seen:
+        suggestion_id = cleaned.get("id", "")
+        if not key or key in seen_text or suggestion_id in seen_ids:
             continue
-        seen.add(key)
+        seen_text.add(key)
+        if suggestion_id:
+            seen_ids.add(suggestion_id)
         loaded.append(cleaned)
-    return loaded
+    fallback = []
+    if isinstance(raw, dict):
+        fallback = _clean_id_list(raw.get("fallback_starter_ids"), seen_ids)
+    return {"questions": loaded, "fallback_starter_ids": fallback}
+
+
+def load_question_suggestions(path: Path | None = None) -> list[dict]:
+    """Return cleaned curated questions. Raises if the file is not readable."""
+    return load_suggestion_catalog(path)["questions"]
+
+
+def _popularity_boost(item: dict, popularity: dict | None) -> int:
+    """Small reorder bonus. A zero match score never reaches this helper."""
+    if not popularity or not isinstance(item, dict):
+        return 0
+    suggestion_id = item.get("id")
+    if not isinstance(suggestion_id, str):
+        return 0
+    raw = popularity.get(suggestion_id, 0)
+    try:
+        count = int(raw)
+    except (TypeError, ValueError):
+        return 0
+    if count <= 0:
+        return 0
+    return min(_POPULARITY_CAP, count)
 
 
 def rank_question_suggestions(
@@ -194,6 +272,7 @@ def rank_question_suggestions(
     *,
     program: str = "both",
     limit: int = _DEFAULT_LIMIT,
+    popularity: dict | None = None,
 ) -> list[dict]:
     """Return the best curated matches for a typed prefix. Pure, no I/O."""
     selected = program if program in _PROGRAMS else "both"
@@ -221,6 +300,7 @@ def rank_question_suggestions(
             item.get("programs") if isinstance(item.get("programs"), list) else ["both"]
         )
         score += _program_adjustment([str(name) for name in programs], selected)
+        score += _popularity_boost(item, popularity)
         if score <= 0:
             continue
         seen.add(key)
