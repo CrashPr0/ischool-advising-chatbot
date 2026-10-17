@@ -536,6 +536,48 @@ button { cursor: pointer; }
   font-size: 0.82rem;
 }
 
+.popular-questions {
+  margin: 28px 0 12px;
+  padding: 22px;
+  background: var(--white, #fff);
+  border: 1px solid #dce4ed;
+  border-radius: 16px;
+}
+
+.popular-questions__heading h2 { margin: 0; }
+
+.popular-questions__note {
+  margin: 8px 0 16px;
+  max-width: 70ch;
+  color: var(--slate-700, #3d5168);
+  font-size: 0.92rem;
+}
+
+.popular-questions-windows { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.popular-questions-windows [aria-pressed="true"] { background: var(--navy-900); color: white; }
+
+.popular-questions-status {
+  margin: 0 0 12px;
+  color: var(--slate-700, #3d5168);
+  font-size: 0.88rem;
+}
+
+.popular-questions-status:empty { display: none; }
+
+.popular-questions-list { list-style: none; margin: 0; padding: 0; }
+
+.popular-questions-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid #e6edf4;
+}
+
+.popular-questions__text { overflow-wrap: anywhere; }
+.popular-questions__count { font-weight: 700; white-space: nowrap; }
+
 .issue-report h3 {
   margin: 0 0 6px;
   font-size: 1rem;

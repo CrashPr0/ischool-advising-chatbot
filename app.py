@@ -1045,6 +1045,43 @@ def _record_anonymized_student_question(question: str) -> None:
         logger.exception("Could not store an anonymized student question")
 
 
+_POPULAR_QUESTION_WINDOWS = {7, 30, 90}
+
+
+def _popular_questions_public_enabled() -> bool:
+    """True only when staff explicitly publish the aggregated list."""
+    return os.getenv("POPULAR_QUESTIONS_PUBLIC", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _popular_questions_days() -> int | None:
+    """Return 7, 30, or 90. Missing or blank means 30. Anything else is invalid."""
+    raw = request.args.get("days")
+    if raw is None:
+        return 30
+    text = str(raw).strip()
+    if not text:
+        return 30
+    if not text.isdigit() or int(text) not in _POPULAR_QUESTION_WINDOWS:
+        return None
+    return int(text)
+
+
+def _popular_questions_payload(days: int) -> dict:
+    from anonymized_questions import popular_questions
+    from durable_storage import prepare_eval_db_path
+
+    database_path = prepare_eval_db_path(os.getenv("EVAL_DB_PATH"), app_dir=_BASE_DIR)
+    return {
+        "days": days,
+        "questions": popular_questions(database_path, days=days),
+    }
+
+
 def _advising_index_refusal():
     """Return a 503 response when chat must not call the model yet."""
     report = _index_readiness_report()
@@ -1640,6 +1677,42 @@ def list_issue_reports():
         logger.exception("Unable to list answer issue reports")
         return jsonify({"error": "Unable to list issue reports"}), 500
     return jsonify({"reports": reports, "summary": summary})
+
+
+@app.route("/api/evaluation/popular-questions", methods=["GET"])
+def evaluation_popular_questions():
+    """Most-asked anonymized questions for a signed-in reviewer."""
+    auth_error = _evaluation_auth_error()
+    if auth_error:
+        return auth_error
+    days = _popular_questions_days()
+    if days is None:
+        return jsonify({"error": "days must be 7, 30, or 90"}), 400
+    try:
+        return jsonify(_popular_questions_payload(days))
+    except Exception:
+        logger.exception("Unable to list popular questions")
+        return jsonify({"error": "Unable to list popular questions"}), 500
+
+
+@app.route("/api/popular-questions", methods=["GET"])
+def public_popular_questions():
+    """Same aggregate as the reviewer list. Off unless the publish flag is set.
+
+    Staff should leave ``POPULAR_QUESTIONS_PUBLIC`` unset until they have
+    decided these questions are appropriate to show. There is no separate
+    curated subset: turning the flag on publishes these counts.
+    """
+    if not _popular_questions_public_enabled():
+        return jsonify({"error": "Not found"}), 404
+    days = _popular_questions_days()
+    if days is None:
+        return jsonify({"error": "days must be 7, 30, or 90"}), 400
+    try:
+        return jsonify(_popular_questions_payload(days))
+    except Exception:
+        logger.exception("Unable to list popular questions")
+        return jsonify({"error": "Unable to list popular questions"}), 500
 
 
 @app.route("/api/load-docs", methods=["POST"])
