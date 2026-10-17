@@ -525,12 +525,24 @@ student turns on "Include this conversation so the team can review it".
 Signed-in reviewers see the list on `/evaluation` and at
 `GET /api/evaluation/issue-reports`. The reviewer page shows counts by reason,
 highlights the most reported issue type, and offers reason filters for the loaded reports.
-Reports, including opted-in transcripts,
-are automatically deleted after 90 days. Set `ISSUE_REPORT_RETENTION_DAYS`
-to a positive integer to override this window; invalid values fall back to 90.
-Cleanup runs when the report store initializes, then on writes or lists at most
-once per hour per worker, without a separate scheduler. Only deletion counts
-are logged, never report contents.
+Reports, including any shared conversation, are kept long-term by the
+iSchool to improve the assistant. iSchool leadership wants long-term retention
+for ALA accreditation. Set `ISSUE_REPORT_RETENTION_DAYS` to a positive integer
+to delete reports older than that many days. Unset, empty, zero, and invalid
+values delete nothing; invalid values log a warning. Cleanup runs when the
+report store initializes, then on writes or lists at most once per hour per
+worker, without a separate scheduler, and only when that positive window is
+set. Only deletion counts are logged, never report contents.
+
+Free-text fields are scrubbed before they are written. `scrub_pii` replaces
+SJSU 9-digit student IDs (including `012-345-678`), email addresses, US phone
+numbers, and US street addresses with `[REDACTED_STUDENT_ID]`,
+`[REDACTED_EMAIL]`, `[REDACTED_PHONE]`, and `[REDACTED_ADDRESS]`. That scrub
+covers issue-report comments, questions, answers, and opted-in transcripts,
+reviewer comments, and the question stored in the stripped-link log. Course
+codes such as INFO 202 and ISDA 150, years, dates, and shorter numbers are
+left unchanged. `src/durable_storage.py` copies the reviews database file and
+does not write those free-text fields.
 
 Free-text fields are scrubbed before they are written. `scrub_pii` replaces
 SJSU 9-digit student IDs (including `012-345-678`), email addresses, US phone

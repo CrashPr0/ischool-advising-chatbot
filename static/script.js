@@ -457,7 +457,7 @@ function hideSampleChips() {
 }
 
 // ── ADVISOR HANDOFF (email draft and optional knowledge-gap report) ──
-const REPORT_RETENTION_NOTICE = "Reports, including any conversation you share, are automatically deleted after 90 days.";
+const REPORT_RETENTION_NOTICE = "Reports, including any shared conversation, are kept long-term by the iSchool to improve the assistant.";
 
 // Recipient configuration: confirm changes with iSchool before updating.
 const ADVISOR_HANDOFF_CONTACTS = {
