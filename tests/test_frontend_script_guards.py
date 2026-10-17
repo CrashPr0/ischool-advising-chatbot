@@ -137,8 +137,8 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert 'id="confidence-badge"' not in docs
     assert "filename='style.css', v='20261014-advisor-handoff'" in template
     assert "style.css?v=20261014-advisor-handoff" in docs
-    assert "filename='script.js', v='20261014-advisor-handoff'" in template
-    assert "script.js?v=20261014-advisor-handoff" in docs
+    assert "filename='script.js', v='20261017-long-term-reports'" in template
+    assert "script.js?v=20261017-long-term-reports" in docs
     assert "20261001-reveal-tabs" not in template
     assert "20260927-tabs" not in docs
     assert "20261002-letter-reveal" not in template
@@ -150,7 +150,7 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
         in script
     )
     assert (
-        "Reports, including any conversation you share, are automatically deleted after 90 days."
+        "Reports, including any shared conversation, are kept long-term by the iSchool to improve the assistant."
         in script
     )
     assert "include_conversation" in script

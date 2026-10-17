@@ -50,7 +50,10 @@ TURNS_MAX = 40
 LABEL_MAX = 120
 CITATION_MAX = 40
 LIST_DEFAULT = 200
-RETENTION_DEFAULT_DAYS = 90
+# None keeps every report. Deletion runs only when ISSUE_REPORT_RETENTION_DAYS
+# is a positive integer. iSchool leadership wants long-term retention for ALA
+# accreditation.
+RETENTION_DEFAULT_DAYS = None
 PURGE_INTERVAL_SECONDS = 3_600
 
 _LABEL_RE = re.compile(r"^[A-Za-z0-9_.:/+-]{1,120}$")
@@ -289,24 +292,44 @@ def build_issue_report(
     return record
 
 
+def _configured_retention_days() -> int | None:
+    """Return the positive retention window, or None when reports are kept.
+
+    Unset, empty, and 0 leave every row in place. Any other value that is
+    not a positive integer is invalid: it logs a warning and deletes nothing.
+    """
+    raw = os.getenv("ISSUE_REPORT_RETENTION_DAYS")
+    if raw is None:
+        return RETENTION_DEFAULT_DAYS
+    text = raw.strip()
+    if text == "" or text == "0":
+        return None
+    try:
+        days = int(text)
+    except (TypeError, ValueError):
+        days = None
+    if days is None or days < 0:
+        logger.warning(
+            "Invalid ISSUE_REPORT_RETENTION_DAYS value %r; keeping reports indefinitely",
+            raw,
+        )
+        return None
+    if days == 0:
+        return None
+    return days
+
+
 class IssueReportStore:
-    """Reports in the reviews SQLite database, with automatic expiration."""
+    """Reports in the reviews SQLite database.
+
+    Rows are kept indefinitely unless ``ISSUE_REPORT_RETENTION_DAYS`` is a
+    positive integer.
+    """
 
     def __init__(self, database_path: str | Path):
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            self.retention_days = int(
-                os.getenv("ISSUE_REPORT_RETENTION_DAYS", str(RETENTION_DEFAULT_DAYS))
-            )
-            if self.retention_days <= 0:
-                raise ValueError("retention must be positive")
-        except (TypeError, ValueError):
-            logger.warning(
-                "Invalid ISSUE_REPORT_RETENTION_DAYS value; using %s",
-                RETENTION_DEFAULT_DAYS,
-            )
-            self.retention_days = RETENTION_DEFAULT_DAYS
+        self.retention_days = _configured_retention_days()
         self._purge_lock = threading.Lock()
         self._last_purge: float | None = None
         self._initialize()
@@ -340,7 +363,13 @@ class IssueReportStore:
             connection.execute(_CREATE_INDEX_SQL)
 
     def _purge_expired(self) -> None:
-        """Delete expired rows atomically; each worker throttles its own checks."""
+        """Delete expired rows when a positive retention window is configured.
+
+        Unset, empty, zero, and invalid windows skip deletion entirely.
+        Each worker throttles its own checks.
+        """
+        if self.retention_days is None:
+            return
         with self._purge_lock:
             now = time.monotonic()
             if (

@@ -63,8 +63,9 @@ def _dated_report(store, created_at, *, include_conversation=False):
 
 
 def test_retention_purges_on_startup_and_keeps_recent_and_boundary_rows(
-    tmp_path, retention_clock, caplog
+    tmp_path, retention_clock, caplog, monkeypatch
 ):
+    monkeypatch.setenv("ISSUE_REPORT_RETENTION_DAYS", "90")
     database = tmp_path / "reviews.sqlite3"
     store = IssueReportStore(database)
     now = retention_clock["now"]
@@ -88,8 +89,9 @@ def test_retention_purges_on_startup_and_keeps_recent_and_boundary_rows(
 
 @pytest.mark.parametrize("operation", ["list", "write", "counts"])
 def test_retention_throttles_then_purges_on_list_or_write(
-    tmp_path, retention_clock, operation, caplog
+    tmp_path, retention_clock, operation, caplog, monkeypatch
 ):
+    monkeypatch.setenv("ISSUE_REPORT_RETENTION_DAYS", "90")
     store = IssueReportStore(tmp_path / "reviews.sqlite3")
     old = _dated_report(store, retention_clock["now"] - timedelta(days=91))
     recent = _dated_report(store, retention_clock["now"] - timedelta(days=1))
@@ -136,9 +138,48 @@ def test_retention_env_override(tmp_path, monkeypatch, retention_clock):
     assert restarted.get(recent) is not None
 
 
-@pytest.mark.parametrize("value", ["", "abc", "1.5", "0", "-1"])
-def test_retention_invalid_env_falls_back_to_90_days(
-    tmp_path, monkeypatch, retention_clock, value
+@pytest.mark.parametrize("value", [None, "", "0", "00"])
+def test_retention_unset_empty_or_zero_deletes_nothing(
+    tmp_path, monkeypatch, retention_clock, caplog, value
+):
+    database = tmp_path / "reviews.sqlite3"
+    store = IssueReportStore(database)
+    old = _dated_report(store, retention_clock["now"] - timedelta(days=91))
+    recent = _dated_report(store, retention_clock["now"] - timedelta(days=1))
+    if value is None:
+        monkeypatch.delenv("ISSUE_REPORT_RETENTION_DAYS", raising=False)
+    else:
+        monkeypatch.setenv("ISSUE_REPORT_RETENTION_DAYS", value)
+
+    with caplog.at_level(logging.WARNING, logger=issue_reports.__name__):
+        restarted = IssueReportStore(database)
+
+    assert restarted.retention_days is None
+    assert restarted.get(old) is not None
+    assert restarted.get(recent) is not None
+    assert "Invalid ISSUE_REPORT_RETENTION_DAYS" not in caplog.text
+    assert "expired issue reports" not in caplog.text
+
+
+def test_retention_positive_integer_deletes_older_reports(
+    tmp_path, monkeypatch, retention_clock
+):
+    database = tmp_path / "reviews.sqlite3"
+    store = IssueReportStore(database)
+    old = _dated_report(store, retention_clock["now"] - timedelta(days=8))
+    recent = _dated_report(store, retention_clock["now"] - timedelta(days=6))
+    monkeypatch.setenv("ISSUE_REPORT_RETENTION_DAYS", "7")
+
+    restarted = IssueReportStore(database)
+
+    assert restarted.retention_days == 7
+    assert restarted.get(old) is None
+    assert restarted.get(recent) is not None
+
+
+@pytest.mark.parametrize("value", ["abc", "1.5", "-1", "no"])
+def test_retention_invalid_env_deletes_nothing(
+    tmp_path, monkeypatch, retention_clock, caplog, value
 ):
     database = tmp_path / "reviews.sqlite3"
     store = IssueReportStore(database)
@@ -146,11 +187,14 @@ def test_retention_invalid_env_falls_back_to_90_days(
     recent = _dated_report(store, retention_clock["now"] - timedelta(days=89))
     monkeypatch.setenv("ISSUE_REPORT_RETENTION_DAYS", value)
 
-    restarted = IssueReportStore(database)
+    with caplog.at_level(logging.WARNING, logger=issue_reports.__name__):
+        restarted = IssueReportStore(database)
 
-    assert restarted.retention_days == 90
-    assert restarted.get(old) is None
+    assert restarted.retention_days is None
+    assert restarted.get(old) is not None
     assert restarted.get(recent) is not None
+    assert "Invalid ISSUE_REPORT_RETENTION_DAYS" in caplog.text
+    assert "keeping reports indefinitely" in caplog.text
 
 
 def test_opt_out_drops_transcript_fields_before_they_are_stored(tmp_path):
@@ -517,7 +561,8 @@ def test_reason_summary_includes_zeros_and_stable_ties(tmp_path):
         store.list_reports(reason="unknown")
 
 
-def test_summary_excludes_expired_reports(tmp_path, retention_clock):
+def test_summary_excludes_expired_reports(tmp_path, retention_clock, monkeypatch):
+    monkeypatch.setenv("ISSUE_REPORT_RETENTION_DAYS", "90")
     store = IssueReportStore(tmp_path / "reviews.sqlite3")
     _dated_report(store, retention_clock["now"] - timedelta(days=91))
     _dated_report(store, retention_clock["now"] - timedelta(days=90))
