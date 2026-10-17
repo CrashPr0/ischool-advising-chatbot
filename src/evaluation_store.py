@@ -22,6 +22,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+try:
+    from .pii_scrubber import scrub_pii
+except ImportError:  # pragma: no cover - app.py loads src as a top-level path
+    from pii_scrubber import scrub_pii
+
 logger = logging.getLogger(__name__)
 
 DIMENSION_MIN = 1
@@ -281,22 +286,40 @@ class EvaluationStore:
                 "SELECT COUNT(*) AS count FROM evaluation_reviews"
             ).fetchone()["count"]
         )
+        legacy_rows = connection.execute(
+            """
+            SELECT run_id, question_id, candidate, model_side, reviewer,
+                   rating, comment, created_at, updated_at
+            FROM evaluation_reviews
+            """
+        ).fetchall()
         connection.execute(
             "ALTER TABLE evaluation_reviews RENAME TO evaluation_reviews_legacy"
         )
         connection.execute(_CREATE_REVIEWS_SQL)
-        connection.execute("""
+        connection.executemany(
+            """
             INSERT INTO evaluation_reviews (
                 run_id, question_id, candidate, model_side, reviewer,
                 rating, accuracy, tone, succinctness, edge_cases,
                 comment, created_at, updated_at
-            )
-            SELECT
-                run_id, question_id, candidate, model_side, reviewer,
-                rating, NULL, NULL, NULL, NULL,
-                comment, created_at, updated_at
-            FROM evaluation_reviews_legacy
-            """)
+            ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?)
+            """,
+            [
+                (
+                    row["run_id"],
+                    row["question_id"],
+                    row["candidate"],
+                    row["model_side"],
+                    row["reviewer"],
+                    row["rating"],
+                    scrub_pii(row["comment"]),
+                    row["created_at"],
+                    row["updated_at"],
+                )
+                for row in legacy_rows
+            ],
+        )
         copied_count = int(
             connection.execute(
                 "SELECT COUNT(*) AS count FROM evaluation_reviews"
@@ -481,6 +504,7 @@ class EvaluationStore:
             edge_cases=edge_cases,
             comment=comment,
         )
+        normalized_comment = scrub_pii(normalized_comment)
         normalized_candidate = str(candidate).strip().upper()
         if normalized_candidate not in {"A", "B"}:
             raise EvaluationValidationError("Candidate must be A or B")

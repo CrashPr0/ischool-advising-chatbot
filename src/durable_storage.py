@@ -9,6 +9,9 @@ The reviews migration copies a legacy database onto the durable path when the
 new file is absent. It never moves or deletes the original. Operators should
 still take the manual backup in ``AZURE_DEPLOYMENT.md`` before deploying this
 behavior: a restart can remove the ``/tmp`` copy before this process starts.
+
+This module copies database files. It does not compose student free-text
+fields. Those fields are scrubbed by the stores that insert them.
 """
 
 from __future__ import annotations

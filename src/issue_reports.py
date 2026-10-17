@@ -7,8 +7,9 @@ next to reviewer scores. On Azure that file is
 
 A report always stores the reason, optional comment, and the flagged
 question and answer. The conversation id, model, prior turns, and links
-are stored only when the student opts in. Nothing in this module sends
-email or calls another service.
+are stored only when the student opts in. Comments, questions, answers,
+and opted-in transcripts are scrubbed before they are written. Nothing in
+this module sends email or calls another service.
 """
 
 from __future__ import annotations
@@ -23,6 +24,11 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
+
+try:
+    from .pii_scrubber import scrub_pii, scrub_pii_value
+except ImportError:  # pragma: no cover - app.py loads src as a top-level path
+    from pii_scrubber import scrub_pii, scrub_pii_value
 
 logger = logging.getLogger(__name__)
 
@@ -254,6 +260,9 @@ def build_issue_report(
         "citations": None,
     }
     if not include:
+        record["comment"] = scrub_pii(comment)
+        record["question"] = scrub_pii(question)
+        record["answer"] = scrub_pii(answer)
         return record
 
     conversation_id = payload.get("conversation_id")
@@ -286,10 +295,32 @@ def build_issue_report(
     record["provider"] = provider or None
     record["model"] = model or None
 
-    citation_texts = [answer]
-    citation_texts.extend(turn["text"] for turn in turns if turn["role"] == "assistant")
-    record["citations"] = extract_answer_links(*citation_texts)
+    record["comment"] = scrub_pii(comment)
+    record["question"] = scrub_pii(question)
+    record["answer"] = scrub_pii(answer)
+    record["turns"] = scrub_pii_value(turns)
+    citation_texts = [record["answer"]]
+    citation_texts.extend(
+        turn["text"] for turn in record["turns"] if turn["role"] == "assistant"
+    )
+    record["citations"] = scrub_pii_value(extract_answer_links(*citation_texts))
     return record
+
+
+def _scrub_report_for_storage(record: dict[str, Any]) -> dict[str, Any]:
+    """Scrub free-text fields. Identifiers such as conversation id are kept."""
+    stored = dict(record)
+    for field in ("comment", "question", "answer"):
+        value = stored.get(field)
+        if isinstance(value, str):
+            stored[field] = scrub_pii(value)
+        elif value is None and field == "comment":
+            stored[field] = ""
+    if isinstance(stored.get("turns"), list):
+        stored["turns"] = scrub_pii_value(stored["turns"])
+    if isinstance(stored.get("citations"), list):
+        stored["citations"] = scrub_pii_value(stored["citations"])
+    return stored
 
 
 def _configured_retention_days() -> int | None:
@@ -393,6 +424,7 @@ class IssueReportStore:
     def save(self, record: dict[str, Any]) -> int:
         """Insert one validated record. Returns the new row id."""
         self._purge_expired()
+        record = _scrub_report_for_storage(record)
         include = 1 if record.get("include_conversation") else 0
         turns = record.get("turns")
         citations = record.get("citations")
