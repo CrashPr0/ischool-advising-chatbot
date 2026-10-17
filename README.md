@@ -542,6 +542,13 @@ codes such as INFO 202 and ISDA 150, years, dates, and shorter numbers are
 left unchanged. `src/durable_storage.py` copies the reviews database file and
 does not write those free-text fields.
 
+Each accepted student question is saved anonymized in
+`anonymized_student_questions` in that same reviews database, after the same
+scrub. The row stores the question text and a UTC timestamp only. It does not
+store a user, session, conversation, or network identifier. The table is
+created when the first question is saved, and creating it again is a no-op.
+A failure to write the row is logged and does not change the chat response.
+
 Students can use **Export chat** to keep the current conversation on their
 own device with a one-click PDF download. The locally vendored jsPDF 4.2.1
 build creates the export entirely client-side, sends no network request, and

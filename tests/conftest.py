@@ -6,6 +6,17 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def isolated_evaluation_database(monkeypatch, tmp_path):
+    """Keep chat's anonymized-question rows out of a local reviews database.
+
+    An accepted ``/api/chat`` message writes one scrubbed question into the
+    reviews file. Tests that need a particular file set ``EVAL_DB_PATH``
+    themselves; this default is a throwaway path for everything else.
+    """
+    monkeypatch.setenv("EVAL_DB_PATH", str(tmp_path / "reviews.sqlite3"))
+
+
+@pytest.fixture(autouse=True)
 def isolated_stripped_link_log(monkeypatch, tmp_path):
     """Keep invented-link records out of the repo during tests.
 
