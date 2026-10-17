@@ -943,6 +943,24 @@ def _chat_debug_timings_enabled() -> bool:
     }
 
 
+def _record_anonymized_student_question(question: str) -> None:
+    """Save a scrubbed question for popular-question analysis.
+
+    The row is question text and a UTC timestamp only. A storage failure is
+    logged and does not change the chat response.
+    """
+    try:
+        from anonymized_questions import record_anonymized_question
+        from durable_storage import prepare_eval_db_path
+
+        database_path = prepare_eval_db_path(
+            os.getenv("EVAL_DB_PATH"), app_dir=_BASE_DIR
+        )
+        record_anonymized_question(question, database_path)
+    except Exception:
+        logger.exception("Could not store an anonymized student question")
+
+
 def _advising_index_refusal():
     """Return a 503 response when chat must not call the model yet."""
     report = _index_readiness_report()
@@ -1003,6 +1021,7 @@ def chat():
             conversation_id = _optional_conversation_id(data)
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
+        _record_anonymized_student_question(user_message)
         session_id = _history_key(conversation_id)
 
         # Validate the message before the index check so a bad request stays

@@ -544,6 +544,23 @@ codes such as INFO 202 and ISDA 150, years, dates, and shorter numbers are
 left unchanged. `src/durable_storage.py` copies the reviews database file and
 does not write those free-text fields.
 
+Free-text fields are scrubbed before they are written. `scrub_pii` replaces
+SJSU 9-digit student IDs (including `012-345-678`), email addresses, US phone
+numbers, and US street addresses with `[REDACTED_STUDENT_ID]`,
+`[REDACTED_EMAIL]`, `[REDACTED_PHONE]`, and `[REDACTED_ADDRESS]`. That scrub
+covers issue-report comments, questions, answers, and opted-in transcripts,
+reviewer comments, and the question stored in the stripped-link log. Course
+codes such as INFO 202 and ISDA 150, years, dates, and shorter numbers are
+left unchanged. `src/durable_storage.py` copies the reviews database file and
+does not write those free-text fields.
+
+Each accepted student question is saved anonymized in
+`anonymized_student_questions` in that same reviews database, after the same
+scrub. The row stores the question text and a UTC timestamp only. It does not
+store a user, session, conversation, or network identifier. The table is
+created when the first question is saved, and creating it again is a no-op.
+A failure to write the row is logged and does not change the chat response.
+
 Students can use **Export chat** to keep the current conversation on their
 own device with a one-click PDF download. The locally vendored jsPDF 4.2.1
 build creates the export entirely client-side, sends no network request, and
