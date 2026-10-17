@@ -167,8 +167,8 @@ def test_button_reply_hooks_and_asset_pins():
             r'[^>]*aria-label="Email an advisor[^>]*>Email an advisor</button>', html
         )
         assert 'class="advisor-handoff-note"' in html
-        for asset in ("script.js", "style.css"):
-            assert re.search(rf"{re.escape(asset)}[^\n<>]*20261014-advisor-handoff", html)
+        assert re.search(r"script\.js[^\n<>]*20261017-long-term-reports", html)
+        assert re.search(r"style\.css[^\n<>]*20261014-advisor-handoff", html)
     assert 'if (className === "bot-message") attachAdvisorHandoff(wrapper, text);' in SCRIPT
     assert 'button.addEventListener("click", openAdvisorHandoff)' in HANDOFF
     assert "handoffEligible: prefilledMessage === null" in SCRIPT
@@ -307,7 +307,7 @@ const fetch = async (url, options) => {
   const content = dialog.children[0];
   assert.strictEqual(content.children[0].textContent, 'Do you also want to report this as a knowledge-base gap so the team can improve the answer?');
   assert.strictEqual(content.children[1].textContent, REPORT_RETENTION_NOTICE);
-  assert(REPORT_RETENTION_NOTICE.includes('automatically deleted after 90 days.'));
+  assert(REPORT_RETENTION_NOTICE.includes('kept long-term by the iSchool to improve the assistant.'));
   assert.deepStrictEqual(document.buttons().map(button => button.textContent), ['Yes', 'No']);
   assert.strictEqual(window.location.href, '');
   if (CHOICE === 'Escape') {
@@ -352,7 +352,7 @@ const fetch = async (url, options) => {
 
 
 def test_gap_prompt_reuses_report_privacy_notice():
-    assert SCRIPT.count("automatically deleted after 90 days.") == 1
+    assert SCRIPT.count("kept long-term by the iSchool to improve the assistant.") == 1
     assert "privacy.textContent = REPORT_RETENTION_NOTICE" in HANDOFF
     report_dialog = SCRIPT.split("function ensureReportDialog()", 1)[1]
     assert ' + REPORT_RETENTION_NOTICE' in report_dialog

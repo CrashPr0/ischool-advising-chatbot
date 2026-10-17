@@ -525,12 +525,14 @@ student turns on "Include this conversation so the team can review it".
 Signed-in reviewers see the list on `/evaluation` and at
 `GET /api/evaluation/issue-reports`. The reviewer page shows counts by reason,
 highlights the most reported issue type, and offers reason filters for the loaded reports.
-Reports, including opted-in transcripts,
-are automatically deleted after 90 days. Set `ISSUE_REPORT_RETENTION_DAYS`
-to a positive integer to override this window; invalid values fall back to 90.
-Cleanup runs when the report store initializes, then on writes or lists at most
-once per hour per worker, without a separate scheduler. Only deletion counts
-are logged, never report contents.
+Reports, including any shared conversation, are kept long-term by the
+iSchool to improve the assistant. iSchool leadership wants long-term retention
+for ALA accreditation. Set `ISSUE_REPORT_RETENTION_DAYS` to a positive integer
+to delete reports older than that many days. Unset, empty, zero, and invalid
+values delete nothing; invalid values log a warning. Cleanup runs when the
+report store initializes, then on writes or lists at most once per hour per
+worker, without a separate scheduler, and only when that positive window is
+set. Only deletion counts are logged, never report contents.
 
 Free-text fields are scrubbed before they are written. `scrub_pii` replaces
 SJSU 9-digit student IDs (including `012-345-678`), email addresses, US phone
