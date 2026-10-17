@@ -168,7 +168,7 @@ def test_button_reply_hooks_and_asset_pins():
         )
         assert 'class="advisor-handoff-note"' in html
         assert re.search(r"script\.js[^\n<>]*20261017-long-term-reports", html)
-        assert re.search(r"style\.css[^\n<>]*20261014-advisor-handoff", html)
+        assert re.search(r"style\.css[^\n<>]*20261017-scope-notice", html)
     assert 'if (className === "bot-message") attachAdvisorHandoff(wrapper, text);' in SCRIPT
     assert 'button.addEventListener("click", openAdvisorHandoff)' in HANDOFF
     assert "handoffEligible: prefilledMessage === null" in SCRIPT
