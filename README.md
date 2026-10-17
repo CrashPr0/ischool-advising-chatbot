@@ -170,6 +170,11 @@ python app.py
 
 Open `http://localhost:5000`.
 
+The chat page can be framed by SJSU Canvas (`https://sjsu.instructure.com`)
+and `https://*.instructure.com`. See [docs/canvas-embed.md](docs/canvas-embed.md)
+for the blueprint-course redirect link and iframe snippet. `?embed=1` hides
+the large page header. API routes cannot be framed.
+
 ### Web API endpoints
 
 - `GET /api/status`

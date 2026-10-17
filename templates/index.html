@@ -11,11 +11,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261014-advisor-handoff') }}" />
 </head>
 
-<body>
+<body{% if embed %} class="is-embed"{% endif %}>
   <a class="skip-link" href="#user-input">Skip to chat</a>
 
   <div class="page-shell">
-    <header class="site-header">
+    <header class="site-header"{% if embed %} hidden{% endif %}>
       <div class="header-image"></div>
       <div class="header-overlay"></div>
 
