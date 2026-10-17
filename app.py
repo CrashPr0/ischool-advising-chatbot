@@ -59,7 +59,13 @@ from issue_reports import (
     IssueReportValidationError,
     build_issue_report,
 )
-from question_suggestions import suggestion_payload
+from suggestion_usage import (
+    SuggestionUsageError,
+    SuggestionUsageStore,
+    dynamic_suggestions_enabled,
+    reviewer_ranking,
+    student_suggestion_payload,
+)
 from voice_config import get_voice_config
 from program_scope import normalize_program
 
@@ -624,6 +630,9 @@ _evaluation_store_lock = threading.Lock()
 _issue_report_store = None
 _issue_report_store_key = None
 _issue_report_store_lock = threading.Lock()
+_suggestion_usage_store = None
+_suggestion_usage_store_key = None
+_suggestion_usage_store_lock = threading.Lock()
 
 
 def get_chatbot():
@@ -687,6 +696,24 @@ def get_issue_report_store() -> IssueReportStore:
                 _issue_report_store = IssueReportStore(store_key)
                 _issue_report_store_key = store_key
     return _issue_report_store
+
+
+def get_suggestion_usage_store() -> SuggestionUsageStore:
+    """Open suggestion-pick tables in the same database as reviewer scores."""
+    global _suggestion_usage_store, _suggestion_usage_store_key
+    from durable_storage import prepare_eval_db_path
+
+    database_path = prepare_eval_db_path(os.getenv("EVAL_DB_PATH"), app_dir=_BASE_DIR)
+    store_key = os.path.abspath(database_path)
+    if _suggestion_usage_store is None or _suggestion_usage_store_key != store_key:
+        with _suggestion_usage_store_lock:
+            if (
+                _suggestion_usage_store is None
+                or _suggestion_usage_store_key != store_key
+            ):
+                _suggestion_usage_store = SuggestionUsageStore(store_key)
+                _suggestion_usage_store_key = store_key
+    return _suggestion_usage_store
 
 
 def _evaluation_token() -> str:
@@ -1790,7 +1817,123 @@ def question_suggestions():
     Matching happens in the browser. This handler ignores query parameters
     and does not log them, so a partial question never reaches the server.
     """
-    response = jsonify(suggestion_payload())
+    store = get_suggestion_usage_store() if dynamic_suggestions_enabled() else None
+    response = jsonify(student_suggestion_payload(store))
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/api/question-suggestion-events", methods=["POST"])
+def question_suggestion_event():
+    """Record a starter-chip or dropdown pick.
+
+    The body may contain a curated suggestion id, an event type, and a
+    program. Typed text is ignored and not logged. The flag defaults off,
+    and a disabled flag writes nothing.
+    """
+    if not dynamic_suggestions_enabled():
+        response = jsonify({"ok": True, "recorded": False, "enabled": False})
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    allowed, retry_after = _rate_limiter.allow(
+        f"suggestion-pick:{_client_key()}",
+        _env_int("SUGGESTION_EVENT_RATE_LIMIT", 30, 1, 300),
+        _env_int("SUGGESTION_EVENT_RATE_WINDOW_SECONDS", 60, 1, 3_600),
+    )
+    if not allowed:
+        response = jsonify({"error": "Suggestion updates are temporarily rate limited"})
+        response.headers["Retry-After"] = str(retry_after)
+        response.headers["Cache-Control"] = "no-store"
+        return response, 429
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Request body must be a JSON object"}), 400
+    try:
+        result = get_suggestion_usage_store().record_pick(
+            suggestion_id=data.get("id") if isinstance(data.get("id"), str) else "",
+            event_type=data.get("type") if isinstance(data.get("type"), str) else "",
+            program=data.get("program") if isinstance(data.get("program"), str) else "",
+            session_token=_session_id(),
+        )
+    except SuggestionUsageError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        logger.exception("Unable to record a suggestion pick")
+        return jsonify({"error": "Unable to record a suggestion pick"}), 500
+    response = jsonify(
+        {
+            "ok": True,
+            "recorded": result == "recorded",
+            "duplicate": result == "duplicate",
+        }
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/api/evaluation/suggestion-ranking", methods=["GET"])
+def evaluation_suggestion_ranking():
+    """All-time suggestion pick counts for a signed-in reviewer."""
+    auth_error = _evaluation_auth_error()
+    if auth_error:
+        return auth_error
+    try:
+        return jsonify(reviewer_ranking(get_suggestion_usage_store()))
+    except Exception:
+        logger.exception("Unable to list suggestion ranking")
+        return jsonify({"error": "Unable to list suggestion ranking"}), 500
+
+
+@app.route(
+    "/api/evaluation/suggestion-ranking/<suggestion_id>/<action>", methods=["POST"]
+)
+def moderate_suggestion(suggestion_id: str, action: str):
+    """Hide, restore, or reset one curated suggestion. Requires reviewer CSRF."""
+    auth_error = _evaluation_auth_error(require_csrf=True)
+    if auth_error:
+        return auth_error
+    allowed, retry_after = _rate_limiter.allow(
+        f"suggestion-moderate:{_client_key()}", 60, 60
+    )
+    if not allowed:
+        response = jsonify({"error": "Suggestion updates are temporarily rate limited"})
+        response.headers["Retry-After"] = str(retry_after)
+        return response, 429
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Request body must be a JSON object"}), 400
+    try:
+        get_suggestion_usage_store().moderate(
+            suggestion_id,
+            action,
+            reason=data.get("reason"),
+            reviewer=_evaluation_reviewer() or "",
+        )
+    except SuggestionUsageError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        logger.exception("Unable to moderate a suggestion")
+        return jsonify({"error": "Unable to moderate a suggestion"}), 500
+    return jsonify({"ok": True})
+
+
+@app.route("/api/evaluation/suggestion-events.csv", methods=["GET"])
+def suggestion_events_csv():
+    """Download pick events with timestamps. Reviewers only."""
+    auth_error = _evaluation_auth_error()
+    if auth_error:
+        return auth_error
+    try:
+        body = get_suggestion_usage_store().events_csv()
+    except Exception:
+        logger.exception("Unable to export suggestion events")
+        return jsonify({"error": "Unable to export suggestion events"}), 500
+    response = Response(body, mimetype="text/csv")
+    response.headers["Content-Disposition"] = (
+        'attachment; filename="suggestion-picks.csv"'
+    )
     response.headers["Cache-Control"] = "no-store"
     return response
 

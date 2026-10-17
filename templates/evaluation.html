@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light" />
   <title>Model Review Workspace · SJSU iSchool</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css', v='20261017-popular-questions') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css', v='20261017-dynamic-suggestions') }}" />
 </head>
 <body>
   <header class="review-header">
@@ -298,6 +298,28 @@
       <p id="popular-questions-status" class="popular-questions-status" role="status" aria-live="polite"></p>
       <ol id="popular-questions-list" class="popular-questions-list" aria-label="Most-asked questions"></ol>
     </section>
+
+    <section id="suggestion-ranking" class="suggestion-ranking hidden" aria-labelledby="suggestion-ranking-title">
+      <div class="suggestion-ranking__heading">
+        <div>
+          <p class="eyebrow">Curated suggestion picks</p>
+          <h2 id="suggestion-ranking-title">Starter and autocomplete ranking</h2>
+        </div>
+        <a id="suggestion-events-export" class="button button--secondary" href="/api/evaluation/suggestion-events.csv">Download event CSV</a>
+      </div>
+      <p class="suggestion-ranking__note">
+        Counts are all-time picks of a curated suggestion from a starter chip
+        or the autocomplete dropdown. Typed questions are not stored. Events
+        are kept, with a full timestamp, so this ranking can be reviewed later.
+        Hidden suggestions stay out of the starter slots and get no popularity
+        boost. Students see this ranking only when DYNAMIC_SUGGESTIONS_ENABLED
+        is on. Otherwise the original four starter questions stay in place.
+      </p>
+      <p id="suggestion-ranking-status" class="suggestion-ranking-status" role="status" aria-live="polite"></p>
+      <ol id="suggestion-ranking-list" class="suggestion-ranking-list" aria-label="Suggestion ranking"></ol>
+      <h3 id="suggestion-ranking-audit-title">Recent moderation</h3>
+      <ol id="suggestion-ranking-audit" class="suggestion-ranking-audit" aria-labelledby="suggestion-ranking-audit-title"></ol>
+    </section>
   </main>
 
   <dialog id="auth-dialog" class="auth-dialog">
@@ -319,6 +341,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="{{ url_for('static', filename='evaluation.js', v='20261017-popular-questions') }}"></script>
+  <script src="{{ url_for('static', filename='evaluation.js', v='20261017-dynamic-suggestions') }}"></script>
 </body>
 </html>

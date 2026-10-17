@@ -245,6 +245,13 @@ pages. Edit that file to tune the list: each entry needs `text`, and may set
 Set it to `false` to hide the dropdown. This is separate from reviewer
 popular-question counts, which are not shown to students.
 
+`DYNAMIC_SUGGESTIONS_ENABLED` defaults off. Turn it on to rank the four
+starter chips and the dropdown from all-time picks of those curated
+suggestions. Picks are stored only when a student selects a chip or a
+dropdown row. Typed text is not stored, and the rows are kept. Staff pin a
+starter with `"pinned": true` on its entry. Reviewers hide or restore a
+suggestion from the evaluation page. See `docs/dynamic-suggestions.md`.
+
 Keep `VOICE_AUTO_SEND=false` unless the deployment has reviewed microphone
 consent and transcript-review requirements. A future server-side STT/TTS
 adapter can implement the same config contract without changing `/api/chat`.

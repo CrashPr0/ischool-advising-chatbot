@@ -1593,6 +1593,10 @@ clearButton.addEventListener("click", async (event) => {
 document.querySelectorAll(".starter-chip").forEach((chip) => {
   chip.addEventListener("click", () => {
     const question = String(chip.getAttribute("data-question") || "").trim();
+    const suggestionId = chip.getAttribute("data-suggestion-id");
+    if (suggestionId && typeof recordSuggestionPick === "function") {
+      recordSuggestionPick(suggestionId, "chip");
+    }
     if (question) sendMessage(question);
   });
 });
@@ -2291,6 +2295,8 @@ if (exportChatButton) {
 const suggestionList = document.getElementById("question-suggestions");
 const suggestionStatus = document.getElementById("question-suggestions-status");
 let suggestionCatalog = [];
+let suggestionPopularity = {};
+let dynamicSuggestions = false;
 let suggestionsEnabled = false;
 let visibleSuggestions = [];
 let suggestionsOpen = false;
@@ -2381,6 +2387,7 @@ function renderQuestionSuggestions(matches, query) {
     option.setAttribute("role", "option");
     option.setAttribute("aria-selected", "false");
     option.setAttribute("data-text", item.text);
+    if (item.id) option.setAttribute("data-suggestion-id", item.id);
     const label = document.createElement("span");
     label.className = "suggest-text";
     appendSuggestionHighlight(label, item.text, query);
@@ -2434,7 +2441,8 @@ function refreshQuestionSuggestions() {
   const program = normalizeProgram(programSelect ? programSelect.value : lastSelectedProgram);
   const matches = rankQuestionSuggestions(query, suggestionCatalog, {
     program,
-    limit: 6
+    limit: 6,
+    popularity: suggestionPopularity
   }).slice(0, 6);
   if (!matches.length) {
     closeQuestionSuggestions();
@@ -2462,11 +2470,52 @@ function scheduleQuestionSuggestions() {
   suggestionTimer = setTimeout(refreshQuestionSuggestions, wait);
 }
 
-function applyQuestionSuggestion(text) {
+function recordSuggestionPick(suggestionId, eventType) {
+  if (!dynamicSuggestions || !suggestionId) return;
+  if (eventType !== "chip" && eventType !== "dropdown") return;
+  const payload = {
+    id: String(suggestionId),
+    type: eventType,
+    program: normalizeProgram(programSelect ? programSelect.value : lastSelectedProgram)
+  };
+  fetch(apiUrl("/api/question-suggestion-events"), {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true
+  }).catch(function () {});
+}
+
+function applyDynamicStarters(starterIds) {
+  const chips = Array.from(document.querySelectorAll(".starter-chip"));
+  if (!chips.length || !Array.isArray(starterIds) || starterIds.length < chips.length) return;
+  const byId = new Map();
+  suggestionCatalog.forEach((item) => {
+    if (item && item.id) byId.set(item.id, item);
+  });
+  const chosen = [];
+  starterIds.forEach((id) => {
+    const item = byId.get(id);
+    if (item && item.text) chosen.push(item);
+  });
+  if (chosen.length < chips.length) return;
+  chips.forEach((chip, index) => {
+    const item = chosen[index];
+    chip.setAttribute("data-question", item.text);
+    chip.setAttribute("data-suggestion-id", item.id);
+    const topic = chip.querySelector(".starter-topic");
+    const question = chip.querySelector(".starter-question");
+    if (topic) topic.textContent = item.topic || "";
+    if (question) question.textContent = item.text;
+  });
+}
+
+function applyQuestionSuggestion(text, suggestionId) {
   const question = String(text || "");
   if (!question || !userInput) return;
   userInput.value = question;
   closeQuestionSuggestions();
+  if (suggestionId) recordSuggestionPick(suggestionId, "dropdown");
   if (typeof userInput.focus === "function") userInput.focus();
   if (typeof userInput.setSelectionRange === "function") {
     const end = question.length;
@@ -2489,7 +2538,10 @@ function onSuggestionPointerDown(event) {
   if (!option) return;
   event.preventDefault();
   const text = typeof option.getAttribute === "function" ? option.getAttribute("data-text") : "";
-  if (text) applyQuestionSuggestion(text);
+  const suggestionId = typeof option.getAttribute === "function"
+    ? option.getAttribute("data-suggestion-id")
+    : "";
+  if (text) applyQuestionSuggestion(text, suggestionId);
 }
 
 function onSuggestionPointerMove(event) {
@@ -2531,7 +2583,7 @@ function handleSuggestionKeydown(event) {
       sendMessage();
       return true;
     }
-    applyQuestionSuggestion(text);
+    applyQuestionSuggestion(text, item && item.id);
     return true;
   }
   return false;
@@ -2549,6 +2601,11 @@ async function loadQuestionSuggestions() {
     suggestionCatalog = data.questions.filter((item) => (
       item && typeof item.text === "string" && item.text.trim()
     ));
+    dynamicSuggestions = data.dynamic === true;
+    suggestionPopularity = dynamicSuggestions && data.popularity && typeof data.popularity === "object"
+      ? data.popularity
+      : {};
+    if (dynamicSuggestions) applyDynamicStarters(data.starters);
     suggestionsEnabled = suggestionCatalog.length > 0;
   } catch (_error) {
     suggestionsEnabled = false;
