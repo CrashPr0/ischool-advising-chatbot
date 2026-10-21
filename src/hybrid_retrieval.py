@@ -292,7 +292,7 @@ class BM25Index:
         tokenized_corpus: Sequence[Sequence[str]],
         k1: float = 1.5,
         b: float = 0.75,
-    ):
+    ) -> None:
         self.k1 = k1
         self.b = b
         self.corpus_size = len(tokenized_corpus)
@@ -468,7 +468,11 @@ def prime_collection_records(vector_store, collection_id: Optional[str] = None) 
     _collection_records(vector_store, collection_id)
 
 
-def _documents_for_ids(doc_ids, by_id, limit: int) -> list[Document]:
+def _documents_for_ids(
+    doc_ids: Sequence[str],
+    by_id: dict[str, tuple[str, dict]],
+    limit: int,
+) -> list[Document]:
     documents: list[Document] = []
     for doc_id in doc_ids:
         row = by_id.get(doc_id)
@@ -517,7 +521,12 @@ def _vector_ids(
     return chosen
 
 
-def _prefer_program_ids(ids, by_id, query, program=None):
+def _prefer_program_ids(
+    ids: list[str],
+    by_id: dict[str, tuple[str, dict]],
+    query: str,
+    program: Optional[str] = None,
+) -> list[str]:
     wanted = selected_programs(query, program)
     if len(wanted) != 1:
         return ids
@@ -599,7 +608,9 @@ def hybrid_retrieve(
             return []
 
 
-def _program_vector_search(vector_store, query, k, program=None):
+def _program_vector_search(
+    vector_store, query: str, k: int, program: Optional[str] = None
+) -> list[Document]:
     documents = reorder_documents(
         vector_store.similarity_search(
             query, k=max(k, 40) if program in {"isda", "mlis"} else k
