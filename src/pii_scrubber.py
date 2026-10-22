@@ -34,9 +34,10 @@ _PHONE_RE = re.compile(
     r"(?!\d)"
 )
 
+# Match whole suffixes so words like "Stages" and "Roadmaps" stay intact.
 _STREET_SUFFIX = (
     r"(?:Street|Avenue|Boulevard|Drive|Court|Place|Lane|Road|Way|"
-    r"St|Ave|Blvd|Rd|Dr|Ln|Ct|Pl)\.?"
+    r"St|Ave|Blvd|Rd|Dr|Ln|Ct|Pl)\b\.?"
 )
 _UNIT = r"(?:\s+(?:Apt|Unit)\.?\s*[A-Za-z0-9-]+|\s*#\s*[A-Za-z0-9-]+)"
 _ADDRESS_RE = re.compile(

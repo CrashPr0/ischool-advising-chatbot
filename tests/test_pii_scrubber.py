@@ -4,6 +4,8 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from src.evaluation_store import EvaluationStore
 from src.issue_reports import IssueReportStore, build_issue_report
 from src.pii_scrubber import (
@@ -74,6 +76,18 @@ def test_scrub_pii_leaves_course_codes_years_dates_and_short_numbers():
     ]
     for sample in samples:
         assert scrub_pii(sample) == sample
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "There are 3 Main Stages in the program.",
+        "Read 123 Main Stories before INFO 202.",
+        "Review 12 Project Roadmaps for the assignment.",
+    ],
+)
+def test_scrub_pii_does_not_treat_street_suffix_prefixes_as_addresses(text):
+    assert scrub_pii(text) == text
 
 
 def test_scrub_pii_value_walks_nested_dicts_and_lists():
