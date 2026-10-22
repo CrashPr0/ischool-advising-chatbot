@@ -518,6 +518,38 @@ def test_chat_history_model_wins_over_the_value_in_the_report(
     assert report["provider"] == "openai"
 
 
+@pytest.mark.parametrize("role", [[], {}, ["user"], {"name": "assistant"}])
+def test_report_validator_rejects_container_turn_roles(role):
+    with pytest.raises(
+        IssueReportValidationError, match="turn role must be user or assistant"
+    ):
+        build_issue_report(
+            _report(
+                include_conversation=True,
+                turns=[{"role": role, "text": "Earlier question"}],
+            )
+        )
+
+
+@pytest.mark.parametrize("role", [[], {}, ["user"], {"name": "assistant"}])
+def test_report_endpoint_rejects_container_turn_roles(report_client, monkeypatch, role):
+    def unexpected_store_access():
+        pytest.fail("Invalid reports must be rejected before accessing storage")
+
+    monkeypatch.setattr(app_module, "get_issue_report_store", unexpected_store_access)
+    response = _post_report(
+        report_client,
+        _report(
+            include_conversation=True,
+            turns=[{"role": role, "text": "Earlier question"}],
+        ),
+        _csrf(report_client),
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "turn role must be user or assistant"}
+
+
 def test_report_endpoint_rejects_bad_payloads_and_rate_limits(monkeypatch, report_client):
     csrf = _csrf(report_client)
     invalid = _post_report(report_client, _report(reason="spam"), csrf)
