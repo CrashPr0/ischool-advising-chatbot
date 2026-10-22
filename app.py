@@ -1185,11 +1185,17 @@ def chat():
         chatbot_instance = get_chatbot()
         prior_turns = _history_store.snapshot(session_id)
         program = normalize_program(data.get("program"))
-        result = chatbot_instance.chat(
-            user_message,
-            history=prior_turns,
-            **({"program": program} if program else {}),
-        )
+        try:
+            result = chatbot_instance.chat(
+                user_message,
+                history=prior_turns,
+                **({"program": program} if program else {}),
+            )
+        except ValueError:
+            # A ValueError out of the model or retrieval layer is a server
+            # fault, not a bad request. Don't echo its text to the student.
+            logger.exception("Chatbot raised ValueError while answering")
+            return jsonify({"error": "Unable to process chat request"}), 500
         provider, model = _stamp_chat_model(result)
         if result.get("safety_tier") != "crisis":
             _history_store.append(session_id, result)
