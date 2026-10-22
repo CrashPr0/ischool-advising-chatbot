@@ -2,7 +2,26 @@
 
 import pytest
 
+from src import document_processor
 from src.document_processor import DocumentProcessor, HashingEmbeddings
+
+
+@pytest.mark.parametrize("marker", ["<|endoftext|>", "<|fim_prefix|>"])
+def test_embedding_batches_accept_literal_special_token_text(monkeypatch, marker):
+    import tiktoken
+
+    monkeypatch.delattr(
+        document_processor._embedding_token_counter, "_counter", raising=False
+    )
+    text = f"Document explaining the literal marker {marker}."
+    expected_tokens = len(
+        tiktoken.get_encoding("cl100k_base").encode(text, disallowed_special=())
+    )
+
+    assert document_processor.estimate_embedding_tokens(text) == expected_tokens
+    assert document_processor.pack_embedding_batches(
+        [text, text], expected_tokens, document_processor.estimate_embedding_tokens
+    ) == [[text], [text]]
 
 
 def bare_processor():
