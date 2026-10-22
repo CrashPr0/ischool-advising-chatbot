@@ -190,7 +190,7 @@ def _normalize_turns(value: object) -> list[dict[str, str]]:
         role = item.get("role")
         if role == "bot":
             role = "assistant"
-        if role not in {"user", "assistant"}:
+        if not isinstance(role, str) or role not in {"user", "assistant"}:
             raise IssueReportValidationError("turn role must be user or assistant")
         text = _clean_multiline(item.get("text"), limit=TURN_MAX, field="turn text", required=False)
         if not text:
