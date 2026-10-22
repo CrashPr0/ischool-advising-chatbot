@@ -1094,7 +1094,7 @@ def _popular_questions_days() -> int | None:
     text = str(raw).strip()
     if not text:
         return 30
-    if not text.isdigit() or int(text) not in _POPULAR_QUESTION_WINDOWS:
+    if not (text.isascii() and text.isdigit()) or int(text) not in _POPULAR_QUESTION_WINDOWS:
         return None
     return int(text)
 

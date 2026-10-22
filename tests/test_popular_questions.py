@@ -335,3 +335,12 @@ vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), sandbox);
   console.log('ok');
 })().catch(error => { console.error(error); process.exit(1); });
 """
+
+
+@pytest.mark.parametrize("days", ["%C2%B2", "%D9%A7", "%EF%BC%97", "-7", "7.0"])
+def test_popular_days_rejects_non_ascii_digits_with_400(monkeypatch, days):
+    """Unicode digits pass str.isdigit() but crash int(); they must be a 400."""
+    monkeypatch.setenv("POPULAR_QUESTIONS_PUBLIC", "1")
+    response = app_module.app.test_client().get(f"/api/popular-questions?days={days}")
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "days must be 7, 30, or 90"}
