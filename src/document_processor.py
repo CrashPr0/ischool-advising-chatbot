@@ -469,6 +469,13 @@ class DescribedEmbeddings(Embeddings):
         width = len(vectors[0])
         if any(len(vector) != width for vector in vectors):
             raise RuntimeError("Embedding provider returned mixed dimensions")
+        # Batches and queries must share the same vector space. Keep the last
+        # valid measurement if a deployment starts returning a different width.
+        if self.measured_dimension is not None and width != self.measured_dimension:
+            raise RuntimeError(
+                "Embedding provider dimension changed from "
+                f"{self.measured_dimension} to {width}"
+            )
         self.measured_dimension = width
 
 

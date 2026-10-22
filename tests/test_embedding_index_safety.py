@@ -209,6 +209,54 @@ def test_query_embedding_caps_attempts_and_does_not_sleep_out_retry_after():
     assert sleeps == [2.0]
 
 
+def test_embedding_batches_reject_dimension_changes_without_retrying():
+    class ChangingDimensions(_Inner):
+        def embed_documents(self, texts):
+            self.calls.append(list(texts))
+            return [[1.0] * (len(self.calls) + 1) for _ in texts]
+
+    inner = ChangingDimensions()
+    sleeps = []
+    embeddings = DescribedEmbeddings(
+        inner,
+        _identity(),
+        count_tokens=lambda text: 1,
+        batch_tokens=1,
+        sleep=sleeps.append,
+    )
+
+    with pytest.raises(RuntimeError, match="dimension changed from 2 to 3"):
+        embeddings.embed_documents(["one", "two", "three"])
+
+    assert inner.calls == [["one"], ["two"]]
+    assert sleeps == []
+    assert embeddings.measured_dimension == 2
+
+
+@pytest.mark.parametrize("provider", ["azure_openai", "local"])
+def test_query_embedding_preserves_index_dimension_after_bad_response(provider):
+    class ChangingDimensions(_Inner):
+        width = 2
+
+        def embed_documents(self, texts):
+            return [[1.0] * self.width for _ in texts]
+
+        def embed_query(self, text):
+            return [1.0] * self.width
+
+    inner = ChangingDimensions()
+    embeddings = DescribedEmbeddings(inner, _identity(embedding_provider=provider))
+    assert embeddings.embed_documents(["indexed document"]) == [[1.0, 1.0]]
+    inner.width = 3
+
+    with pytest.raises(RuntimeError, match="dimension changed from 2 to 3"):
+        embeddings.embed_query("question")
+
+    assert embeddings.measured_dimension == 2
+    inner.width = 2
+    assert embeddings.embed_query("question") == [1.0, 1.0]
+
+
 def test_query_embedding_records_request_metrics():
     from src.document_processor import chat_request_metrics
 
