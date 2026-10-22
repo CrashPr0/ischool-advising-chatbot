@@ -2,6 +2,8 @@
 
 import threading
 
+import pytest
+
 from langchain_core.documents import Document
 
 from src.config import Config
@@ -285,6 +287,34 @@ def test_hybrid_uses_bm25_when_query_embedding_fails():
     assert hits
     assert hits[0].metadata["source"] == "elective.txt"
     assert "ISDA 150" in hits[0].page_content
+
+
+@pytest.mark.parametrize("collection_state", ["missing", "empty", "unreadable"])
+def test_vector_fallback_normalizes_compact_course_codes(collection_state):
+    store = _VectorStore(_records(), [])
+    if collection_state == "missing":
+        del store._collection
+    elif collection_state == "empty":
+        store._collection = _Collection([])
+    else:
+        def unavailable(include=None):
+            raise RuntimeError("collection cannot be read")
+
+        store._collection.get = unavailable
+
+    # Model the hashing embedder's separate tokens for spaced course codes:
+    # an unexpanded compact code cannot match the saved course text.
+    def search(query, k=3):
+        store.calls.append((query, k))
+        if "ISDA 150" in query:
+            return [Document(page_content=ELECTIVE, metadata={"source": "elective.txt"})]
+        return []
+
+    store.similarity_search = search
+    hits = hybrid_retrieve(store, "Prerequisites for ISDA150?", k=1)
+
+    assert [hit.metadata["source"] for hit in hits] == ["elective.txt"]
+    assert store.calls == [("Prerequisites for ISDA 150?", 1)]
 
 
 def test_bm25_refreshes_changed_text_with_reused_chunk_ids():

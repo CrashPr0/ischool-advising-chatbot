@@ -612,7 +612,8 @@ def _program_vector_search(
 ) -> list[Document]:
     documents = reorder_documents(
         vector_store.similarity_search(
-            query, k=max(k, 40) if program in {"isda", "mlis"} else k
+            expand_course_codes(query),
+            k=max(k, 40) if program in {"isda", "mlis"} else k,
         )
     )
     return prefer_program_documents(documents, query, program)[:k]
