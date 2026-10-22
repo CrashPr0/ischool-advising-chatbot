@@ -15,6 +15,7 @@ from src.document_processor import (
     _create_embeddings,
     _is_rate_limit,
     _retry_delay_seconds,
+    estimate_embedding_tokens,
     pack_embedding_batches,
     promote_collection,
     restore_previous_collection,
@@ -154,6 +155,40 @@ def test_batches_stay_under_the_token_budget_and_retry_429():
     assert _is_rate_limit(_RateLimit())
     assert _retry_delay_seconds(_RateLimit("1"), 4.0) == 4.0
     assert _retry_delay_seconds(_RateLimit(None), 4.0) == 4.0
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [
+        "<|endoftext|>",
+        "<|fim_prefix|>",
+        "<|fim_middle|>",
+        "<|fim_suffix|>",
+        "<|endofprompt|>",
+    ],
+)
+def test_embedding_token_count_treats_special_markers_as_document_text(marker):
+    import tiktoken
+
+    text = f"Catalog example: {marker} with advising information."
+    expected = len(tiktoken.get_encoding("cl100k_base").encode_ordinary(text))
+
+    assert estimate_embedding_tokens(text) == expected
+    assert estimate_embedding_tokens("") == 1
+
+
+def test_hosted_embedding_batches_accept_literal_special_markers():
+    import tiktoken
+
+    text = "Catalog example: <|endoftext|>"
+    budget = len(tiktoken.get_encoding("cl100k_base").encode_ordinary(text))
+    inner = _Inner()
+    embeddings = DescribedEmbeddings(inner, _identity(), batch_tokens=budget)
+
+    vectors = embeddings.embed_documents([text, text])
+
+    assert inner.calls == [[text], [text]]
+    assert vectors == [[float(len(text)), 0.0]] * 2
 
 
 def test_query_embedding_caps_attempts_and_does_not_sleep_out_retry_after():
