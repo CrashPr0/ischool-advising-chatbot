@@ -335,3 +335,23 @@ vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), sandbox);
   console.log('ok');
 })().catch(error => { console.error(error); process.exit(1); });
 """
+
+
+@pytest.mark.parametrize("raw", ["²", "³", "①", "７"])
+def test_non_ascii_digit_days_is_a_400_not_a_500(monkeypatch, tmp_path, raw):
+    """str.isdigit() accepts '²', which int() rejects; that must not crash."""
+    monkeypatch.setenv("EVAL_DB_PATH", str(tmp_path / "reviews.sqlite3"))
+    monkeypatch.setenv("EVAL_ACCESS_TOKEN", "test-review-token")
+    monkeypatch.setenv("POPULAR_QUESTIONS_PUBLIC", "true")
+    monkeypatch.setattr(
+        app_module, "_rate_limiter", app_module._FixedWindowRateLimiter()
+    )
+    client = app_module.app.test_client()
+    assert client.post(
+        "/api/evaluation/session",
+        json={"reviewer": "reviewer@sjsu.edu", "access_token": "test-review-token"},
+    ).status_code == 200
+    for path in ("/api/evaluation/popular-questions", "/api/popular-questions"):
+        response = client.get(path, query_string={"days": raw})
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "days must be 7, 30, or 90"
