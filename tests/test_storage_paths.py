@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import shutil
 import sqlite3
 import sys
 
@@ -155,6 +156,36 @@ class TestPathResolution:
 
 
 class TestReviewsMigration:
+    def test_copies_committed_rows_still_in_the_wal(self, tmp_path):
+        source = tmp_path / "legacy" / "reviews.sqlite3"
+        destination = tmp_path / "durable" / "reviews.sqlite3"
+        _create_reviews_db(source, "checkpointed")
+        connection = sqlite3.connect(source)
+        try:
+            connection.execute("PRAGMA wal_autocheckpoint=0")
+            connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            connection.execute(
+                "INSERT INTO evaluation_reviews (comment) VALUES (?)",
+                ("committed in WAL",),
+            )
+            connection.commit()
+
+            # Prove a plain file copy would miss the newly committed row.
+            main_file_copy = tmp_path / "main-file-only.sqlite3"
+            shutil.copyfile(source, main_file_copy)
+            assert _comments(main_file_copy) == ["checkpointed"]
+
+            copied = copy_reviews_database_if_needed(
+                str(destination), [str(source)]
+            )
+
+            assert copied == str(source.resolve())
+            assert _comments(destination) == ["checkpointed", "committed in WAL"]
+            assert _comments(source) == ["checkpointed", "committed in WAL"]
+            assert not destination.with_suffix(".sqlite3.migrating").exists()
+        finally:
+            connection.close()
+
     def test_copies_legacy_database_and_leaves_the_original(self, tmp_path, caplog):
         source = tmp_path / "release" / "evals" / "reviews.sqlite3"
         destination = tmp_path / "home" / "data" / "evaluation" / "reviews.sqlite3"
