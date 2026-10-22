@@ -1,8 +1,12 @@
 # SJSU iSchool Advising Chatbot
 
-A retrieval-augmented advising assistant for San José State University's BS in Information Science and Data Analytics (ISDA) and Master of Library and Information Science (MLIS) programs. Built with Python, Flask, LangChain, and Chroma, it combines curated answers with hybrid document retrieval to help students navigate published requirements, registration, and advising resources. Source links, catalog-year context, advisor handoff, and a human review workspace make the system inspectable; a repeatable offline evaluation measures retrieval quality without paid model calls.
+An advising assistant for San José State University's BS in Information Science and Data Analytics (ISDA) and Master of Library and Information Science (MLIS) programs. Students can ask about published requirements, registration, and advising resources, follow source links, and prepare an advisor email draft.
+
+Built with Python, Flask, LangChain, and Chroma, the project combines curated answers with retrieval-augmented generation (RAG). The engineering focus is inspectable answers: hybrid retrieval over saved official sources, catalog-year context, reviewable feedback, and an offline retrieval benchmark that runs without credentials or paid model calls.
 
 [Hosted demo](https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/) · [Offline evaluation report](docs/eval/latest.md) · [Canvas integration](docs/canvas-embed.md)
+
+Start with the [measured baseline](#measured-retrieval-baseline), [local setup](#run-locally), or [test commands](#test-and-review).
 
 ## Features
 
@@ -44,6 +48,8 @@ flowchart TD
     Offline --> Report[Offline retrieval report; no LLM calls]
 ```
 
+The request path starts in [app.py](app.py). [RAGAdvisingChatbot](src/rag_chatbot.py) coordinates curated answers, retrieval, and generation; [hybrid_retrieval.py](src/hybrid_retrieval.py) implements ranking; [DocumentProcessor](src/document_processor.py) loads and indexes source snapshots. Chat providers and reviewer storage have separate modules under `src/`.
+
 Documents are ingested before chat requests. The web API checks an index receipt before answering, so an absent or mismatched index cannot silently serve a new release. The offline harness uses the same loader, splitter, hashing embedder, and hybrid ranking function in an isolated temporary index. It evaluates retrieval directly, bypassing curated-answer lookup and answer generation.
 
 ## Measured retrieval baseline
@@ -56,24 +62,22 @@ The [generated report](docs/eval/latest.md) records the full method, input hashe
 | Retrieval hit rate@4 | **75.00% (12/16)** |
 | Macro source recall@4 | **62.50%** |
 | Offline citation-link validity | **100.00% (84/84 returned chunks)** |
-| Retrieval latency mean / p50 / p95 | **8.46 / 4.32 / 6.18 ms** |
+| Retrieval latency mean / p50 / p95 | **9.13 / 3.86 / 6.37 ms** |
 | Saved documents / indexed chunks | 79 / 565 |
 
-These measurements use deterministic 2048-dimensional hashing embeddings plus BM25, with no chat model or network link probes. Hit rate requires at least one expected page; recall measures the fraction of expected pages found per question, then averages across questions. Five boundary/distress cases are excluded from relevance scoring and remain listed in the report. Their latency and source links are still measured. Link validity checks URL structure and corpus membership; it does not measure answer correctness or live reachability. Timing includes the first cold retrieval, excludes index construction, and varies by machine. The observed misses remain visible as a baseline for future retrieval work.
+The table comes from the command below; the generated report records the execution environment and input hashes. These measurements use deterministic 2048-dimensional hashing embeddings plus BM25, with no chat model or network link probes. Hit rate requires at least one expected page; recall measures the fraction of expected pages found per question, then averages across questions. Five boundary/distress cases are excluded from relevance scoring and remain listed in the report. Their latency and source links are still measured. Link validity checks URL structure and corpus membership; it does not measure answer correctness or live reachability. Timing includes the first cold retrieval, excludes index construction, and varies by machine. The observed misses remain visible as a baseline for future retrieval work.
 
 Reproduce from the repository root after installing dependencies:
 
 ```bash
-python -m scripts.eval_report
-# Optional: choose 1–20 retrieved chunks and a separate report destination.
-python -m scripts.eval_report --k 8 --output /tmp/advising-eval-k8.md
+python -m scripts.eval_report --k 4
 ```
 
-The default writes `docs/eval/latest.md`. Expected pages and explicit exclusions live in [evals/retrieval_expectations.json](evals/retrieval_expectations.json), keyed to the unchanged [curated questions](evals/advising_questions.json). The harness forces hashing embeddings for its own run even when hosted embeddings are configured, disables Chroma telemetry, and deletes its temporary collection. It does not open the app's saved index. No credentials are needed for evaluation.
+The default writes `docs/eval/latest.md`. Use `--help` for custom inputs, retrieval depth, and output paths; reports preserve custom input paths in their reproduction command. Expected pages and explicit exclusions live in [evals/retrieval_expectations.json](evals/retrieval_expectations.json), keyed to the unchanged [curated questions](evals/advising_questions.json). The harness forces hashing embeddings for its own run even when hosted embeddings are configured, disables Chroma telemetry, and deletes its temporary collection. It does not open the app's saved index. No credentials are needed for evaluation.
 
 ## Run locally
 
-Use **Python 3.11+**. Run commands from the repository root.
+CI uses **Python 3.11**; this local evaluation and test run used **Python 3.13.5**, as recorded in the report. Check your interpreter with `python --version`. Run commands from the repository root and keep the virtual environment active for the commands below.
 
 ```bash
 python3 -m venv .venv
@@ -82,7 +86,7 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-`requirements.txt` applies the transitive lock in `constraints.txt`. The offline evaluation and test suite can run immediately, without creating `.env` or configuring a model.
+`requirements.txt` applies the transitive lock in `constraints.txt`. To try the project without credentials, run the [offline evaluation](#measured-retrieval-baseline) or [test suite](#test-and-review) now. Neither requires `.env`, a running server, or a configured chat model.
 
 For interactive chat:
 
@@ -123,7 +127,9 @@ python -m black --check scripts/eval_report.py tests/test_eval_report.py
 python -m flake8 scripts/eval_report.py tests/test_eval_report.py --max-line-length=88
 ```
 
-Tests cover retrieval, catalog metadata, source-link handling, API behavior, reviewer storage/access, PII scrubbing, browser features, and ingestion. Harness tests verify metric denominators, duplicate-page handling, missing/invalid links, complete labels, and a real temporary-index run with network connections blocked and hosted embedding settings present.
+Recorded local result from the commands above: **573 passed**, with a dependency deprecation warning; both lint checks passed. Black/Flake8 cover the offline harness files listed in those commands. The [pull request workflow](.github/workflows/pr-tests.yml) runs the full suite and a dependency audit; it does not currently enforce repository-wide lint.
+
+Tests cover retrieval, catalog metadata, source-link handling, API behavior, reviewer storage/access, PII scrubbing, browser features, and ingestion. Harness tests verify metric denominators, duplicate-page handling, missing/invalid links, complete labels, protected curated question text, custom-input reproduction commands, and a real temporary-index run with network connections blocked and hosted embedding settings present.
 
 For human answer review, visit `/evaluation`. Localhost can use the reviewer workspace without a shared secret; public deployments require configured reviewer access. [src/model_benchmark.py](src/model_benchmark.py) provides a separate provider-backed A/B benchmark and `--help` documents its options. That benchmark can incur model charges; it is separate from the offline retrieval report.
 
@@ -142,7 +148,7 @@ For human answer review, visit `/evaluation`. Localhost can use the reviewer wor
 
 Add source text or PDFs under `data/advising_docs/txt/` or `pdfs/`, with matching YAML under `meta/`. Metadata carries stable IDs, titles, source URLs, topics, and program tags. The crawler saves snapshots before indexing and does not run at query time. Review source changes and rebuild the index before using them in chat. Relevant university-wide sources remain available alongside program-specific ISDA and MLIS pages.
 
-The committed current catalog is identified by `CURRENT_CATALOG_CATOID` (23) and `CURRENT_CATALOG_YEAR` (2026-2027). The catalog update tool maintains these README values alongside the catalog identity file; older snapshots remain available for earlier catalog rights.
+The committed current catalog is identified by `CURRENT_CATALOG_CATOID` (23) and `CURRENT_CATALOG_YEAR` (2026-2027). Reproduce these catalog values with `cat data/catalog_identity.json`. The catalog update tool maintains these README values alongside the catalog identity file; older snapshots remain available for earlier catalog rights.
 
 See [Canvas embedding](docs/canvas-embed.md) and [curated suggestion ranking](docs/dynamic-suggestions.md) for integration details. Deployment settings, durable paths, health probes, and rollback procedures are documented in the runbook.
 

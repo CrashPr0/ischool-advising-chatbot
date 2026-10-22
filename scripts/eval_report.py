@@ -13,6 +13,7 @@ import json
 import math
 from pathlib import Path
 import platform
+import shlex
 import statistics
 import tempfile
 import time
@@ -73,11 +74,12 @@ def load_cases(questions_path: Path, expectations_path: Path) -> list[dict]:
             or bool(expected) == bool(reason)
             or any(not source_key(url) for url in expected)
             or not isinstance(reason, str)
+            or (bool(reason) and not reason.strip())
             or not isinstance(question.get("question"), str)
             or not question["question"].strip()
         ):
             raise ValueError(f"Invalid retrieval label/question: {question['id']}")
-        cases.append({**question, **label})
+        cases.append({**label, **question})
     return cases
 
 
@@ -146,7 +148,7 @@ def evaluate(
     }
 
 
-def render_report(result: dict, provenance: dict) -> str:
+def render_report(result: dict, provenance: dict, *, command: str | None = None) -> str:
     """Render measurements and enough detail to audit every source match."""
     k = result["k"]
     validity = result["link_validity"]
@@ -155,7 +157,7 @@ def render_report(result: dict, provenance: dict) -> str:
         "",
         f"Generated: {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
         "",
-        "Command: `python -m scripts.eval_report --k " + str(k) + "`",
+        f"Command: `{command or f'python -m scripts.eval_report --k {k}'}`",
         "",
         "## Measured results",
         "",
@@ -314,7 +316,19 @@ def run_report(docs: Path, questions: Path, expectations: Path, k: int) -> str:
                     (ROOT / "data/catalog_identity.json").read_bytes()
                 ).hexdigest(),
             }
-            return render_report(result, provenance)
+            command = ["python", "-m", "scripts.eval_report", "--k", str(k)]
+            for option, path, default in (
+                ("--docs", docs, ROOT / "data/advising_docs"),
+                ("--questions", questions, ROOT / "evals/advising_questions.json"),
+                (
+                    "--expectations",
+                    expectations,
+                    ROOT / "evals/retrieval_expectations.json",
+                ),
+            ):
+                if path.resolve() != default:
+                    command.extend([option, str(path.resolve())])
+            return render_report(result, provenance, command=shlex.join(command))
         finally:
             store.delete_collection()
 

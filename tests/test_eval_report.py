@@ -1,6 +1,7 @@
 """Retrieval evaluation must stay offline and expose misses honestly."""
 
 import json
+import shlex
 import socket
 
 from langchain_core.documents import Document
@@ -134,6 +135,7 @@ def test_committed_labels_cover_every_curated_question():
         ([{"id": "a", "question": "q"}] * 2, {"a": {"expected_sources": [A]}}),
         ([{"id": "a", "question": "q"}], {"b": {"expected_sources": [A]}}),
         ([{"id": "a", "question": "q"}], {"a": {}}),
+        ([{"id": "a", "question": "q"}], {"a": {"skip_reason": "  "}}),
         (
             [{"id": "a", "question": "q"}],
             {"a": {"expected_sources": [A], "skip_reason": "skip"}},
@@ -149,6 +151,26 @@ def test_bad_label_inputs_fail(tmp_path, questions, labels):
     label_path.write_text(json.dumps(labels))
     with pytest.raises(ValueError):
         load_cases(question_path, label_path)
+
+
+def test_labels_cannot_replace_curated_question_identity(tmp_path):
+    questions = tmp_path / "questions.json"
+    labels = tmp_path / "labels.json"
+    questions.write_text(json.dumps([{"id": "original", "question": "original query"}]))
+    labels.write_text(
+        json.dumps(
+            {
+                "original": {
+                    "id": "changed",
+                    "question": "easier query",
+                    "expected_sources": [A],
+                }
+            }
+        )
+    )
+    case = load_cases(questions, labels)[0]
+    assert case["id"] == "original"
+    assert case["question"] == "original query"
 
 
 def test_real_offline_pipeline_ignores_hosted_settings_and_preserves_index(
@@ -167,7 +189,7 @@ def test_real_offline_pipeline_ignores_hosted_settings_and_preserves_index(
     sentinel = saved_index / "keep.txt"
     sentinel.write_text("existing app index")
     monkeypatch.setattr(Config, "VECTOR_STORE_PATH", str(saved_index))
-    docs = tmp_path / "corpus"
+    docs = tmp_path / "corpus with spaces"
     docs.mkdir()
     (docs / "advising.txt").write_text(
         "Schedule an advising appointment using Spartan Connect."
@@ -183,6 +205,16 @@ def test_real_offline_pipeline_ignores_hosted_settings_and_preserves_index(
     assert "100.00% (1/1)" in report
     assert "Corpus content + metadata SHA-256" in report
     assert "### advising" in report
+    command_line = next(
+        line for line in report.splitlines() if line.startswith("Command:")
+    )
+    command = shlex.split(command_line.split("`", 2)[1])
+    for option, path in (
+        ("--docs", docs),
+        ("--questions", questions),
+        ("--expectations", labels),
+    ):
+        assert command[command.index(option) + 1] == str(path.resolve())
     assert Config.EMBEDDING_PROVIDER == "openai"
     assert list(saved_index.iterdir()) == [sentinel]
     assert sentinel.read_text() == "existing app index"
