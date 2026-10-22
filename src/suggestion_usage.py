@@ -213,7 +213,10 @@ def choose_starters(
 def popularity_counts(
     questions: list[dict], counts: dict[str, int], hidden: set[str], *, min_count: int
 ) -> dict[str, int]:
-    """Counts the dropdown may use as a boost. Hidden and below-threshold ids are omitted."""
+    (
+        "Counts the dropdown may use as a boost. Hidden and below-threshold ids "
+        "are omitted."
+    )
     allowed = {
         item["id"]
         for item in questions
@@ -298,11 +301,14 @@ class SuggestionUsageStore:
         with self._lock, self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             inserted = connection.execute(
-                """
-                INSERT INTO suggestion_pick_dedupe (dedupe_key, suggestion_id, day, created_at)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(dedupe_key) DO NOTHING
-                """,
+                (
+                    "\n"
+                    "                INSERT INTO suggestion_pick_dedupe "
+                    "(dedupe_key, suggestion_id, day, created_at)\n"
+                    "                VALUES (?, ?, ?, ?)\n"
+                    "                ON CONFLICT(dedupe_key) DO NOTHING\n"
+                    "                "
+                ),
                 (dedupe, suggestion_id, day, picked_at),
             )
             if inserted.rowcount == 0:
@@ -413,7 +419,10 @@ class SuggestionUsageStore:
             )
 
     def events_csv(self) -> str:
-        """Event export. Columns are the timestamp and the curated id, never typed text."""
+        (
+            "Event export. Columns are the timestamp and the curated id, never "
+            "typed text."
+        )
         output = io.StringIO(newline="")
         writer = csv.writer(output, lineterminator="\n")
         writer.writerow(_EVENT_COLUMNS)

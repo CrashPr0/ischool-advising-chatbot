@@ -41,7 +41,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.clean and persist_directory.exists():
         if not persist_directory.is_dir():
-            raise RuntimeError(f"Vector-store path is not a directory: {persist_directory}")
+            raise RuntimeError(
+                f"Vector-store path is not a directory: {persist_directory}"
+            )
         shutil.rmtree(persist_directory)
 
     processor = DocumentProcessor(args.docs)
@@ -56,4 +58,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-

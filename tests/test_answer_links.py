@@ -8,13 +8,11 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from knowledge_base import get_knowledge_base
-from rag_chatbot import RAGAdvisingChatbot, _restrict_reply_links
-from stripped_link_log import StrippedLinkLog
+from knowledge_base import get_knowledge_base  # noqa: E402
+from rag_chatbot import RAGAdvisingChatbot, _restrict_reply_links  # noqa: E402
+from stripped_link_log import StrippedLinkLog  # noqa: E402
 
-REAL_SOURCE = (
-    "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203201"
-)
+REAL_SOURCE = "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203201"
 INVENTED = "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=999999"
 ADVISING = "https://ischoolapps.sjsu.edu/advising/index.php"
 QUESTION = "What is ISDA 150?"
@@ -246,7 +244,10 @@ def test_another_documents_exact_title_is_corrected_despite_token_overlap():
         _Doc(
             "Graduate deadline details.",
             source_url=gape,
-            title="Fall Graduation Deadlines | Graduate Admissions and Program Evaluations",
+            title=(
+                "Fall Graduation Deadlines | Graduate Admissions and Program "
+                "Evaluations"
+            ),
         ),
         _Doc(
             "Undergraduate application details.",
@@ -298,7 +299,9 @@ def test_source_title_matching_normalizes_scheme_www_slash_and_fragment():
 def test_scheme_and_host_rewrites_are_dropped():
     document = _page()
     http_rewrite = REAL_SOURCE.replace("https://", "http://", 1)
-    host_rewrite = REAL_SOURCE.replace("catalog.sjsu.edu", "catalog.sjsu.edu.evil.test", 1)
+    host_rewrite = REAL_SOURCE.replace(
+        "catalog.sjsu.edu", "catalog.sjsu.edu.evil.test", 1
+    )
     cleaned, dropped = _restrict_reply_links(
         f"Use {http_rewrite} or {host_rewrite}.",
         [document],
@@ -417,7 +420,8 @@ def test_stripped_link_record_is_still_there_after_the_connection_closes():
     connection = sqlite3.connect(path)
     try:
         columns = [
-            row[1] for row in connection.execute("PRAGMA table_info(stripped_link_checks)")
+            row[1]
+            for row in connection.execute("PRAGMA table_info(stripped_link_checks)")
         ]
     finally:
         connection.close()

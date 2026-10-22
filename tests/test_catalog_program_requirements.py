@@ -136,7 +136,9 @@ def test_core_courses_query_retrieves_the_catalog_program_page(monkeypatch, tmp_
     assert "Major Requirements (48 units)" in units_blob
     assert "Core Courses (36 units)" in units_blob
 
-    electives = processor.retrieve_relevant_docs("What electives can I take for ISDA?", k=5)
+    electives = processor.retrieve_relevant_docs(
+        "What electives can I take for ISDA?", k=5
+    )
     electives_blob = "\n".join(hit.page_content for hit in electives)
     assert "ISDA 80, 81, 150, 160, 180, and 181" in electives_blob
     assert any(

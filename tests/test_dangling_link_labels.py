@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from rag_chatbot import RAGAdvisingChatbot, _restrict_reply_links
+from rag_chatbot import RAGAdvisingChatbot, _restrict_reply_links  # noqa: E402
 
 BAD_URL = "https://example.invalid/internships"
 ALLOWED_URL = "https://ischool.sjsu.edu/internships"

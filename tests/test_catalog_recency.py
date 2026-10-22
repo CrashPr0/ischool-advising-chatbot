@@ -118,7 +118,10 @@ def _catalog_records():
             OLDER_150,
             {
                 "source": "older-150.txt",
-                "title": "ISDA 150 - Special Topics in Information Science and Data Analytics",
+                ("title"): (
+                    "ISDA 150 - Special Topics in Information Science and Data "
+                    "Analytics"
+                ),
                 "source_url": OLDER_150_URL,
             },
         ),
@@ -174,7 +177,9 @@ def test_catalog_year_comes_from_the_source_url_catoid():
 
     unknown = apply_catalog_metadata(
         {
-            "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=99&coid=1"
+            ("source_url"): (
+                "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=99&coid=1"
+            )
         },
         "2018-2019 Academic Catalog\nISDA 80 - Something\n",
     )
@@ -219,7 +224,10 @@ def test_ischool_and_registrar_pages_are_not_catalog_chunks():
 
     registrar = apply_catalog_metadata(
         {"source_url": REGISTRAR_URL},
-        "See https://catalog.sjsu.edu/content.php?catoid=14&navoid=5018 for class level.",
+        (
+            "See https://catalog.sjsu.edu/content.php?catoid=14&navoid=5018 for "
+            "class level."
+        ),
     )
     assert "catoid" not in registrar
     assert "catalog_year" not in registrar
@@ -376,7 +384,9 @@ def test_conflicting_ischool_title_pulls_the_current_course_page():
         page_content="Major electives include ISDA 80, 81, 150, 160, 180, and 181.",
         metadata={
             "source": "program.txt",
-            "source_url": "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100",
+            ("source_url"): (
+                "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100"
+            ),
             "title": "Information Science and Data Analytics, BS",
             "catalog_year": "2026-2027",
             "catoid": "23",
@@ -430,7 +440,9 @@ def test_course_title_pull_does_not_drop_an_official_graduation_page():
         page_content="Major electives include ISDA 80, 81, 150, 160, 180, and 181.",
         metadata={
             "source": "program.txt",
-            "source_url": "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100",
+            ("source_url"): (
+                "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100"
+            ),
             "title": "Information Science and Data Analytics, BS",
             "catalog_year": "2026-2027",
             "catoid": "23",
@@ -529,14 +541,19 @@ def test_model_context_labels_an_ischool_page_and_a_catalog_page():
         "What electives can I take for the ISDA major?",
         [
             Document(
-                page_content="ISDA 150 – Special Topics in Information Science and Data Analytics",
+                page_content=(
+                    "ISDA 150 – Special Topics in Information Science and Data "
+                    "Analytics"
+                ),
                 metadata={
                     "source": "ischool.txt",
                     "source_url": "https://ischool.sjsu.edu/bsisda-electives",
                 },
             ),
             Document(
-                page_content="ISDA 150 - Topics in Information Science and Data Analytics",
+                page_content=(
+                    "ISDA 150 - Topics in Information Science and Data Analytics"
+                ),
                 metadata={
                     "source": "catalog.txt",
                     "catalog_year": "2026-2027",
@@ -590,12 +607,14 @@ def test_real_corpus_keeps_core_graduation_and_current_isda_150(monkeypatch, tmp
     # not drop the apply-to-graduate steps or the published deadline table.
     corpus = _graduation_prompt_corpus(processor, "How do I apply to graduate?")
     before_blob = "\n".join(
-        hit.page_content for hit in order_graduation_prompt_docs(
+        hit.page_content
+        for hit in order_graduation_prompt_docs(
             "How do I apply to graduate?", graduation_before, corpus
         )
     )
     graduation_blob = "\n".join(
-        hit.page_content for hit in order_graduation_prompt_docs(
+        hit.page_content
+        for hit in order_graduation_prompt_docs(
             "How do I apply to graduate?", graduation, corpus
         )
     )
@@ -606,7 +625,8 @@ def test_real_corpus_keeps_core_graduation_and_current_isda_150(monkeypatch, tmp
         assert "Deadline 2: March 20, 2026" in blob
         assert "Spring 2027/ Summer 2027" in blob
     assert any(
-        "/registrar/graduation/application-central.php" in (hit.metadata.get("source_url") or "")
+        "/registrar/graduation/application-central.php"
+        in (hit.metadata.get("source_url") or "")
         for hit in graduation
     )
 

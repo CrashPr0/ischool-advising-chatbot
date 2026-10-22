@@ -46,9 +46,7 @@ CATALOG_TOPICS = [
     "registration",
 ]
 
-_COURSE_TEXT = re.compile(
-    r"^(?:INFO|ISDA)\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE
-)
+_COURSE_TEXT = re.compile(r"^(?:INFO|ISDA)\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE)
 _ISDA_COURSE_TEXT = re.compile(r"^ISDA\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE)
 _SHOW_COURSE = re.compile(
     r"show(?:Hide)?Course\(\s*(?:this\s*,\s*)?'(\d+)'\s*,\s*'(\d+)'",
@@ -63,7 +61,10 @@ _LABELED_FIELDS = (
     "Note(s)",
 )
 _NOISE_LINE = re.compile(
-    r"^(back to top|print-friendly page\b|add to favorites\b|class schedule\b.*syllabus)",
+    (
+        "^(back to top|print-friendly page\\b|add to favorites\\b|class "
+        "schedule\\b.*syllabus)"
+    ),
     re.IGNORECASE,
 )
 
@@ -637,7 +638,8 @@ def _append_seeds(docs_root: Path, urls: list[str], year: str, catoid: str) -> N
     block = "\n".join(
         [
             "",
-            f"# Official {year} SJSU catalog (catoid {catoid}), added by the catalog check.",
+            f"# Official {year} SJSU catalog (catoid {catoid}), "
+            "added by the catalog check.",
             *missing,
             "",
         ]
@@ -724,7 +726,8 @@ def pull_request_body(result: CatalogCheckResult) -> str:
             "## Summary",
             (
                 f"catalog.sjsu.edu now treats **{year}** (catoid {catoid}) as the "
-                f"current academic catalog. The previous committed catalog was {previous}."
+                "current academic catalog. "
+                f"The previous committed catalog was {previous}."
             ),
             "",
             (
@@ -738,7 +741,8 @@ def pull_request_body(result: CatalogCheckResult) -> str:
                 "Please review the snapshot text before merging. Merging to `main` "
                 "deploys and rebuilds the advising index. If App Service has "
                 "`CURRENT_CATALOG_CATOID` or `CURRENT_CATALOG_YEAR` set, that value "
-                "overrides the file, so clear or update it when you accept this catalog."
+                "overrides the file, so clear or update it when you accept "
+                "this catalog."
             ),
             "",
             "## Test plan",
@@ -746,7 +750,8 @@ def pull_request_body(result: CatalogCheckResult) -> str:
                 "- [ ] pytest passed in the Check SJSU catalog workflow before "
                 "this pull request was opened"
             ),
-            f"- [ ] ISDA program pages and course pages are present for catoid {catoid}",
+            "- [ ] ISDA program pages and course pages are present "
+            f"for catoid {catoid}",
             (
                 "- [ ] `catalog_may_be_stale` on `/readyz` matches the year you "
                 "expect after merge"

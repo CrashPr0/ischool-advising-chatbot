@@ -6,8 +6,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from llm_providers import REASONING_RETRY
-from rag_chatbot import (
+from llm_providers import REASONING_RETRY  # noqa: E402
+from rag_chatbot import (  # noqa: E402
     BUSY_RESPONSE,
     FILTERED_RESPONSE,
     RAGAdvisingChatbot,
@@ -132,7 +132,10 @@ def test_unknown_info_course_is_rejected_from_the_available_catalog_corpus():
     answer = bot.chat("What is INFO 999?")
 
     assert answer["source"] == "catalog_lookup"
-    assert "INFO 999 is not present in the available 2026-2027 SJSU catalog corpus" in answer["response"]
+    assert (
+        "INFO 999 is not present in the available 2026-2027 SJSU catalog corpus"
+        in answer["response"]
+    )
     assert "iSchool advisor" in answer["response"]
     assert bot.doc_processor.queries == []
     assert bot.chain.payloads == []
@@ -391,7 +394,8 @@ def test_fallback_retries_without_temperature_when_the_model_rejects_it(monkeypa
             calls["n"] += 1
             if calls["n"] == 1:
                 raise RuntimeError(
-                    "Unsupported parameter: 'temperature' is not supported with this model. "
+                    "Unsupported parameter: 'temperature' is not supported "
+                    "with this model. "
                     "Use max_completion_tokens instead of max_tokens."
                 )
             return type("Reply", (), {"content": "reasoned answer"})()
@@ -501,7 +505,8 @@ def test_both_program_apply_to_graduate_adds_dual_program_guidance():
     def retrieve(query, k, program=None):
         return [
             _Doc(
-                "You must apply for graduation no later than the add deadline of the term "
+                "You must apply for graduation no later than the add "
+                "deadline of the term "
                 "in which you wish to graduate. If you apply by the dates shown below, "
                 "you will receive priority registration.\n"
                 "Planned Graduation Term: Fall 2027. Deadline 1: October 9, 2026. "
@@ -516,4 +521,6 @@ def test_both_program_apply_to_graduate_adds_dual_program_guidance():
     assert "Selected Program: BOTH" in payload["context"]
     assert "Never silently answer as ISDA-only" in payload["context"]
     note = payload["graduation_note"]
-    assert "Do not present application deadlines that are before today as upcoming" in note
+    assert (
+        "Do not present application deadlines that are before today as upcoming" in note
+    )

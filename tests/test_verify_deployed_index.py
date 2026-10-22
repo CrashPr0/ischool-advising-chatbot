@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-import verify_deployed_index as verify
+import verify_deployed_index as verify  # noqa: E402
 
 
 class Clock:
@@ -114,7 +114,10 @@ def _run(transport, commit="abc123", **kwargs):
 
 def test_response_classification_retries_gateway_errors_and_stops_on_auth():
     assert verify.response_kind(_result(502, body="bad gateway")) == "transient"
-    assert verify.response_kind(_result(503, body="<html>unavailable</html>")) == "transient"
+    assert (
+        verify.response_kind(_result(503, body="<html>unavailable</html>"))
+        == "transient"
+    )
     assert (
         verify.response_kind(
             _result(503, {"error": "DOCS_LOAD_TOKEN is not configured"})
@@ -296,15 +299,19 @@ def test_main_requires_the_admin_token(monkeypatch):
 
 
 def test_workflow_serializes_deploys_and_checks_the_commit():
-    workflow = Path(__file__).resolve().parents[1].joinpath(
-        ".github", "workflows", "deploy-azure.yml"
-    ).read_text(encoding="utf-8")
+    workflow = (
+        Path(__file__)
+        .resolve()
+        .parents[1]
+        .joinpath(".github", "workflows", "deploy-azure.yml")
+        .read_text(encoding="utf-8")
+    )
 
     assert "actions/checkout@v7" in workflow
     assert "actions/setup-python@v7" in workflow
     assert "group: azure-app-service-production" in workflow
     assert "cancel-in-progress: false" in workflow
-    assert 'docs/**' in workflow
+    assert "docs/**" in workflow
     assert "deliverables/**" in workflow
     assert "**/*.md" in workflow
     assert "python scripts/verify_deployed_index.py" in workflow

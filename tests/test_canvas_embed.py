@@ -71,23 +71,33 @@ def test_embed_query_hides_the_header_and_leaves_the_full_page_alone():
     embed = client.get("/?embed=1")
 
     assert b'class="is-embed"' not in full.data
-    assert b"<header class=\"site-header\">" in full.data
+    assert b'<header class="site-header">' in full.data
     assert b'class="is-embed"' in embed.data
     assert b'<header class="site-header" hidden>' in embed.data
     assert b"BS ISDA and MLIS advising assistant." in embed.data
 
 
-def test_embed_session_cookie_is_cross_site_only_on_https(monkeypatch, ready_chat_index):
+def test_embed_session_cookie_is_cross_site_only_on_https(
+    monkeypatch, ready_chat_index
+):
     monkeypatch.delenv("SESSION_COOKIE_SECURE", raising=False)
-    monkeypatch.setattr(app_module, "chatbot", type("Bot", (), {
-        "chat": lambda self, message, history=None, program=None: {
-            "user_message": message,
-            "response": "ok",
-            "source": "test",
-            "confidence": 1.0,
-            "retrieved_docs": [],
-        }
-    })())
+    monkeypatch.setattr(
+        app_module,
+        "chatbot",
+        type(
+            "Bot",
+            (),
+            {
+                "chat": lambda self, message, history=None, program=None: {
+                    "user_message": message,
+                    "response": "ok",
+                    "source": "test",
+                    "confidence": 1.0,
+                    "retrieved_docs": [],
+                }
+            },
+        )(),
+    )
 
     http_client = app_module.app.test_client()
     http_page = http_client.get("/?embed=1")

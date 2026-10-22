@@ -13,7 +13,9 @@ import app as app_module
 
 @pytest.fixture(autouse=True)
 def _fresh_rate_limiter(monkeypatch):
-    monkeypatch.setattr(app_module, "_rate_limiter", app_module._FixedWindowRateLimiter())
+    monkeypatch.setattr(
+        app_module, "_rate_limiter", app_module._FixedWindowRateLimiter()
+    )
 
 
 class FakeChatbot:
@@ -264,8 +266,12 @@ def test_csv_export_omits_other_reviewers_comments(monkeypatch, tmp_path):
     )
     assert alpha_login.status_code == 200
     assert beta_login.status_code == 200
-    _save_both(alpha, alpha_login.get_json()["csrf"], "Alpha kept this comment private.", 5)
-    _save_both(beta, beta_login.get_json()["csrf"], "Beta kept this comment private.", 3)
+    _save_both(
+        alpha, alpha_login.get_json()["csrf"], "Alpha kept this comment private.", 5
+    )
+    _save_both(
+        beta, beta_login.get_json()["csrf"], "Beta kept this comment private.", 3
+    )
 
     assert stranger.get("/api/evaluation/export.csv").status_code == 401
     alpha_export = alpha.get("/api/evaluation/export.csv")
@@ -289,9 +295,7 @@ def test_security_headers_and_healthz_stay_lightweight(monkeypatch):
     for path in ("/healthz", "/", "/evaluation", "/api/does-not-exist"):
         response = client.get(path)
         assert response.headers["X-Content-Type-Options"] == "nosniff"
-        assert (
-            response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
-        )
+        assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
         policy = response.headers["Content-Security-Policy"]
         assert "default-src 'self'" in policy
         assert "object-src 'none'" in policy
@@ -317,7 +321,9 @@ def test_security_headers_and_healthz_stay_lightweight(monkeypatch):
 def test_pdf_vendor_is_served_locally_under_existing_csp():
     client = app_module.app.test_client()
     page = client.get("/")
-    assert b'data-jspdf-src="/static/vendor/jspdf/jspdf.umd.min.js?v=4.2.1"' in page.data
+    assert (
+        b'data-jspdf-src="/static/vendor/jspdf/jspdf.umd.min.js?v=4.2.1"' in page.data
+    )
     assert not re.search(rb"<script\b[^>]*jspdf", page.data, re.I)
     policy = page.headers["Content-Security-Policy"]
     script_policy = next(
@@ -394,7 +400,9 @@ def test_unset_session_secret_warns_clearly_in_production(monkeypatch, caplog):
         secret = app_module._resolve_session_secret()
     assert secret
     messages = [record.getMessage() for record in caplog.records]
-    assert any("SESSION_SECRET_KEY is unset in production" in message for message in messages)
+    assert any(
+        "SESSION_SECRET_KEY is unset in production" in message for message in messages
+    )
     assert all(secret not in message for message in messages)
 
     monkeypatch.setenv("SESSION_SECRET_KEY", "replace_with_a_long_random_secret")
@@ -432,7 +440,9 @@ def test_configured_session_secret_is_kept(monkeypatch, caplog):
     with caplog.at_level(logging.WARNING):
         resolved = app_module._resolve_session_secret()
     assert resolved == "a-real-secret-value-that-is-long"
-    assert not any("SESSION_SECRET_KEY" in record.getMessage() for record in caplog.records)
+    assert not any(
+        "SESSION_SECRET_KEY" in record.getMessage() for record in caplog.records
+    )
 
 
 def test_trusted_proxy_hop_count(monkeypatch):
@@ -479,9 +489,7 @@ def test_rate_limit_ignores_a_spoofed_forwarded_for(monkeypatch, ready_chat_inde
     assert _post_chat(client, "203.0.113.11", "198.51.100.5").status_code == 200
 
 
-def test_rate_limit_keys_on_the_proxy_appended_client_ip(
-    monkeypatch, ready_chat_index
-):
+def test_rate_limit_keys_on_the_proxy_appended_client_ip(monkeypatch, ready_chat_index):
     monkeypatch.setenv("WEBSITE_SITE_NAME", "ischooladvisingchatbot")
     monkeypatch.delenv("TRUSTED_PROXY_COUNT", raising=False)
     monkeypatch.setenv("CHAT_RATE_LIMIT", "1")

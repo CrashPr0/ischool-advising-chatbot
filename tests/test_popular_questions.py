@@ -26,7 +26,10 @@ def _insert(database, rows):
     try:
         ensure_anonymized_questions_table(connection)
         connection.executemany(
-            "INSERT INTO anonymized_student_questions (created_at, question) VALUES (?, ?)",
+            (
+                "INSERT INTO anonymized_student_questions (created_at, question) "
+                "VALUES (?, ?)"
+            ),
             rows,
         )
         connection.commit()
@@ -167,14 +170,19 @@ def test_reviewer_windows_auth_and_public_flag(monkeypatch, tmp_path, caplog):
     days, blank = _questions(reviewer.get("/api/evaluation/popular-questions?days="))
     assert days == 30
     assert blank == month
-    days, quarter = _questions(reviewer.get("/api/evaluation/popular-questions?days=90"))
+    days, quarter = _questions(
+        reviewer.get("/api/evaluation/popular-questions?days=90")
+    )
     assert days == 90
     assert quarter == [
         {"question": "How do I apply?", "count": 2},
         {"question": "Only in the month", "count": 1},
         {"question": "Only in the quarter", "count": 1},
     ]
-    assert _questions(reviewer.get("/api/evaluation/popular-questions?days=90"))[1] == quarter
+    assert (
+        _questions(reviewer.get("/api/evaluation/popular-questions?days=90"))[1]
+        == quarter
+    )
     assert _row_count(database) == stored
     assert "How do I apply" not in caplog.text
     assert "Only in the quarter" not in caplog.text
@@ -206,7 +214,9 @@ def test_reviewer_windows_auth_and_public_flag(monkeypatch, tmp_path, caplog):
         json={"reviewer": "Reviewer@SJSU.edu"},
     )
     assert approved.status_code == 200
-    assert _questions(outsider.get("/api/evaluation/popular-questions?days=7"))[1] == week
+    assert (
+        _questions(outsider.get("/api/evaluation/popular-questions?days=7"))[1] == week
+    )
 
 
 def test_reviewer_page_lists_windows_and_renders_counts_as_text(tmp_path):
@@ -240,98 +250,107 @@ def test_reviewer_page_lists_windows_and_renders_counts_as_text(tmp_path):
     assert completed.stdout.strip() == "ok"
 
 
-_POPULAR_RUNNER = r"""
-const fs = require('fs');
-const vm = require('vm');
-const assert = require('assert');
-class Element {
-  constructor(tag = 'div') {
-    this.tag = tag;
-    this.children = [];
-    this.dataset = {};
-    this.attributes = {};
-    this.handlers = {};
-    this.value = '';
-    this.open = false;
-    this._text = '';
-    const classes = new Set();
-    this.classList = {
-      add: name => classes.add(name),
-      remove: name => classes.delete(name),
-      contains: name => classes.has(name),
-      toggle: (name, force) => {
-        const on = force === undefined ? !classes.has(name) : Boolean(force);
-        if (on) classes.add(name); else classes.delete(name);
-        return on;
-      },
-    };
-  }
-  set innerHTML(value) { throw new Error('Unsafe innerHTML assignment'); }
-  set textContent(value) { this._text = String(value); this.children = []; }
-  get textContent() { return this._text + this.children.map(child => child.textContent).join(''); }
-  append(...children) { this.children.push(...children); }
-  appendChild(child) { this.append(child); }
-  replaceChildren(...children) { this._text = ''; this.children = children; }
-  setAttribute(key, value) { this.attributes[key] = value; }
-  addEventListener(type, handler) { this.handlers[type] = handler; }
-  showModal() { this.open = true; }
-  close() { this.open = false; }
-}
-const nodes = {};
-const node = id => nodes[id] || (nodes[id] = new Element());
-const attack = '<img src=x onerror=alert(1)>';
-const payload = {
-  questions: [
-    {question: attack, count: 4},
-    {question: 'What is INFO 202?', count: 1},
-  ],
-};
-const sandbox = {
-  console, Headers, setTimeout, clearTimeout,
-  window: {setTimeout, clearTimeout},
-  document: {
-    getElementById: node,
-    querySelectorAll: () => [],
-    createElement: tag => new Element(tag),
-  },
-  fetch: async path => ({
-    ok: true,
-    status: 200,
-    headers: {get: () => 'application/json'},
-    json: async () => {
-      sandbox.lastPath = String(path);
-      if (String(path).includes('popular-questions')) return {days: 30, questions: payload.questions};
-      if (String(path).includes('issue-reports')) return {reports: [], summary: {total: 0, reasons: []}};
-      return {authenticated: false, token_required: false};
-    },
-  }),
-  lastPath: '',
-};
-vm.createContext(sandbox);
-vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), sandbox);
-(async () => {
-  await new Promise(resolve => setTimeout(resolve, 0));
-  await vm.runInContext('state.reviewer = "Reviewer"; state.popularWindowDays = 30; loadPopularQuestions()', sandbox);
-  const list = node('popular-questions-list');
-  const status = node('popular-questions-status');
-  assert.strictEqual(list.children.length, 2);
-  assert.strictEqual(list.children[0].children[0].textContent, attack);
-  assert.strictEqual(list.children[0].children[1].textContent, '4 asks');
-  assert.strictEqual(list.children[1].children[1].textContent, '1 ask');
-  assert.strictEqual(status.textContent, '2 questions, 5 asks in the last 30 days.');
-  assert(sandbox.lastPath.includes('days=30'));
-  await vm.runInContext('selectPopularWindow(7)', sandbox);
-  await new Promise(resolve => setTimeout(resolve, 0));
-  assert(sandbox.lastPath.includes('days=7'));
-  payload.questions = [];
-  await vm.runInContext('loadPopularQuestions()', sandbox);
-  assert.strictEqual(status.textContent, 'No questions in the last 7 days.');
-  assert.strictEqual(list.children.length, 0);
-  node('popular-questions').classList.remove('hidden');
-  await vm.runInContext('signOut()', sandbox);
-  assert(node('popular-questions').classList.contains('hidden'));
-  assert.strictEqual(list.children.length, 0);
-  assert.strictEqual(status.textContent, '');
-  console.log('ok');
-})().catch(error => { console.error(error); process.exit(1); });
-"""
+_POPULAR_RUNNER = (
+    "\n"
+    "const fs = require('fs');\n"
+    "const vm = require('vm');\n"
+    "const assert = require('assert');\n"
+    "class Element {\n"
+    "  constructor(tag = 'div') {\n"
+    "    this.tag = tag;\n"
+    "    this.children = [];\n"
+    "    this.dataset = {};\n"
+    "    this.attributes = {};\n"
+    "    this.handlers = {};\n"
+    "    this.value = '';\n"
+    "    this.open = false;\n"
+    "    this._text = '';\n"
+    "    const classes = new Set();\n"
+    "    this.classList = {\n"
+    "      add: name => classes.add(name),\n"
+    "      remove: name => classes.delete(name),\n"
+    "      contains: name => classes.has(name),\n"
+    "      toggle: (name, force) => {\n"
+    "        const on = force === undefined ? !classes.has(name) : "
+    "Boolean(force);\n"
+    "        if (on) classes.add(name); else classes.delete(name);\n"
+    "        return on;\n"
+    "      },\n"
+    "    };\n"
+    "  }\n"
+    "  set innerHTML(value) { throw new Error('Unsafe innerHTML assignment'); }\n"
+    "  set textContent(value) { this._text = String(value); this.children = []; }\n"
+    "  get textContent() { return this._text + this.children.map(child => "
+    "child.textContent).join(''); }\n"
+    "  append(...children) { this.children.push(...children); }\n"
+    "  appendChild(child) { this.append(child); }\n"
+    "  replaceChildren(...children) { this._text = ''; this.children = children; "
+    "}\n"
+    "  setAttribute(key, value) { this.attributes[key] = value; }\n"
+    "  addEventListener(type, handler) { this.handlers[type] = handler; }\n"
+    "  showModal() { this.open = true; }\n"
+    "  close() { this.open = false; }\n"
+    "}\n"
+    "const nodes = {};\n"
+    "const node = id => nodes[id] || (nodes[id] = new Element());\n"
+    "const attack = '<img src=x onerror=alert(1)>';\n"
+    "const payload = {\n"
+    "  questions: [\n"
+    "    {question: attack, count: 4},\n"
+    "    {question: 'What is INFO 202?', count: 1},\n"
+    "  ],\n"
+    "};\n"
+    "const sandbox = {\n"
+    "  console, Headers, setTimeout, clearTimeout,\n"
+    "  window: {setTimeout, clearTimeout},\n"
+    "  document: {\n"
+    "    getElementById: node,\n"
+    "    querySelectorAll: () => [],\n"
+    "    createElement: tag => new Element(tag),\n"
+    "  },\n"
+    "  fetch: async path => ({\n"
+    "    ok: true,\n"
+    "    status: 200,\n"
+    "    headers: {get: () => 'application/json'},\n"
+    "    json: async () => {\n"
+    "      sandbox.lastPath = String(path);\n"
+    "      if (String(path).includes('popular-questions')) return {days: 30, "
+    "questions: payload.questions};\n"
+    "      if (String(path).includes('issue-reports')) return {reports: [], "
+    "summary: {total: 0, reasons: []}};\n"
+    "      return {authenticated: false, token_required: false};\n"
+    "    },\n"
+    "  }),\n"
+    "  lastPath: '',\n"
+    "};\n"
+    "vm.createContext(sandbox);\n"
+    "vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), sandbox);\n"
+    "(async () => {\n"
+    "  await new Promise(resolve => setTimeout(resolve, 0));\n"
+    '  await vm.runInContext(\'state.reviewer = "Reviewer"; '
+    "state.popularWindowDays = 30; loadPopularQuestions()', sandbox);\n"
+    "  const list = node('popular-questions-list');\n"
+    "  const status = node('popular-questions-status');\n"
+    "  assert.strictEqual(list.children.length, 2);\n"
+    "  assert.strictEqual(list.children[0].children[0].textContent, attack);\n"
+    "  assert.strictEqual(list.children[0].children[1].textContent, '4 asks');\n"
+    "  assert.strictEqual(list.children[1].children[1].textContent, '1 ask');\n"
+    "  assert.strictEqual(status.textContent, '2 questions, 5 asks in the last "
+    "30 days.');\n"
+    "  assert(sandbox.lastPath.includes('days=30'));\n"
+    "  await vm.runInContext('selectPopularWindow(7)', sandbox);\n"
+    "  await new Promise(resolve => setTimeout(resolve, 0));\n"
+    "  assert(sandbox.lastPath.includes('days=7'));\n"
+    "  payload.questions = [];\n"
+    "  await vm.runInContext('loadPopularQuestions()', sandbox);\n"
+    "  assert.strictEqual(status.textContent, 'No questions in the last 7 "
+    "days.');\n"
+    "  assert.strictEqual(list.children.length, 0);\n"
+    "  node('popular-questions').classList.remove('hidden');\n"
+    "  await vm.runInContext('signOut()', sandbox);\n"
+    "  assert(node('popular-questions').classList.contains('hidden'));\n"
+    "  assert.strictEqual(list.children.length, 0);\n"
+    "  assert.strictEqual(status.textContent, '');\n"
+    "  console.log('ok');\n"
+    "})().catch(error => { console.error(error); process.exit(1); });\n"
+)

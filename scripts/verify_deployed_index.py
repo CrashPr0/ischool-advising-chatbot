@@ -329,7 +329,8 @@ def _confirm_existing_receipt(
             raise RebuildFailed(reason)
         last_error = result.transport_error or f"HTTP {result.status}"
         log(
-            f"Retrying index verification after a transient error ({attempt}/{attempts})"
+            "Retrying index verification after a transient error "
+            f"({attempt}/{attempts})"
         )
         if attempt < attempts:
             sleep(poll_seconds)

@@ -100,7 +100,9 @@ def test_scrub_pii_value_walks_nested_dicts_and_lists():
     assert payload["question"] == "My id is 012345678"
 
 
-def test_issue_report_stores_scrubbed_comments_transcripts_questions_and_answers(tmp_path):
+def test_issue_report_stores_scrubbed_comments_transcripts_questions_and_answers(
+    tmp_path,
+):
     record = build_issue_report(
         {
             "reason": "incorrect_info",
@@ -155,7 +157,11 @@ def test_reviewer_comment_is_scrubbed_before_it_is_stored(tmp_path):
                 "created_at": "2026-09-19T12:00:00+00:00",
                 "method": "Same prompt.",
                 "left_model": {"provider": "openai", "model": "left", "label": "Left"},
-                "right_model": {"provider": "openai", "model": "right", "label": "Right"},
+                "right_model": {
+                    "provider": "openai",
+                    "model": "right",
+                    "label": "Right",
+                },
                 "results": [
                     {
                         "id": "q1",

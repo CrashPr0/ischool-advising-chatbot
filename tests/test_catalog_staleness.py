@@ -83,7 +83,9 @@ def test_unknown_catoid_falls_back_to_printed_year_or_stays_blank():
     assert year_for_catoid("10") == ""
     printed = apply_catalog_metadata(
         {
-            "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=40&coid=1"
+            ("source_url"): (
+                "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=40&coid=1"
+            )
         },
         "2030-2031 Academic Catalog\nISDA 80 - Example\n",
     )
@@ -91,7 +93,9 @@ def test_unknown_catoid_falls_back_to_printed_year_or_stays_blank():
     assert printed["catalog_year"] == "2030-2031"
     blank = apply_catalog_metadata(
         {
-            "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=41&coid=1"
+            ("source_url"): (
+                "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=41&coid=1"
+            )
         },
         "ISDA 80 - Example\n",
     )

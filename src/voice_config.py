@@ -12,7 +12,6 @@ from dataclasses import dataclass
 import os
 from typing import Any, Dict, List, Tuple
 
-
 DEFAULT_VOICE_LANGUAGES: Tuple[str, ...] = ("en-US", "zh-CN")
 
 # These labels are only UI defaults.  A deployment can add any BCP-47 locale
@@ -89,7 +88,11 @@ class VoiceConfig:
         languages = _parse_languages(os.getenv("VOICE_LANGUAGES"))
         requested_default = os.getenv("VOICE_DEFAULT_LANGUAGE", languages[0]).strip()
         default_language = next(
-            (locale for locale in languages if locale.lower() == requested_default.lower()),
+            (
+                locale
+                for locale in languages
+                if locale.lower() == requested_default.lower()
+            ),
             languages[0],
         )
 
@@ -100,7 +103,9 @@ class VoiceConfig:
         max_utterance_chars = max(100, min(max_utterance_chars, 10000))
 
         requested_mode = os.getenv("VOICE_MODE", "browser").strip().lower()
-        mode = requested_mode if requested_mode in {"browser", "disabled"} else "browser"
+        mode = (
+            requested_mode if requested_mode in {"browser", "disabled"} else "browser"
+        )
         enabled = _env_bool("VOICE_ENABLED", True) and mode != "disabled"
 
         return cls(

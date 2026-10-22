@@ -42,4 +42,7 @@ def test_scope_notice_does_not_add_crisis_wording():
         assert phrase not in notice
     styles = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
     assert ".scope-notice {" in styles
-    assert "color: var(--text-main)" in styles.split(".scope-notice {", 1)[1].split("}", 1)[0]
+    assert (
+        "color: var(--text-main)"
+        in styles.split(".scope-notice {", 1)[1].split("}", 1)[0]
+    )

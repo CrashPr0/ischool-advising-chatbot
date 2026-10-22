@@ -65,9 +65,7 @@ PURGE_INTERVAL_SECONDS = 3_600
 _LABEL_RE = re.compile(r"^[A-Za-z0-9_.:/+-]{1,120}$")
 _CONVERSATION_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 _MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
-_BARE_LINK = re.compile(
-    r"(?i)(?<![\w/[(])((?:https?://|mailto:)[^\s<>\"']+)"
-)
+_BARE_LINK = re.compile(r"(?i)(?<![\w/[(])((?:https?://|mailto:)[^\s<>\"']+)")
 
 _CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS answer_issue_reports (
@@ -182,7 +180,9 @@ def _normalize_turns(value: object) -> list[dict[str, str]]:
     if not isinstance(value, list):
         raise IssueReportValidationError("turns must be a list")
     if len(value) > TURNS_MAX:
-        raise IssueReportValidationError(f"turns must contain at most {TURNS_MAX} messages")
+        raise IssueReportValidationError(
+            f"turns must contain at most {TURNS_MAX} messages"
+        )
     turns: list[dict[str, str]] = []
     for item in value:
         if not isinstance(item, dict):
@@ -192,7 +192,9 @@ def _normalize_turns(value: object) -> list[dict[str, str]]:
             role = "assistant"
         if role not in {"user", "assistant"}:
             raise IssueReportValidationError("turn role must be user or assistant")
-        text = _clean_multiline(item.get("text"), limit=TURN_MAX, field="turn text", required=False)
+        text = _clean_multiline(
+            item.get("text"), limit=TURN_MAX, field="turn text", required=False
+        )
         if not text:
             continue
         turns.append({"role": role, "text": text})
@@ -341,7 +343,10 @@ def _configured_retention_days() -> int | None:
         days = None
     if days is None or days < 0:
         logger.warning(
-            "Invalid ISSUE_REPORT_RETENTION_DAYS value %r; keeping reports indefinitely",
+            (
+                "Invalid ISSUE_REPORT_RETENTION_DAYS value %r; keeping reports "
+                "indefinitely"
+            ),
             raw,
         )
         return None
@@ -384,11 +389,17 @@ class IssueReportStore:
                 # SQLite cannot alter a CHECK constraint. Rebuild atomically while
                 # preserving report ids, retention timestamps, and all prior rows.
                 connection.execute(
-                    "ALTER TABLE answer_issue_reports RENAME TO answer_issue_reports_legacy"
+                    (
+                        "ALTER TABLE answer_issue_reports RENAME TO "
+                        "answer_issue_reports_legacy"
+                    )
                 )
                 connection.execute(_CREATE_SQL)
                 connection.execute(
-                    "INSERT INTO answer_issue_reports SELECT * FROM answer_issue_reports_legacy"
+                    (
+                        "INSERT INTO answer_issue_reports SELECT * FROM "
+                        "answer_issue_reports_legacy"
+                    )
                 )
                 connection.execute("DROP TABLE answer_issue_reports_legacy")
             connection.execute(_CREATE_INDEX_SQL)
@@ -409,7 +420,9 @@ class IssueReportStore:
             ):
                 return
             try:
-                cutoff = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
+                cutoff = datetime.now(timezone.utc) - timedelta(
+                    days=self.retention_days
+                )
             except OverflowError:
                 # An arbitrarily large positive window expires no existing rows.
                 cutoff = datetime.min.replace(tzinfo=timezone.utc)
@@ -448,12 +461,16 @@ class IssueReportStore:
                     record.get("conversation_id") if include else None,
                     record.get("provider") if include else None,
                     record.get("model") if include else None,
-                    json.dumps(turns, ensure_ascii=False)
-                    if include and turns is not None
-                    else None,
-                    json.dumps(citations, ensure_ascii=False)
-                    if include and citations is not None
-                    else None,
+                    (
+                        json.dumps(turns, ensure_ascii=False)
+                        if include and turns is not None
+                        else None
+                    ),
+                    (
+                        json.dumps(citations, ensure_ascii=False)
+                        if include and citations is not None
+                        else None
+                    ),
                 ),
             )
             return int(cursor.lastrowid)
@@ -496,7 +513,9 @@ class IssueReportStore:
         parameters = (reason, capped) if reason is not None else (capped,)
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM answer_issue_reports" + where + " ORDER BY id DESC LIMIT ?",
+                "SELECT * FROM answer_issue_reports"
+                + where
+                + " ORDER BY id DESC LIMIT ?",
                 parameters,
             ).fetchall()
         return [_row_to_report(row) for row in rows]

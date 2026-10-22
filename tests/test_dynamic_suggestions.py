@@ -6,7 +6,6 @@ import sqlite3
 import subprocess
 from pathlib import Path
 
-import pytest
 
 import app as app_module
 from src.question_suggestions import load_suggestion_catalog, rank_question_suggestions
@@ -104,7 +103,10 @@ def test_picks_store_a_timestamp_and_drop_typed_text(tmp_path):
     assert columns == ["id", "suggestion_id", "event_type", "program", "picked_at"]
     with sqlite3.connect(store.database_path) as connection:
         row = connection.execute(
-            "SELECT suggestion_id, event_type, program, picked_at FROM suggestion_pick_events"
+            (
+                "SELECT suggestion_id, event_type, program, picked_at FROM "
+                "suggestion_pick_events"
+            )
         ).fetchone()
     assert row[0] == suggestion_id
     assert row[1] == "chip"

@@ -2,7 +2,6 @@
 
 import importlib.util
 import json
-import os
 import sys
 import uuid
 from pathlib import Path
@@ -13,15 +12,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import llm_providers
-from config import Config
-from llm_providers import (
+import llm_providers  # noqa: E402
+from config import Config  # noqa: E402
+from llm_providers import (  # noqa: E402
     LLMFactory,
     _ADVISING_TEMPERATURE,
     _huggingface_kwargs,
     chat_limit_kwargs,
 )
-from check_pip_audit import classify_advisories, main as audit_main
+from check_pip_audit import classify_advisories, main as audit_main  # noqa: E402
 
 
 def _clear_llm_env(monkeypatch):

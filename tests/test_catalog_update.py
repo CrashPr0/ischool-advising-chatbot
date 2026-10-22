@@ -80,17 +80,23 @@ def test_menu_without_one_current_year_is_unusable():
 
 
 def test_course_snapshot_matches_the_published_block():
-    html = """
-    <p><h1 id="course_preview_title">ISDA 150 - Topics in Information Science and Data Analytics</h1>
-    <em>1-3</em> <em>unit(s)</em><br>
-    Current and emerging issues, practices, and technologies relevant to Information and Data Science professionals.
-    <br><br><em>Repeatable for up to 9 units when content changes.</em><br><br>
-    <strong>Prerequisite(s):</strong> <a href="preview_course_nopop.php?catoid=24&coid=9">ISDA 110</a>.<br>
-    <strong>Grading:</strong> Letter graded.<br>
-    <strong>Note(s):</strong> Topics vary by semester.<br>
-    <p>Class Schedule | Syllabus Information | University Bookstore</p>
-    </p>
-    """
+    html = (
+        "\n"
+        '    <p><h1 id="course_preview_title">ISDA 150 - Topics in Information '
+        "Science and Data Analytics</h1>\n"
+        "    <em>1-3</em> <em>unit(s)</em><br>\n"
+        "    Current and emerging issues, practices, and technologies relevant "
+        "to Information and Data Science professionals.\n"
+        "    <br><br><em>Repeatable for up to 9 units when content "
+        "changes.</em><br><br>\n"
+        "    <strong>Prerequisite(s):</strong> <a "
+        'href="preview_course_nopop.php?catoid=24&coid=9">ISDA 110</a>.<br>\n'
+        "    <strong>Grading:</strong> Letter graded.<br>\n"
+        "    <strong>Note(s):</strong> Topics vary by semester.<br>\n"
+        "    <p>Class Schedule | Syllabus Information | University Bookstore</p>\n"
+        "    </p>\n"
+        "    "
+    )
     url = "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=24&coid=300001"
     text = extract_course_snapshot(html, url, "2027-09-01")
     assert text == (
@@ -123,10 +129,14 @@ def test_info_course_snapshot_and_isda_listing_are_supported():
         "INFO 210 - Reference Services\n3 unit(s)\nPrerequisite(s): INFO 202.\n"
     )
 
-    listing_html = """
-    <a href="preview_course_nopop.php?catoid=23&coid=1">ISDA 20A - Query Languages</a>
-    <a href="preview_course_nopop.php?catoid=23&coid=2">ISDA 194 - Professional Experience: Internship</a>
-    """
+    listing_html = (
+        "\n"
+        '    <a href="preview_course_nopop.php?catoid=23&coid=1">ISDA 20A - '
+        "Query Languages</a>\n"
+        '    <a href="preview_course_nopop.php?catoid=23&coid=2">ISDA 194 - '
+        "Professional Experience: Internship</a>\n"
+        "    "
+    )
     assert course_listing_entries(listing_html) == [
         ("ISDA 20A", "Query Languages"),
         ("ISDA 194", "Professional Experience: Internship"),
@@ -169,7 +179,8 @@ def _course_html(code, coid):
 
 def _program_html(title, courses):
     items = "\n".join(
-        f'<li><a href="preview_course_nopop.php?catoid=24&coid={coid}">{code} - Sample Course</a></li>'
+        f'<li><a href="preview_course_nopop.php?catoid=24&coid={coid}">'
+        f"{code} - Sample Course</a></li>"
         for code, coid in courses
     )
     return f"""
@@ -188,12 +199,17 @@ def _pages():
     <a href="/content.php?catoid=24&navoid=1">Academic Programs</a>
     <a href="/content.php?catoid=24&navoid=2">Course Descriptions</a>
     """
-    programs = """
-    <a href="preview_program.php?catoid=24&poid=21000&returnto=1">Information Science and Data Analytics, BS</a>
-    <a href="/preview_program.php?catoid=24&poid=21001">Information Science and Data Analytics, BS (SJSU Online)</a>
-    """
+    programs = (
+        "\n"
+        '    <a href="preview_program.php?catoid=24&poid=21000&returnto=1">Inform'
+        "ation Science and Data Analytics, BS</a>\n"
+        '    <a href="/preview_program.php?catoid=24&poid=21001">Information '
+        "Science and Data Analytics, BS (SJSU Online)</a>\n"
+        "    "
+    )
     listing = "\n".join(
-        f"<a href=\"#\" onclick=\"showHideCourse(this, '24', '{coid}'); return false;\">{code} - Sample Course</a>"
+        f"<a href=\"#\" onclick=\"showHideCourse(this, '24', '{coid}'); "
+        f'return false;">{code} - Sample Course</a>'
         for code, coid in courses
     )
     by_url = {
@@ -202,10 +218,12 @@ def _pages():
         "https://catalog.sjsu.edu/index.php?catoid=24": home,
         "https://catalog.sjsu.edu/content.php?catoid=24&navoid=1": programs,
         "https://catalog.sjsu.edu/content.php?catoid=24&navoid=2": listing,
-        "https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=21000": _program_html(
-            "Information Science and Data Analytics, BS", courses[:4]
-        ),
-        "https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=21001": _program_html(
+        (
+            "https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=21000"
+        ): _program_html("Information Science and Data Analytics, BS", courses[:4]),
+        (
+            "https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=21001"
+        ): _program_html(
             "Information Science and Data Analytics, BS (SJSU Online)", courses[4:]
         ),
     }
@@ -372,14 +390,20 @@ def test_unreachable_or_changed_shape_is_a_warning_and_writes_nothing(tmp_path, 
     assert "could not be read" in down.message
 
     challenged = {
-        "https://catalog.sjsu.edu/misc/catalog_list.php?catoid=23": "<html>gokuProps</html>",
-        "https://catalog.sjsu.edu/index.php?catoid=23": "<html>awsWafCookieDomainList</html>",
+        ("https://catalog.sjsu.edu/misc/catalog_list.php?catoid=23"): (
+            "<html>gokuProps</html>"
+        ),
+        ("https://catalog.sjsu.edu/index.php?catoid=23"): (
+            "<html>awsWafCookieDomainList</html>"
+        ),
     }
     blocked = check_for_newer_catalog(repo, _fetch(challenged), today=date(2027, 9, 1))
     assert blocked.status == "unavailable"
 
     shapeless = {
-        "https://catalog.sjsu.edu/misc/catalog_list.php?catoid=23": "<html><p>Catalog</p></html>"
+        ("https://catalog.sjsu.edu/misc/catalog_list.php?catoid=23"): (
+            "<html><p>Catalog</p></html>"
+        )
     }
     changed = check_for_newer_catalog(repo, _fetch(shapeless), today=date(2027, 9, 1))
     assert changed.status == "unavailable"

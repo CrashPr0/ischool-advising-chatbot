@@ -95,7 +95,7 @@ CASES = [
     {"name": "code", "input": "Use `DATA 201` here."},
     {"name": "code_script", "input": "`<script>alert(1)</script>`"},
     {"name": "script", "input": "<script>alert(1)</script>"},
-    {"name": "img", "input": '<img src=x onerror=alert(1)>'},
+    {"name": "img", "input": "<img src=x onerror=alert(1)>"},
     {"name": "javascript_link", "input": "[x](javascript:alert(1))"},
     {"name": "javascript_mixed_case", "input": "[x](JaVaScRiPt:alert(1))"},
     {"name": "data_link", "input": "[x](data:text/html,<script>alert(1)</script>)"},
@@ -114,8 +114,14 @@ CASES = [
     {"name": "bare_https", "input": "Catalog: https://catalog.sjsu.edu/"},
     {"name": "query_url", "input": "https://example.com/search?q=a&b=2"},
     {"name": "lists", "input": "- alpha\n* beta\n• gamma\n\n1. first\n2. second"},
-    {"name": "loose_list", "input": "Hello\n\n- **Core Courses**: one\n\n- **Prerequisites**: two\n\nDone"},
-    {"name": "headings", "input": "# Title\n## Section\n### Detail\n#### not a heading"},
+    {
+        "name": "loose_list",
+        "input": "Hello\n\n- **Core Courses**: one\n\n- **Prerequisites**: two\n\nDone",
+    },
+    {
+        "name": "headings",
+        "input": "# Title\n## Section\n### Detail\n#### not a heading",
+    },
     {"name": "breaks", "input": "line1\nline2\n\npara2"},
     {"name": "dollar", "input": "**price is $1**"},
     {"name": "raw_anchor", "input": '<a href="javascript:alert(1)">click</a>'},
@@ -161,7 +167,10 @@ def test_safe_markdown_subset(tmp_path):
     assert html["italic"] == "<p><em>italic</em> and <em>also</em></p>"
     assert html["snake_and_math"] == "<p>snake_case and 2*3 and 2*3*4 and a_b_c</p>"
     assert html["code"] == "<p>Use <code>DATA 201</code> here.</p>"
-    assert html["code_script"] == "<p><code>&lt;script&gt;alert(1)&lt;/script&gt;</code></p>"
+    assert (
+        html["code_script"]
+        == "<p><code>&lt;script&gt;alert(1)&lt;/script&gt;</code></p>"
+    )
     assert plain["code_script"] == "<script>alert(1)</script>"
     assert "<code>" not in plain["code_script"]
 

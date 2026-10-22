@@ -38,6 +38,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Lint Python
+        run: |
+          python -m black --check src/ scripts/ tests/
+          python -m flake8
+
       - name: Run tests
         env:
           # Dummy values only. Tests that care about the token set or clear it

@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from rag_chatbot import RAGAdvisingChatbot, _strip_document_labels
+from rag_chatbot import RAGAdvisingChatbot, _strip_document_labels  # noqa: E402
 
 
 @pytest.mark.parametrize(

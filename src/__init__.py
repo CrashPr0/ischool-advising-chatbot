@@ -1,4 +1,3 @@
-
 """iSchool Advising Chatbot - Langchain-based chatbot for student advising."""
 
 __version__ = "0.2.0"

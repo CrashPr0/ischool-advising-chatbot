@@ -87,13 +87,11 @@ class StrippedLinkLog:
     def records(self) -> list[dict]:
         """Return every stored check, oldest first."""
         with self._connect() as connection:
-            rows = connection.execute(
-                """
+            rows = connection.execute("""
                 SELECT created_at, question, outcome, stripped_urls
                 FROM stripped_link_checks
                 ORDER BY id
-                """
-            ).fetchall()
+                """).fetchall()
         return [
             {
                 "created_at": row["created_at"],
@@ -105,7 +103,9 @@ class StrippedLinkLog:
         ]
 
 
-def record_stripped_links(question: str, stripped_urls: list[str], outcome: str) -> None:
+def record_stripped_links(
+    question: str, stripped_urls: list[str], outcome: str
+) -> None:
     """Store one failed check. A write error does not change the student reply."""
     if not stripped_urls or outcome not in _OUTCOMES:
         return

@@ -23,14 +23,16 @@ def mobile_rules():
         while depth:
             depth += (CSS[end] == "{") - (CSS[end] == "}")
             end += 1
-        body = re.sub(r"/\*.*?\*/", "", CSS[start:end - 1], flags=re.S)
+        body = re.sub(r"/\*.*?\*/", "", CSS[start : end - 1], flags=re.S)
         for rule in re.finditer(r"([^{}]+)\{([^{}]+)\}", body):
             yield [selector.strip() for selector in rule[1].split(",")], rule[2]
 
 
 def phone_has(selector, declaration):
-    return any(selector in selectors and declaration in body
-               for selectors, body in mobile_rules())
+    return any(
+        selector in selectors and declaration in body
+        for selectors, body in mobile_rules()
+    )
 
 
 def test_viewport_and_asset_pins_in_both_pages():
@@ -51,11 +53,22 @@ def test_dynamic_viewport_and_scrollable_dialog():
 
 def test_phone_tap_targets_and_report_rows():
     for selector in (
-        ".report-issue-button", ".chat-tab-close", "#export-chat-button",
-        "#clear-button", "#user-input", "#voice-listen-button", "#send-button",
-        ".resource-list a", ".report-primary", ".report-secondary",
-        "#report-issue-done",         "#voice-language-select", "#voice-stop-button",
-        ".suggest-option", ".prompt-chip", ".prompt-more summary",
+        ".report-issue-button",
+        ".chat-tab-close",
+        "#export-chat-button",
+        "#clear-button",
+        "#user-input",
+        "#voice-listen-button",
+        "#send-button",
+        ".resource-list a",
+        ".report-primary",
+        ".report-secondary",
+        "#report-issue-done",
+        "#voice-language-select",
+        "#voice-stop-button",
+        ".suggest-option",
+        ".prompt-chip",
+        ".prompt-more summary",
     ):
         assert phone_has(selector, "min-height: 44px;")
         assert phone_has(selector, "min-width: 44px;")
@@ -95,7 +108,8 @@ class ComposerParser(HTMLParser):
             classes = attrs.get("class", "").split()
             if "composer-footer" in classes:
                 self.footer_outside_composer = not any(
-                    "composer" in ancestor for ancestor in self.divs)
+                    "composer" in ancestor for ancestor in self.divs
+                )
             self.divs.append(classes)
         inside = any("composer" in ancestor for ancestor in self.divs)
         if attrs.get("id") == "user-input":
@@ -121,7 +135,10 @@ def test_sticky_wrapper_contains_inputs_and_excludes_voice_footer():
 
 def test_phone_layout_reveals_new_messages():
     from pathlib import Path
-    script = (Path(__file__).resolve().parent.parent / "static" / "script.js").read_text(encoding="utf-8")
+
+    script = (
+        Path(__file__).resolve().parent.parent / "static" / "script.js"
+    ).read_text(encoding="utf-8")
     assert "function revealMessageOnPhone" in script
     assert 'matchMedia("(max-width: 640px)")' in script
     assert "prefers-reduced-motion: reduce" in script

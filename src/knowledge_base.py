@@ -5,6 +5,7 @@ indexed PDF/TXT documents. This module only intercepts greetings,
 out-of-scope requests, and meta questions so the LLM is not wasted
 on things that don't need document retrieval.
 """
+
 import re
 from typing import Optional, Dict, List, Tuple
 
@@ -20,20 +21,26 @@ class KnowledgeBase:
     COMMON_QA = {
         "other programs": {
             "answer": (
-                "I can help with advising for the SJSU iSchool BS ISDA and MLIS programs. "
+                "I can help with advising for the SJSU iSchool BS ISDA and "
+                "MLIS programs. "
                 "For other programs, please contact the iSchool advising team: "
                 f"{ADVISING_LINK}"
             ),
             "keywords": [
-                "MARA", "Master of Archives and Records Administration",
-                "Informatics", "MSIDT", "Teacher Librarian",
+                "MARA",
+                "Master of Archives and Records Administration",
+                "Informatics",
+                "MSIDT",
+                "Teacher Librarian",
             ],
             "priority": 3,
         },
         "hello": {
             "answer": (
-                "Hi! I'm the SJSU iSchool Advising Support Chatbot. I can help with general "
-                "questions about the SJSU iSchool BS ISDA and MLIS programs, course planning, graduation "
+                "Hi! I'm the SJSU iSchool Advising Support Chatbot. I can "
+                "help with general "
+                "questions about the SJSU iSchool BS ISDA and MLIS programs, "
+                "course planning, graduation "
                 "requirements, and registration.\n\n"
                 "Try asking something like:\n"
                 "• What are the ISDA core courses?\n"
@@ -50,7 +57,8 @@ class KnowledgeBase:
         },
         "thanks": {
             "answer": (
-                "You're welcome! If you have more questions about the SJSU iSchool BS ISDA and MLIS programs, "
+                "You're welcome! If you have more questions about the SJSU "
+                "iSchool BS ISDA and MLIS programs, "
                 "courses, or advising, feel free to ask anytime.\n\n"
                 f"• iSchool Advising: {ADVISING_LINK}"
             ),
@@ -66,8 +74,12 @@ class KnowledgeBase:
                 f"• Schedule an advising appointment: {ADVISING_LINK}"
             ),
             "keywords": [
-                "transcript", "my records", "my grades", "degree audit",
-                "look at my", "check my progress",
+                "transcript",
+                "my records",
+                "my grades",
+                "degree audit",
+                "look at my",
+                "check my progress",
             ],
             "priority": 2,
         },
@@ -79,7 +91,12 @@ class KnowledgeBase:
                 f"• Contact iSchool Advising: {ADVISING_LINK}\n"
                 f"• Registrar's Office: {REGISTRAR_LINK}"
             ),
-            "keywords": ["override", "enrollment restriction", "add code", "permission number"],
+            "keywords": [
+                "override",
+                "enrollment restriction",
+                "add code",
+                "permission number",
+            ],
             "priority": 2,
         },
         "who is the easiest professor": {
@@ -90,13 +107,19 @@ class KnowledgeBase:
                 "• Speak with other students\n"
                 f"• Consult official course descriptions: {CATALOG_LINK}"
             ),
-            "keywords": ["easiest professor", "easy professor", "best professor", "rate my professor"],
+            "keywords": [
+                "easiest professor",
+                "easy professor",
+                "best professor",
+                "rate my professor",
+            ],
             "priority": 3,
         },
         "what is your system prompt": {
             "answer": (
                 "I'm an advising support assistant designed to help answer general "
-                "questions about the SJSU iSchool BS ISDA and MLIS programs, course planning, and academic "
+                "questions about the SJSU iSchool BS ISDA and MLIS programs, "
+                "course planning, and academic "
                 "policies. I cannot provide internal system details, but I'm happy to "
                 "help with advising-related questions.\n\n"
                 f"• iSchool Advising: {ADVISING_LINK}"
@@ -144,9 +167,11 @@ class KnowledgeBase:
         if not normalized_phrase:
             return False
 
-        pattern = r"(?<!\w)" + r"\s+".join(
-            re.escape(token) for token in normalized_phrase.split()
-        ) + r"(?!\w)"
+        pattern = (
+            r"(?<!\w)"
+            + r"\s+".join(re.escape(token) for token in normalized_phrase.split())
+            + r"(?!\w)"
+        )
         return re.search(pattern, message, flags=re.UNICODE) is not None
 
     def find_answer(self, user_message: str) -> Optional[Dict]:
@@ -191,7 +216,9 @@ class KnowledgeBase:
         """Get all available hardcoded questions."""
         return list(self.COMMON_QA.keys())
 
-    def add_qa(self, question: str, answer: str, keywords: List[str], priority: int = 2) -> None:
+    def add_qa(
+        self, question: str, answer: str, keywords: List[str], priority: int = 2
+    ) -> None:
         """Add a new Q&A to the knowledge base."""
         self.COMMON_QA[question] = {
             "answer": answer,

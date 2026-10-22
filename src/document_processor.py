@@ -635,7 +635,8 @@ CORE_RETRIEVAL_HEADER = (
 # the MySJSU tutorial, which do not publish the term table.
 GRADUATION_RETRIEVAL_HEADER = (
     "How to apply to graduate, and when an SJSU undergraduate should apply "
-    "for graduation, including the Information Science and Data Analytics (ISDA) major. "
+    "for graduation, including the Information Science and Data Analytics "
+    "(ISDA) major. "
     "You must apply for graduation no later than the add deadline of the term "
     "in which you wish to graduate. "
     "If you apply by the dates shown below, you will receive priority registration. "
@@ -1324,9 +1325,12 @@ def _prime_hybrid_records(vector_store, collection_id) -> None:
     a staging swap that publishes a new id does not reuse these chunks.
     """
     try:
-        hybrid_retrieval_enabled, _hybrid_retrieve, prime_collection_records, _records = (
-            _hybrid_api()
-        )
+        (
+            hybrid_retrieval_enabled,
+            _hybrid_retrieve,
+            prime_collection_records,
+            _records,
+        ) = _hybrid_api()
     except Exception as error:
         print(f"Hybrid retrieval unavailable: {error}")
         return

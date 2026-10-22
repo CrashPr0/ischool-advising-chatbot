@@ -1,23 +1,24 @@
 """Tests for the knowledge base."""
+
 import pytest
 import sys
 import os
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from knowledge_base import KnowledgeBase, get_knowledge_base
+from knowledge_base import KnowledgeBase, get_knowledge_base  # noqa: E402
 
 
 class TestKnowledgeBase:
     """Test knowledge base functionality."""
-    
+
     def test_knowledge_base_initialization(self):
         """Test that knowledge base initializes correctly."""
         kb = KnowledgeBase()
         assert kb is not None
         assert len(kb.COMMON_QA) > 0
-    
+
     def test_exact_question_match(self):
         """Test exact question matching."""
         kb = KnowledgeBase()
@@ -28,7 +29,7 @@ class TestKnowledgeBase:
         assert result is not None
         assert result["is_hardcoded"] is True
         assert result["confidence"] == 1.0
-    
+
     def test_keyword_matching(self):
         """Test keyword-based matching on greetings."""
         kb = KnowledgeBase()
@@ -44,7 +45,7 @@ class TestKnowledgeBase:
         assert result is not None
         assert isinstance(result["answer"], str)
         assert len(result["answer"]) > 0
-    
+
     def test_no_match(self):
         """Test that non-matching questions return None."""
         kb = KnowledgeBase()
@@ -71,10 +72,15 @@ class TestKnowledgeBase:
     def test_keyword_matching_prefers_specific_boundary_phrase(self):
         """Specific boundary responses win when several keywords are present."""
         kb = KnowledgeBase()
-        result = kb.find_answer("Hi, can you look at my transcript and tell me what to take?")
+        result = kb.find_answer(
+            "Hi, can you look at my transcript and tell me what to take?"
+        )
         assert result is not None
-        assert result["matched_question"] == "look at my transcript and tell me what to take"
-    
+        assert (
+            result["matched_question"]
+            == "look at my transcript and tell me what to take"
+        )
+
     def test_get_all_questions(self):
         """Test getting all questions."""
         kb = KnowledgeBase()
@@ -82,23 +88,19 @@ class TestKnowledgeBase:
         assert isinstance(questions, list)
         assert len(questions) > 0
         assert questions[0] in kb.COMMON_QA
-    
+
     def test_add_qa(self):
         """Test adding new Q&A."""
         kb = KnowledgeBase()
         initial_count = len(kb.COMMON_QA)
-        
-        kb.add_qa(
-            "test question",
-            "test answer",
-            ["test", "question"]
-        )
-        
+
+        kb.add_qa("test question", "test answer", ["test", "question"])
+
         assert len(kb.COMMON_QA) == initial_count + 1
         result = kb.find_answer("test question")
         assert result is not None
         assert result["answer"] == "test answer"
-    
+
     def test_singleton_instance(self):
         """Test that knowledge base singleton works."""
         kb1 = get_knowledge_base()

@@ -19,9 +19,7 @@ REDACTED_ADDRESS = "[REDACTED_ADDRESS]"
 # digit keeps phone numbers and longer ids intact.
 _STUDENT_ID_RE = re.compile(r"(?<!\d)(?:\d{9}|\d{3}-\d{3}-\d{3})(?!\d)")
 
-_EMAIL_RE = re.compile(
-    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
-)
+_EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 
 # (408) 555-1234, 408-555-1234, 408.555.1234, +1 408 555 1234, and the same
 # shapes with a leading 1. Separators are required so a bare digit run is not

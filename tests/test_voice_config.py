@@ -5,10 +5,9 @@ import sys
 
 import pytest
 
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from voice_config import VoiceConfig, get_voice_config
+from voice_config import VoiceConfig, get_voice_config  # noqa: E402
 
 
 class TestVoiceConfig:

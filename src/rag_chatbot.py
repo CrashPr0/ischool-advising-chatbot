@@ -52,7 +52,11 @@ except ImportError:  # pragma: no cover
         _is_rate_limit,
         chat_request_metrics,
     )
-    from stripped_link_log import OUTCOME_EDITED, OUTCOME_FALLBACK, record_stripped_links
+    from stripped_link_log import (
+        OUTCOME_EDITED,
+        OUTCOME_FALLBACK,
+        record_stripped_links,
+    )
 
 
 logger = logging.getLogger(__name__)
@@ -120,9 +124,7 @@ def _catalog_course_inventory(docs_root: str) -> tuple[frozenset[str], frozenset
         }
         corpus_codes.update(codes)
         if _ISDA_LISTING_SOURCE in text:
-            listed_isda_codes.update(
-                code for code in codes if code.startswith("ISDA ")
-            )
+            listed_isda_codes.update(code for code in codes if code.startswith("ISDA "))
     return frozenset(corpus_codes), frozenset(listed_isda_codes)
 
 
@@ -513,7 +515,9 @@ def _repair_markdown_link_labels(text: str, documents: Optional[List]) -> str:
         normalized_label = " ".join(_clean_source_title(label).casefold().split())
         mislabeled_as_other_source = bool(
             normalized_label
-            and any(other != url_key for other in urls_by_title.get(normalized_label, set()))
+            and any(
+                other != url_key for other in urls_by_title.get(normalized_label, set())
+            )
         )
         plausible = bool(_title_tokens(label) & _title_tokens(source_title))
         if plausible and not mislabeled_as_other_source:
@@ -603,12 +607,16 @@ def _is_pointer_only_fragment(text: str) -> bool:
         return True
     # Dates, course identifiers, quantities, and similar facts must survive link
     # removal even when the surrounding prose begins like a pointer.
-    if re.search(r"\d", fragment) or re.search(
-        r"\b(?:january|february|march|april|june|july|august|"
-        r"september|october|november|december)\b",
-        fragment,
-        re.IGNORECASE,
-    ) or re.search(r"\bMay\b", fragment):
+    if (
+        re.search(r"\d", fragment)
+        or re.search(
+            r"\b(?:january|february|march|april|june|july|august|"
+            r"september|october|november|december)\b",
+            fragment,
+            re.IGNORECASE,
+        )
+        or re.search(r"\bMay\b", fragment)
+    ):
         return False
 
     # A pointer may carry a short subject ("about the internship program"),
@@ -627,7 +635,8 @@ def _is_pointer_only_fragment(text: str) -> bool:
         rf"(?:learn|read)\s+more{short_topic}(?:\s+(?:here|below))?",
         r"(?:(?:you\s+)?(?:can|may)\s+|please\s+)?(?:to\s+)?apply"
         r"(?:\s+(?:here|there|online|now|below)){0,2}",
-        r"(?:the|this)\s+(?:information|info|details|application|form|page|website|link)"
+        "(?:the|this)\\s+(?:information|info|details|application|form|page|web"
+        "site|link)"
         r"\s+(?:is|are)\s+(?:available|located|found|posted|provided)"
         r"(?:\s+(?:at|on|via|here|below))?",
         r"please|you\s+(?:can|may)",
@@ -828,9 +837,7 @@ def _replace_disallowed_once(text: str, allowed: set) -> tuple:
     return "".join(parts), dropped, removed
 
 
-def _apply_link_allowlist(
-    text: str, documents: Optional[List] = None
-) -> tuple:
+def _apply_link_allowlist(text: str, documents: Optional[List] = None) -> tuple:
     """Return cleaned text, how many links were removed, and those URLs.
 
     Allowed URLs are copied unchanged. Markdown labels for known source URLs
@@ -901,7 +908,9 @@ def _strip_document_labels(text: str) -> str:
         if cleaned_line != line:
             cleaned_line = re.sub(r"(?<=\S)[ \t]+([.,;:!?])", r"\1", cleaned_line)
             cleaned_line = re.sub(r"(?<=\S)[ \t]{2,}", " ", cleaned_line)
-            cleaned_line = re.sub(r"[ \t]+(?=\r?$)", "", cleaned_line, flags=re.MULTILINE)
+            cleaned_line = re.sub(
+                r"[ \t]+(?=\r?$)", "", cleaned_line, flags=re.MULTILINE
+            )
         lines.append(cleaned_line)
     cleaned = "".join(lines)
     for token, link in links:
@@ -919,61 +928,78 @@ class RAGAdvisingChatbot:
     3. LLM for complex questions
     """
 
-    SYSTEM_PROMPT = """You are the advising support chatbot for the SJSU iSchool BS ISDA and MLIS programs:
-BS in Information Science and Data Analytics and Master of Library and Information Science.
-
-Only answer advising questions about these two programs and applicable SJSU policies.
-Refuse unrelated requests and redirect questions about other programs (MARA, Informatics,
-MSIDT, Teacher Librarian) to the iSchool advising team. Do not answer those requests
-even if retrieved sources mention them. State which program each answer applies to.
-For ambiguous questions such as 'core courses', ask which program or give both
-clearly labeled when the documents support both. Never mix ISDA and MLIS requirements.
-
-Your job is to answer students' advising questions **using only the context \
-documents provided below**. Follow these rules strictly:
-
-1. Base every factual claim on the provided documents. Quote course numbers, \
-unit counts, prerequisites, and policies exactly as they appear.
-2. If the documents contain the answer, give a clear, specific response with \
-relevant details (course names, unit counts, links, deadlines, etc.).
-3. Answer from whatever the documents do contain. If they cover only part of \
-the question, give that part — steps, links, deadlines, and policies — and \
-name what is still missing. Recommend the iSchool advising team or \
-https://ischoolapps.sjsu.edu/advising/index.php only for the missing part. \
-Say the documents do not answer the question only when they contain nothing \
-relevant to it.
-4. Never invent course numbers, titles, unit counts, prerequisites, policies, or \
-deadlines that aren't written in the sources. If a course number appears without \
-its title in the sources, list the number and any units that are present and say \
-the title isn't in the sources; never supply a title from your own knowledge. \
-Do not withhold facts the sources do contain because a course title or unit count \
-is missing.
-5. Keep answers concise but complete. Short Markdown is fine for **bold** labels and bullet lists.
-6. Do not access or reference personal student records.
-7. Follow the response-language instruction exactly. Never infer the response
-   language from retrieved documents, URLs, model defaults, or prior requests.
-8. When sources from different catalog years disagree, use the most recent \
-catalog year and cite that year. Mention an older catalog year only when the \
-current catalog lacks the information, and name that older year. For course \
-titles, unit counts, prerequisites, and degree requirements, the current \
-official catalog is authoritative over iSchool or other web pages. If another \
-page gives a different title or links an older catalog, use the catalog's \
-title and link.
-9. Cite the documents you use with Markdown source links in every factual \
-advising answer. Copy the exact Source URL supplied with each document; never \
-invent a URL, rewrite its path, or add a fragment. Official iSchool \
-(ischool.sjsu.edu) and SJSU (sjsu.edu) pages are valid sources for MLIS and \
-shared policies. Cite those pages when they support the answer. The catalog \
-priority rule applies to conflicting facts, not to whether other official \
-sources can be cited. If a document has no Source URL, only use a link \
-explicitly present in its text; do not fabricate a citation. Never refer to \
-context documents by number (e.g. "Document 3"), since students cannot see \
-those labels; cite with the Source URL link instead. Label each Markdown link \
-with that source page's title.
-10. A current-catalog course listing is authoritative about which course numbers \
-exist for that prefix. If a requested INFO or ISDA number is absent from the \
-current catalog evidence, say it is not listed; do not infer course details from \
-a nearby number, and recommend checking with an advisor."""
+    SYSTEM_PROMPT = (
+        "You are the advising support chatbot for the SJSU iSchool BS ISDA and "
+        "MLIS programs:\n"
+        "BS in Information Science and Data Analytics and Master of Library and "
+        "Information Science.\n"
+        "\n"
+        "Only answer advising questions about these two programs and applicable "
+        "SJSU policies.\n"
+        "Refuse unrelated requests and redirect questions about other programs "
+        "(MARA, Informatics,\n"
+        "MSIDT, Teacher Librarian) to the iSchool advising team. Do not answer "
+        "those requests\n"
+        "even if retrieved sources mention them. State which program each answer "
+        "applies to.\n"
+        "For ambiguous questions such as 'core courses', ask which program or "
+        "give both\n"
+        "clearly labeled when the documents support both. Never mix ISDA and "
+        "MLIS requirements.\n"
+        "\n"
+        "Your job is to answer students' advising questions **using only the "
+        "context documents provided below**. Follow these rules strictly:\n"
+        "\n"
+        "1. Base every factual claim on the provided documents. Quote course "
+        "numbers, unit counts, prerequisites, and policies exactly as they "
+        "appear.\n"
+        "2. If the documents contain the answer, give a clear, specific response "
+        "with relevant details (course names, unit counts, links, deadlines, "
+        "etc.).\n"
+        "3. Answer from whatever the documents do contain. If they cover only "
+        "part of the question, give that part — steps, links, deadlines, and "
+        "policies — and name what is still missing. Recommend the iSchool "
+        "advising team or https://ischoolapps.sjsu.edu/advising/index.php only "
+        "for the missing part. Say the documents do not answer the question only "
+        "when they contain nothing relevant to it.\n"
+        "4. Never invent course numbers, titles, unit counts, prerequisites, "
+        "policies, or deadlines that aren't written in the sources. If a course "
+        "number appears without its title in the sources, list the number and "
+        "any units that are present and say the title isn't in the sources; "
+        "never supply a title from your own knowledge. Do not withhold facts the "
+        "sources do contain because a course title or unit count is missing.\n"
+        "5. Keep answers concise but complete. Short Markdown is fine for "
+        "**bold** labels and bullet lists.\n"
+        "6. Do not access or reference personal student records.\n"
+        "7. Follow the response-language instruction exactly. Never infer the "
+        "response\n"
+        "   language from retrieved documents, URLs, model defaults, or prior "
+        "requests.\n"
+        "8. When sources from different catalog years disagree, use the most "
+        "recent catalog year and cite that year. Mention an older catalog year "
+        "only when the current catalog lacks the information, and name that "
+        "older year. For course titles, unit counts, prerequisites, and degree "
+        "requirements, the current official catalog is authoritative over "
+        "iSchool or other web pages. If another page gives a different title or "
+        "links an older catalog, use the catalog's title and link.\n"
+        "9. Cite the documents you use with Markdown source links in every "
+        "factual advising answer. Copy the exact Source URL supplied with each "
+        "document; never invent a URL, rewrite its path, or add a fragment. "
+        "Official iSchool (ischool.sjsu.edu) and SJSU (sjsu.edu) pages are valid "
+        "sources for MLIS and shared policies. Cite those pages when they "
+        "support the answer. The catalog priority rule applies to conflicting "
+        "facts, not to whether other official sources can be cited. If a "
+        "document has no Source URL, only use a link explicitly present in its "
+        "text; do not fabricate a citation. Never refer to context documents by "
+        'number (e.g. "Document 3"), since students cannot see those labels; '
+        "cite with the Source URL link instead. Label each Markdown link with "
+        "that source page's title.\n"
+        "10. A current-catalog course listing is authoritative about which "
+        "course numbers exist for that prefix. If a requested INFO or ISDA "
+        "number is absent from the current catalog evidence, say it is not "
+        "listed; do not infer course details from a nearby number, and recommend "
+        "checking with an advisor."
+    )
 
     def __init__(
         self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None
@@ -1181,7 +1207,9 @@ Assistant Response:""",
             deadline_today = _graduation_today()
             payload = {
                 "catalog_note": catalog_prompt_note(),
-                "graduation_note": graduation_deadline_note(context, today=deadline_today),
+                "graduation_note": graduation_deadline_note(
+                    context, today=deadline_today
+                ),
                 "context": context,
                 "language_instruction": self._response_language_instruction(
                     user_message
@@ -1451,7 +1479,9 @@ Assistant Response:""",
             # Splitting preserves metadata but the source line in the original
             # text may be in a different chunk. Give every chunk its citation.
             raw_source_url = doc.metadata.get("source_url")
-            source_url = raw_source_url.strip() if isinstance(raw_source_url, str) else ""
+            source_url = (
+                raw_source_url.strip() if isinstance(raw_source_url, str) else ""
+            )
             source_line = f"Source URL: {source_url}\n" if source_url else ""
             context_parts.append(
                 f"{document_heading(i, doc.metadata)}\nPrograms: {programs}\n"
@@ -1536,7 +1566,8 @@ _MONTHS = {
 }
 _CALENDAR_DATE = re.compile(
     r"\b"
-    r"(January|February|March|April|May|June|July|August|September|October|November|December)"
+    "(January|February|March|April|May|June|July|August|September|October|Nov"
+    "ember|December)"
     r"\s+(\d{1,2}),\s+(\d{4})\b",
     re.IGNORECASE,
 )
@@ -1554,8 +1585,10 @@ def _program_prompt_context(program, query: str) -> str:
     """
     if program in {"isda", "mlis"}:
         return (
-            f"Selected Program: {program.upper()}. Apply this program to the student’s question. "
-            "This explicit selection takes precedence over program hints in the question or earlier turns. "
+            f"Selected Program: {program.upper()}. "
+            "Apply this program to the student’s question. "
+            "This explicit selection takes precedence over program hints in "
+            "the question or earlier turns. "
             "Use requirements for this program and applicable shared SJSU policies.\n\n"
         )
     if program not in {"isda", "mlis"} and is_apply_to_graduate_query(query):
@@ -1588,7 +1621,7 @@ def _graduation_dates_in_context(context: str) -> list:
     found = list(_deadline_dates_in_context(context))
     for match in _CALENDAR_DATE.finditer(context or ""):
         nearby = context[
-            max(0, match.start() - 180):min(len(context), match.end() + 180)
+            max(0, match.start() - 180) : min(len(context), match.end() + 180)
         ].casefold()
         if not (
             "final graduation application deadline" in nearby
@@ -1627,7 +1660,10 @@ def _graduation_today() -> date:
 
 
 _ALREADY_PASSED_WORDING = re.compile(
-    r"\b(?:has|have|had|is|was|already)\s+(?:already\s+)?(?:passed|closed|expired)\b|\bpast\s+deadline\b",
+    (
+        "\\b(?:has|have|had|is|was|already)\\s+(?:already\\s+)?(?:passed|closed|exp"
+        "ired)\\b|\\bpast\\s+deadline\\b"
+    ),
     re.IGNORECASE,
 )
 
@@ -1649,7 +1685,8 @@ def mark_passed_graduation_deadlines(
     def annotate(match):
         try:
             value = date(
-                int(match.group(3)), _MONTHS[match.group(1).casefold()],
+                int(match.group(3)),
+                _MONTHS[match.group(1).casefold()],
                 int(match.group(2)),
             )
         except ValueError:
@@ -1657,14 +1694,14 @@ def mark_passed_graduation_deadlines(
         if value not in past:
             return match.group(0)
         # Keep the transformation idempotent for replies already annotated.
-        if re.match(r"\s*\(already passed\)", text[match.end():], re.IGNORECASE):
+        if re.match(r"\s*\(already passed\)", text[match.end() :], re.IGNORECASE):
             return match.group(0)
         # Skip when the model already says this date passed later on the same
         # line (before the next date), e.g. "(this deadline has passed)".
-        rest = text[match.end():].split("\n", 1)[0]
+        rest = text[match.end() :].split("\n", 1)[0]
         next_date = _CALENDAR_DATE.search(rest)
         if next_date:
-            rest = rest[:next_date.start()]
+            rest = rest[: next_date.start()]
         if _ALREADY_PASSED_WORDING.search(rest):
             return match.group(0)
         return match.group(0) + " (already passed)"
@@ -1699,25 +1736,46 @@ def graduation_deadline_note(context: str, today: Optional[date] = None) -> str:
     as_of = today if isinstance(today, date) else _graduation_today()
     sentences = []
     if has_undergraduate:
-        sentences.extend([
-            "Answer from the registrar Application Central page before any MySJSU tutorial steps.",
-            "You must apply for graduation no later than the add deadline of the term in which you wish to graduate.",
-            "Deadline 1 and Deadline 2 are the dates to apply by to receive priority registration, not that cutoff.",
-            "Deadline 1 allows two semesters with priority registration.",
-            "Deadline 2 allows one semester with priority registration.",
-            "List Planned Graduation Term rows from the sources before tutorial steps.",
-            "The catalog sentence about applying approximately two semesters ahead does not replace those rows.",
-        ])
+        sentences.extend(
+            [
+                (
+                    "Answer from the registrar Application Central page before "
+                    "any MySJSU tutorial steps."
+                ),
+                (
+                    "You must apply for graduation no later than the add "
+                    "deadline of the term in which you wish to graduate."
+                ),
+                (
+                    "Deadline 1 and Deadline 2 are the dates to apply by to "
+                    "receive priority registration, not that cutoff."
+                ),
+                "Deadline 1 allows two semesters with priority registration.",
+                "Deadline 2 allows one semester with priority registration.",
+                (
+                    "List Planned Graduation Term rows from the sources before "
+                    "tutorial steps."
+                ),
+                (
+                    "The catalog sentence about applying approximately two "
+                    "semesters ahead does not replace those rows."
+                ),
+            ]
+        )
         if has_fall_calendar:
             sentences.append(
                 "For BS ISDA Fall 2026, explicitly state that the final application "
                 "deadline is the Fall 2026 add deadline, September 15, 2026, and "
-                "list October 10, 2025 and March 20, 2026 separately as priority-registration dates."
+                "list October 10, 2025 and March 20, 2026 separately as "
+                "priority-registration dates."
             )
         if "85 units" in folded:
             sentences.insert(
                 1,
-                "Include the eligibility rule: at least 85 units (90 units for some colleges).",
+                (
+                    "Include the eligibility rule: at least 85 units (90 units "
+                    "for some colleges)."
+                ),
             )
     if has_mlis:
         sentences.append(
@@ -1727,15 +1785,18 @@ def graduation_deadline_note(context: str, today: Optional[date] = None) -> str:
             "the iSchool March 25 candidacy submission date and GAPE April 1, 2026 "
             "candidacy deadline from the graduation application deadline."
         )
-    sentences.extend([
-        "Clearly label BS ISDA and MLIS rules when sources for both are present.",
-        "Do not present application deadlines that are before today as upcoming.",
-        "Do not invent deadline dates that are not written in the sources.",
-    ])
+    sentences.extend(
+        [
+            "Clearly label BS ISDA and MLIS rules when sources for both are present.",
+            "Do not present application deadlines that are before today as upcoming.",
+            "Do not invent deadline dates that are not written in the sources.",
+        ]
+    )
     deadlines = _graduation_dates_in_context(context)
     if deadlines:
         past = [d for d in deadlines if d < as_of]
         upcoming = [d for d in deadlines if d >= as_of]
+
         # Unique while preserving order
         def unique(values):
             seen = set()
@@ -1753,18 +1814,23 @@ def graduation_deadline_note(context: str, today: Optional[date] = None) -> str:
         if past:
             labeled = ", ".join(_format_deadline_date(d) for d in past)
             sentences.append(
-                f"These Deadline 1/Deadline 2 dates from the sources have already passed: {labeled}."
+                "These Deadline 1/Deadline 2 dates from the sources "
+                f"have already passed: {labeled}."
             )
         if upcoming:
             labeled = ", ".join(_format_deadline_date(d) for d in upcoming)
             sentences.append(
-                f"Prefer still-open deadlines from the sources (for example: {labeled})."
+                "Prefer still-open deadlines from the sources "
+                f"(for example: {labeled})."
             )
         elif past:
             sentences.append(
-                "Every listed Deadline 1/Deadline 2 date in the sources has already passed. "
-                "Say those dates have passed and point the student to the Application Central "
-                "source URL already cited for current deadlines; do not invent replacement dates."
+                "Every listed Deadline 1/Deadline 2 date in the sources has "
+                "already passed. "
+                "Say those dates have passed and point the student to the "
+                "Application Central "
+                "source URL already cited for current deadlines; do not "
+                "invent replacement dates."
             )
     return " ".join(sentences)
 
@@ -1821,7 +1887,9 @@ def _is_eligibility(text: str) -> bool:
 
 
 def _prefer(documents: List, predicate) -> Optional[Document]:
-    matches = [doc for doc in documents if predicate(getattr(doc, "page_content", "") or "")]
+    matches = [
+        doc for doc in documents if predicate(getattr(doc, "page_content", "") or "")
+    ]
     if not matches:
         return None
     central = [doc for doc in matches if _is_application_central(doc)]
@@ -1890,14 +1958,15 @@ def order_graduation_prompt_docs(
         calendar = _best_source_chunk(
             pool, _FALL_2026_CALENDAR, "Last Day to Add/Drop Classes via MySJSU"
         )
-        pinned.extend(
-            doc for doc in (eligibility, table, calendar) if doc is not None
-        )
+        pinned.extend(doc for doc in (eligibility, table, calendar) if doc is not None)
     if scope in {"mlis", "both"}:
         for part, required in (
             (_GAPE_FALL_GRADUATION, "Graduation Application (First-Time Applicants)"),
             (_ISCHOOL_GRADUATE_APPLICATION, "after candidacy has been approved"),
-            (_ISCHOOL_CANDIDACY, "For December graduation, submit to iSchool by March 25"),
+            (
+                _ISCHOOL_CANDIDACY,
+                "For December graduation, submit to iSchool by March 25",
+            ),
         ):
             match = _best_source_chunk(pool, part, required)
             if match is not None:
@@ -1907,8 +1976,7 @@ def order_graduation_prompt_docs(
     if scope in {"isda", "mlis"}:
         expected = scope.upper()
         rest = [
-            doc for doc in rest
-            if expected in metadata_programs(doc.metadata or {})
+            doc for doc in rest if expected in metadata_programs(doc.metadata or {})
         ]
     others = [doc for doc in rest if not _is_tutorial(doc)]
     tutorial_docs = (
@@ -1938,11 +2006,13 @@ def _graduation_prompt_corpus(processor, query: str, program=None) -> List:
     if scope in {"isda", "both"}:
         parts.extend((_APPLICATION_CENTRAL, _FALL_2026_CALENDAR, _TUTORIAL_URL))
     if scope in {"mlis", "both"}:
-        parts.extend((
-            _GAPE_FALL_GRADUATION,
-            _ISCHOOL_GRADUATE_APPLICATION,
-            _ISCHOOL_CANDIDACY,
-        ))
+        parts.extend(
+            (
+                _GAPE_FALL_GRADUATION,
+                _ISCHOOL_GRADUATE_APPLICATION,
+                _ISCHOOL_CANDIDACY,
+            )
+        )
     for part in parts:
         try:
             found.extend(list(finder(part) or []))
@@ -2015,15 +2085,19 @@ def mlis_core_courses_note(query: str, context: str, program=None) -> str:
     if not all(evidence.casefold() in folded for evidence in _MLIS_CORE_EVIDENCE):
         return ""
     return (
-        "MLIS core-course instruction, based on the official required-courses source below: "
+        "MLIS core-course instruction, based on the official "
+        "required-courses source below: "
         "The core classes are INFO 203 (1 unit), INFO 200, INFO 202, and INFO 204 "
         "(3 units each), and all four belong within the first 16 units. INFO 203 must "
         "also be completed within the first four weeks of the first semester. "
         "Distinguish INFO 285 from the core: it is a separately required course to "
-        "complete before graduating; a granted waiver does not reduce the MLIS degree's "
-        "total units. Distinguish INFO 289 e-Portfolio or INFO 299 Thesis from the core: "
+        "complete before graduating; a granted waiver does not reduce the "
+        "MLIS degree's "
+        "total units. Distinguish INFO 289 e-Portfolio or INFO 299 Thesis "
+        "from the core: "
         "they are the culminating-experience alternatives. Never describe INFO 285 or "
-        "INFO 289/299 as core classes or as courses that must be taken within the first "
+        "INFO 289/299 as core classes or as courses that must be taken "
+        "within the first "
         "16 units.\n\n"
     )
 

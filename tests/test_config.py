@@ -7,9 +7,9 @@ import os
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from config import Config, LLMProvider, resolve_vector_store_path
-import llm_providers
-from llm_providers import LLMFactory
+from config import Config, LLMProvider, resolve_vector_store_path  # noqa: E402
+import llm_providers  # noqa: E402
+from llm_providers import LLMFactory  # noqa: E402
 
 
 class TestConfig:
@@ -25,18 +25,13 @@ class TestConfig:
         monkeypatch.setattr(os.path, "isdir", lambda path: True)
         assert resolve_vector_store_path("/custom/index") == "/custom/index"
 
-    def test_vector_store_uses_azure_persistent_index_when_available(
-        self, monkeypatch
-    ):
+    def test_vector_store_uses_azure_persistent_index_when_available(self, monkeypatch):
         monkeypatch.setattr(
             os.path,
             "isdir",
             lambda path: path == "/home/site/wwwroot/data/chroma",
         )
-        assert (
-            resolve_vector_store_path()
-            == "/home/site/wwwroot/data/chroma"
-        )
+        assert resolve_vector_store_path() == "/home/site/wwwroot/data/chroma"
 
     @pytest.mark.parametrize(
         "placeholder", ["your_api_key_here", "replace_with_a_secret", "changeme"]

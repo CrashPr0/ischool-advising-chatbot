@@ -103,7 +103,10 @@ def load_catalog_identity(path: Optional[Path] = None) -> dict:
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         if path is None and identity_path.is_file():
             LOGGER.warning(
-                "Catalog identity file %s could not be read (%s); using the built-in map",
+                (
+                    "Catalog identity file %s could not be read (%s); using the "
+                    "built-in map"
+                ),
                 identity_path,
                 error,
             )

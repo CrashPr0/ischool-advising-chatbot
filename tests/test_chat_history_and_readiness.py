@@ -16,7 +16,9 @@ class RecordingChatbot:
         self.calls = []
 
     def chat(self, message, history=None):
-        seen = [dict(entry) for entry in history] if isinstance(history, list) else history
+        seen = (
+            [dict(entry) for entry in history] if isinstance(history, list) else history
+        )
         self.calls.append({"message": message, "history": seen})
         # Prove the route passed a copy. A leak here must not land in the store.
         if isinstance(history, list):
@@ -209,7 +211,10 @@ def test_conversation_ids_keep_separate_histories(monkeypatch, ready_chat_index)
 
     cleared = client.post("/api/clear-history", json={"conversation_id": "tab-alpha-1"})
     assert cleared.status_code == 200
-    assert client.get("/api/history?conversation_id=tab-alpha-1").get_json()["history"] == []
+    assert (
+        client.get("/api/history?conversation_id=tab-alpha-1").get_json()["history"]
+        == []
+    )
     assert client.get("/api/history?conversation_id=tab-beta-22").get_json()["history"]
     assert client.get("/api/history").get_json()["history"]
 
@@ -223,9 +228,9 @@ def test_conversation_ids_keep_separate_histories(monkeypatch, ready_chat_index)
         json={"conversation_id": "../secrets"},
     )
     assert untouched.status_code == 400
-    assert [entry["user"] for entry in client.get("/api/history").get_json()["history"]] == [
-        "legacy question"
-    ]
+    assert [
+        entry["user"] for entry in client.get("/api/history").get_json()["history"]
+    ] == ["legacy question"]
 
 
 def _point_at_store(monkeypatch, tmp_path, commit, receipt):
@@ -240,7 +245,9 @@ def _point_at_store(monkeypatch, tmp_path, commit, receipt):
         (store / "index_build.json").write_text(receipt, encoding="utf-8")
     monkeypatch.setattr(app_module, "_BASE_DIR", str(tmp_path))
     monkeypatch.setattr(Config, "VECTOR_STORE_PATH", str(store))
-    monkeypatch.setattr(app_module, "_rate_limiter", app_module._FixedWindowRateLimiter())
+    monkeypatch.setattr(
+        app_module, "_rate_limiter", app_module._FixedWindowRateLimiter()
+    )
     monkeypatch.setattr(app_module, "_DOCS_INDEX_START_DELAY_SECONDS", 0.0)
     monkeypatch.setattr(app_module, "_docs_job_state", {"status": "idle"})
     monkeypatch.setenv("DOCS_LOAD_TOKEN", "test-docs-token")

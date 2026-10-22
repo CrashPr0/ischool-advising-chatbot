@@ -36,12 +36,10 @@ def _rows(database):
         stored = connection.execute(
             "SELECT created_at, question FROM anonymized_student_questions"
         ).fetchall()
-        tables = connection.execute(
-            """
+        tables = connection.execute("""
             SELECT name FROM sqlite_master
             WHERE type = 'table' AND name = 'anonymized_student_questions'
-            """
-        ).fetchall()
+            """).fetchall()
     finally:
         connection.close()
     return columns, stored, tables
@@ -118,18 +116,14 @@ def test_chat_saves_scrubbed_question_without_request_identifiers(
     columns, stored, _tables = _rows(database)
     assert columns == ["created_at", "question"]
     assert len(stored) == 1
-    assert stored[0][1] == (
-        f"Email {REDACTED_EMAIL} about INFO 202 in Fall 2026."
-    )
+    assert stored[0][1] == (f"Email {REDACTED_EMAIL} about INFO 202 in Fall 2026.")
     blob = database.read_bytes()
     assert conversation_id.encode() not in blob
     assert b"203.0.113.50" not in blob
     assert b"ada@sjsu.edu" not in blob
 
 
-def test_storage_failure_does_not_break_chat(
-    monkeypatch, ready_chat_index, caplog
-):
+def test_storage_failure_does_not_break_chat(monkeypatch, ready_chat_index, caplog):
     def explode(*_args, **_kwargs):
         raise sqlite3.OperationalError("disk full")
 

@@ -8,7 +8,6 @@ from langchain_core.documents import Document
 
 from src.rag_chatbot import RAGAdvisingChatbot
 
-
 REQUIRED_URL = "https://ischool.sjsu.edu/mlis-required-courses"
 
 

@@ -10,8 +10,8 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-import durable_storage
-from durable_storage import (
+import durable_storage  # noqa: E402
+from durable_storage import (  # noqa: E402
     AZURE_EVAL_DB_PATH,
     AZURE_STRIPPED_LINK_LOG_PATH,
     AZURE_VECTOR_STORE_PATH,
@@ -24,7 +24,9 @@ from durable_storage import (
     resolve_stripped_link_log_path,
     resolve_vector_store_path,
 )
-from config import resolve_vector_store_path as config_resolve_vector_store_path
+from config import (  # noqa: E402
+    resolve_vector_store_path as config_resolve_vector_store_path,
+)
 
 
 def _create_reviews_db(path, comment: str) -> None:

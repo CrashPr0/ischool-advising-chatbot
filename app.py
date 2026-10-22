@@ -43,31 +43,39 @@ def _prepend_first_existing_path(candidates: list[str]) -> str | None:
 
 _prepend_first_existing_path(_src_candidates)
 
-from flask import Flask, Response, jsonify, render_template, request, send_file, session
-from flask.sessions import SecureCookieSessionInterface
-from flask_cors import CORS
-from werkzeug.exceptions import RequestEntityTooLarge
-from werkzeug.middleware.proxy_fix import ProxyFix
-from evaluation_store import (
+from flask import (  # noqa: E402
+    Flask,
+    Response,
+    jsonify,
+    render_template,
+    request,
+    send_file,
+    session,
+)
+from flask.sessions import SecureCookieSessionInterface  # noqa: E402
+from flask_cors import CORS  # noqa: E402
+from werkzeug.exceptions import RequestEntityTooLarge  # noqa: E402
+from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
+from evaluation_store import (  # noqa: E402
     EvaluationDataError,
     EvaluationStore,
     EvaluationValidationError,
 )
-from issue_reports import (
+from issue_reports import (  # noqa: E402
     REASON_LABELS,
     IssueReportStore,
     IssueReportValidationError,
     build_issue_report,
 )
-from suggestion_usage import (
+from suggestion_usage import (  # noqa: E402
     SuggestionUsageError,
     SuggestionUsageStore,
     dynamic_suggestions_enabled,
     reviewer_ranking,
     student_suggestion_payload,
 )
-from voice_config import get_voice_config
-from program_scope import normalize_program
+from voice_config import get_voice_config  # noqa: E402
+from program_scope import normalize_program  # noqa: E402
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -1616,7 +1624,10 @@ def _issue_report_csrf_error():
 def _matched_turn_model(
     conversation_id: str | None, question: str, answer: str
 ) -> tuple[str, str]:
-    """Return the model this server stored for the flagged turn, if it is still in memory."""
+    (
+        "Return the model this server stored for the flagged turn, if it is "
+        "still in memory."
+    )
     try:
         history = _history_store.snapshot(
             _history_key(conversation_id), include_model=True

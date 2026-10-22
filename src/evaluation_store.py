@@ -286,13 +286,11 @@ class EvaluationStore:
                 "SELECT COUNT(*) AS count FROM evaluation_reviews"
             ).fetchone()["count"]
         )
-        legacy_rows = connection.execute(
-            """
+        legacy_rows = connection.execute("""
             SELECT run_id, question_id, candidate, model_side, reviewer,
                    rating, comment, created_at, updated_at
             FROM evaluation_reviews
-            """
-        ).fetchall()
+            """).fetchall()
         connection.execute(
             "ALTER TABLE evaluation_reviews RENAME TO evaluation_reviews_legacy"
         )

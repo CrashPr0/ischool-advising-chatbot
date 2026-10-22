@@ -362,7 +362,8 @@ def sync_pages(
             "documents", []
         )
     manifest_entries = [
-        entry for entry in previous_entries
+        entry
+        for entry in previous_entries
         if not set(entry.get("programs", [])).intersection(program_list)
     ]
     for page in pages:
@@ -374,7 +375,9 @@ def sync_pages(
             (entry for entry in manifest_entries if entry["source_url"] == page["url"]),
             None,
         )
-        page_programs = sorted(set(program_list) | set((shared or {}).get("programs", [])))
+        page_programs = sorted(
+            set(program_list) | set((shared or {}).get("programs", []))
+        )
         page_topics = sorted(set(topic_list) | set((shared or {}).get("topics", [])))
         content = page["text"].strip() + "\n"
         content_hash = sha256(content.encode("utf-8")).hexdigest()
@@ -406,7 +409,10 @@ def sync_pages(
             )
         if previous == content and shared and meta_path.is_file():
             metadata = yaml.safe_load(meta_path.read_text(encoding="utf-8"))
-            if metadata.get("programs") != page_programs or metadata.get("topics") != page_topics:
+            if (
+                metadata.get("programs") != page_programs
+                or metadata.get("topics") != page_topics
+            ):
                 metadata.update(programs=page_programs, topics=page_topics)
                 meta_path.write_text(
                     yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False),

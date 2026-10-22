@@ -9,8 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import backup_reviews_db
-from backup_reviews_db import backup_reviews
+from backup_reviews_db import backup_reviews  # noqa: E402
 
 
 def _snippet_from_runbook() -> str:
@@ -161,12 +160,19 @@ def test_heredoc_script_exits_nonzero_when_nothing_is_found(tmp_path):
     )
     snippet = snippet.replace(
         'DESTINATION = Path("/home/data/evaluation/reviews.sqlite3")',
-        f"DESTINATION = Path({str(tmp_path / 'homedata' / 'evaluation' / 'reviews.sqlite3')!r})",
+        f"""DESTINATION = Path({str(
+            tmp_path / 'homedata' / 'evaluation' / 'reviews.sqlite3'
+        )!r})""",
     )
     snippet = snippet.replace(
-        'OFFLINE_COPY = Path("/home/data/evaluation/reviews-backup-before-durable-path.sqlite3")',
-        "OFFLINE_COPY = Path("
-        f"{str(tmp_path / 'homedata' / 'evaluation' / 'reviews-backup-before-durable-path.sqlite3')!r})",
+        (
+            'OFFLINE_COPY = Path("/home/data/evaluation/reviews-backup-before-dur'
+            'able-path.sqlite3")'
+        ),
+        f"""OFFLINE_COPY = Path({str(
+            tmp_path / 'homedata' / 'evaluation' /
+            'reviews-backup-before-durable-path.sqlite3'
+        )!r})""",
     )
     (tmp_path / "tmp").mkdir()
     (tmp_path / "wwwroot").mkdir()

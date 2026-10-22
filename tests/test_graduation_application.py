@@ -30,35 +30,72 @@ DOCS = Path(__file__).resolve().parents[1] / "data" / "advising_docs"
 RETRIEVED = "2026-09-27"
 
 PAGES = {
-    "https://www.sjsu.edu/registrar/graduation/application-central.php": "web-acb08947e7ec6c88",
+    ("https://www.sjsu.edu/registrar/graduation/application-central.php"): (
+        "web-acb08947e7ec6c88"
+    ),
     "https://www.sjsu.edu/registrar/graduation/index.php": "web-99089fe13151591e",
-    "https://www.sjsu.edu/registrar/graduation/graduation-checklist.php": "web-afae1df6c67e23a7",
+    ("https://www.sjsu.edu/registrar/graduation/graduation-checklist.php"): (
+        "web-afae1df6c67e23a7"
+    ),
     "https://www.sjsu.edu/registrar/graduation/faq.php": "web-2633bf5e8b922f89",
-    "https://www.sjsu.edu/registrar/graduation/graduation-date-changes.php": "web-10353c380b01f255",
+    ("https://www.sjsu.edu/registrar/graduation/graduation-date-changes.php"): (
+        "web-10353c380b01f255"
+    ),
     "https://www.sjsu.edu/registrar/graduation/diploma.php": "web-2696b15a85b29fda",
-    "https://www.sjsu.edu/registrar/graduation/myprogress-graduation-status.php": "web-652038e1fe815a13",
+    ("https://www.sjsu.edu/registrar/graduation/myprogress-graduation-status.php"): (
+        "web-652038e1fe815a13"
+    ),
     "https://www.sjsu.edu/registrar/graduation/evaluators.php": "web-f86ac5362eaae233",
-    "https://www.sjsu.edu/registrar/docs/GradAppOnlineTutorial.pdf": "web-afd4ffd17369beaa",
-    "https://catalog.sjsu.edu/content.php?catoid=23&navoid=8473": "web-40a52cbd73c9bde9",
+    ("https://www.sjsu.edu/registrar/docs/GradAppOnlineTutorial.pdf"): (
+        "web-afd4ffd17369beaa"
+    ),
+    ("https://catalog.sjsu.edu/content.php?catoid=23&navoid=8473"): (
+        "web-40a52cbd73c9bde9"
+    ),
     "https://www.sjsu.edu/commencement/ceremonies/index.php": "web-7cb352458448ad58",
-    "https://www.sjsu.edu/commencement/participation/tickets.php": "web-5c118118b448cc8a",
-    "https://www.sjsu.edu/commencement/participation/grad-vs-comm.php": "web-90bf6cc5164dbaf9",
+    ("https://www.sjsu.edu/commencement/participation/tickets.php"): (
+        "web-5c118118b448cc8a"
+    ),
+    ("https://www.sjsu.edu/commencement/participation/grad-vs-comm.php"): (
+        "web-90bf6cc5164dbaf9"
+    ),
 }
 
 FALL_2026_PAGES = {
-    "https://www.sjsu.edu/registrar/calendar/fall-2026.php": ("web-8ea16420cf98e932", ["ISDA"]),
-    "https://www.sjsu.edu/gape/deadlines/fall-graduation.php": ("web-5125cd4de9efc5f1", ["MLIS"]),
-    "https://ischool.sjsu.edu/application-award-graduate-degree": ("web-f6477eb77f755c3e", ["MLIS"]),
-    "https://ischool.sjsu.edu/candidacy-approval-form-information": ("web-f27df85d156e0e80", ["MLIS"]),
+    "https://www.sjsu.edu/registrar/calendar/fall-2026.php": (
+        "web-8ea16420cf98e932",
+        ["ISDA"],
+    ),
+    "https://www.sjsu.edu/gape/deadlines/fall-graduation.php": (
+        "web-5125cd4de9efc5f1",
+        ["MLIS"],
+    ),
+    "https://ischool.sjsu.edu/application-award-graduate-degree": (
+        "web-f6477eb77f755c3e",
+        ["MLIS"],
+    ),
+    "https://ischool.sjsu.edu/candidacy-approval-form-information": (
+        "web-f27df85d156e0e80",
+        ["MLIS"],
+    ),
 }
 
 # The iSchool graduation page is master's candidacy, not the ISDA bachelor's.
 NOT_INGESTED = "https://ischool.sjsu.edu/graduation"
 
 DEADLINE_ROWS = (
-    "Planned Graduation Term: Fall 2026. Deadline 1: October 10, 2025. Deadline 2: March 20, 2026.",
-    "Planned Graduation Term: Spring 2027/ Summer 2027. Deadline 1: March 20, 2026. Deadline 2: October 9, 2026.",
-    "Planned Graduation Term: Fall 2027. Deadline 1: October 9, 2026. Deadline 2: March 19, 2027.",
+    (
+        "Planned Graduation Term: Fall 2026. Deadline 1: October 10, 2025. "
+        "Deadline 2: March 20, 2026."
+    ),
+    (
+        "Planned Graduation Term: Spring 2027/ Summer 2027. Deadline 1: March "
+        "20, 2026. Deadline 2: October 9, 2026."
+    ),
+    (
+        "Planned Graduation Term: Fall 2027. Deadline 1: October 9, 2026. "
+        "Deadline 2: March 19, 2027."
+    ),
 )
 
 APPLY_QUESTIONS = (
@@ -132,11 +169,13 @@ def test_application_central_keeps_published_terms_and_does_not_invent_a_fee():
     for row in DEADLINE_ROWS:
         assert row in text
     assert (
-        "- Earned at least 85 units (90 units for some colleges), with no more than 70 units from community colleges"
-        in text
-    )
+        "- Earned at least 85 units (90 units for some colleges), with no "
+        "more than 70 units from community colleges"
+    ) in text
     assert text.count("Earned at least 85 units") == 1
-    assert text.index("Eligibility for Graduation") < text.index("Application Deadlines")
+    assert text.index("Eligibility for Graduation") < text.index(
+        "Application Deadlines"
+    )
     assert text.index("Planned Graduation Term: Fall 2026.") < text.index(
         "Deadline 1 allows two semesters with priority registration."
     )
@@ -171,14 +210,19 @@ def test_fall_2026_undergraduate_and_mlis_deadline_sources_are_ingested():
         "https://www.sjsu.edu/registrar/calendar/fall-2026.php"
     )
     assert "Tue, Sep. 15" in calendar
-    assert 'Last Day to Add/Drop Classes via MySJSU (ends at 11:59 pm)' in calendar
+    assert "Last Day to Add/Drop Classes via MySJSU (ends at 11:59 pm)" in calendar
     assert calendar_meta["atomic_section"] == "Important Dates and Deadlines"
 
     _path, gape, gape_meta = _snapshot(
         "https://www.sjsu.edu/gape/deadlines/fall-graduation.php"
     )
-    assert "Deadline: 04/01/2026\nRequirement: Candidacy Form Submission to GAPE" in gape
-    assert "Deadline: 09/01/2026\nRequirement: Graduation Application (First-Time Applicants)" in gape
+    assert (
+        "Deadline: 04/01/2026\nRequirement: Candidacy Form Submission to GAPE" in gape
+    )
+    assert (
+        "Deadline: 09/01/2026\n"
+        "Requirement: Graduation Application (First-Time Applicants)"
+    ) in gape
     assert "Deadline: 09/01/2026\nRequirement: Graduation Date Change Request" in gape
     assert "12/16/2026: Degree Conferral" in gape
     assert gape_meta["atomic_section"] == "Fall Graduation Deadlines"
@@ -207,8 +251,14 @@ def test_related_pages_keep_published_process_details():
         "https://catalog.sjsu.edu/content.php?catoid=23&navoid=8473"
     )
     assert catalog_meta["catalog_year"] == "2026-2027"
-    assert "approximately two semesters before their anticipated graduation term" in catalog
-    assert "Participation in commencement ceremonies does not constitute conferral of a degree." in catalog
+    assert (
+        "approximately two semesters before their anticipated graduation term"
+        in catalog
+    )
+    assert (
+        "Participation in commencement ceremonies does not constitute "
+        "conferral of a degree."
+    ) in catalog
 
     _path, diploma, _meta = _snapshot(
         "https://www.sjsu.edu/registrar/graduation/diploma.php"
@@ -227,9 +277,9 @@ def test_related_pages_keep_published_process_details():
         "https://www.sjsu.edu/commencement/ceremonies/index.php"
     )
     assert (
-        "College of Information, Data and Society: Thursday, December 17, 2026 at 7 p.m., PT"
-        in ceremonies
-    )
+        "College of Information, Data and Society: Thursday, December 17, "
+        "2026 at 7 p.m., PT"
+    ) in ceremonies
 
     _path, tickets, _meta = _snapshot(
         "https://www.sjsu.edu/commencement/participation/tickets.php"
@@ -262,10 +312,14 @@ def test_retrieval_header_is_only_on_the_atomic_graduation_chunk():
         "Deadline 1 allows two semesters with priority registration."
     )
     assert any(
-        "Eligibility for Graduation" in chunk.page_content and "85 units" in chunk.page_content
+        "Eligibility for Graduation" in chunk.page_content
+        and "85 units" in chunk.page_content
         for chunk in chunks
     )
-    assert sum(chunk.page_content.count(GRADUATION_RETRIEVAL_HEADER) for chunk in chunks) == 1
+    assert (
+        sum(chunk.page_content.count(GRADUATION_RETRIEVAL_HEADER) for chunk in chunks)
+        == 1
+    )
 
 
 def test_apply_to_graduate_questions_retrieve_steps_and_term_deadlines(
@@ -291,9 +345,15 @@ def test_apply_to_graduate_questions_retrieve_steps_and_term_deadlines(
             assert "at least 85 units" in prompt
             assert "add deadline" in prompt.casefold()
             assert "priority registration" in prompt.casefold()
-            assert "final graduation application deadline is the Fall 2026 add deadline: September 15, 2026" in prompt
+            assert (
+                "final graduation application deadline is the Fall 2026 add "
+                "deadline: September 15, 2026"
+            ) in prompt
             assert "September 1, 2026 as the graduation application deadline" in prompt
-            assert "Apply to graduate with GAPE only after candidacy has been approved" in prompt
+            assert (
+                "Apply to graduate with GAPE only after candidacy has been approved"
+                in prompt
+            )
             assert "submit the candidacy form to the iSchool by March 25" in prompt
             assert "Apply for graduation link" in prompt
             assert "Login to MySJSU" in prompt
@@ -318,7 +378,9 @@ def test_apply_to_graduate_questions_retrieve_steps_and_term_deadlines(
     )
     electives_blob = "\n".join(hit.page_content for hit in electives)
     assert "ISDA 80, 81, 150, 160, 180, and 181" in electives_blob
-    assert "ISDA 150 - Topics in Information Science and Data Analytics" in electives_blob
+    assert (
+        "ISDA 150 - Topics in Information Science and Data Analytics" in electives_blob
+    )
 
     prerequisites = processor.retrieve_relevant_docs(
         "What are the prerequisites for ISDA 150?", k=DEFAULT_RAG_TOP_K
@@ -332,9 +394,7 @@ def test_apply_to_graduate_questions_retrieve_steps_and_term_deadlines(
 
 def _deadline_chunk():
     processor = DocumentProcessor(str(DOCS))
-    loaded = {
-        doc.metadata.get("source_url"): doc for doc in processor.load_documents()
-    }
+    loaded = {doc.metadata.get("source_url"): doc for doc in processor.load_documents()}
     url = "https://www.sjsu.edu/registrar/graduation/application-central.php"
     chunks = processor.split_documents([loaded[url]])
     headed = [
@@ -357,12 +417,8 @@ def test_deadline_rows_follow_the_published_priority_registration_wording():
     fall = body.index("Planned Graduation Term: Fall 2026.")
     spring = body.index("Planned Graduation Term: Spring 2027/ Summer 2027.")
     fall_2027 = body.index("Planned Graduation Term: Fall 2027.")
-    allows_1 = body.index(
-        "Deadline 1 allows two semesters with priority registration."
-    )
-    allows_2 = body.index(
-        "Deadline 2 allows one semester with priority registration."
-    )
+    allows_1 = body.index("Deadline 1 allows two semesters with priority registration.")
+    allows_2 = body.index("Deadline 2 allows one semester with priority registration.")
     assert add_at < priority_at < fall < spring < fall_2027 < allows_1 < allows_2
     assert "the graduation application deadline" not in text
     assert text.startswith(GRADUATION_RETRIEVAL_HEADER)
@@ -370,9 +426,7 @@ def test_deadline_rows_follow_the_published_priority_registration_wording():
 
 def test_catalog_and_tutorial_are_not_labeled_with_the_term_table():
     processor = DocumentProcessor(str(DOCS))
-    loaded = {
-        doc.metadata.get("source_url"): doc for doc in processor.load_documents()
-    }
+    loaded = {doc.metadata.get("source_url"): doc for doc in processor.load_documents()}
     catalog_url = "https://catalog.sjsu.edu/content.php?catoid=23&navoid=8473"
     tutorial_url = "https://www.sjsu.edu/registrar/docs/GradAppOnlineTutorial.pdf"
     for url in (catalog_url, tutorial_url):
@@ -420,7 +474,9 @@ def test_prompt_leads_with_every_term_row_and_leaves_rules_3_4_and_8():
     )
     note = graduation_deadline_note(context)
     assert "List Planned Graduation Term rows from the sources" in note
-    assert "Do not present application deadlines that are before today as upcoming" in note
+    assert (
+        "Do not present application deadlines that are before today as upcoming" in note
+    )
     assert "add deadline of the term in which you wish to graduate" in note
     assert "priority registration" in note
     assert "not that cutoff" in note
@@ -429,7 +485,8 @@ def test_prompt_leads_with_every_term_row_and_leaves_rules_3_4_and_8():
     assert graduation_deadline_note("ISDA 100 is a core course.") == ""
     future = (
         "You must apply no later than the add deadline of the term. "
-        "If you apply by the dates shown below, you will receive priority registration. "
+        "If you apply by the dates shown below, you will receive priority "
+        "registration. "
         "Planned Graduation Term: Winter 2031. Deadline 1: January 1, 2031."
     )
     assert graduation_deadline_note(future)
@@ -449,14 +506,13 @@ TUTORIAL_URL = "https://www.sjsu.edu/registrar/docs/GradAppOnlineTutorial.pdf"
 
 def _central_pieces():
     processor = DocumentProcessor(str(DOCS))
-    loaded = {
-        doc.metadata.get("source_url"): doc for doc in processor.load_documents()
-    }
+    loaded = {doc.metadata.get("source_url"): doc for doc in processor.load_documents()}
     chunks = processor.split_documents([loaded[CENTRAL]])
     eligibility = next(
         chunk
         for chunk in chunks
-        if "Eligibility for Graduation" in chunk.page_content and "85 units" in chunk.page_content
+        if "Eligibility for Graduation" in chunk.page_content
+        and "85 units" in chunk.page_content
     )
     table = next(
         chunk
@@ -472,7 +528,8 @@ def test_apply_to_graduate_prompt_pins_application_central_when_ranking_misses_i
     tutorial = Document(
         page_content=(
             "How to apply to graduate in MySJSU\n"
-            "3. Review/Update your diploma name. Update Diploma Name before deadlines.\n"
+            "3. Review/Update your diploma name. Update Diploma Name before "
+            "deadlines.\n"
             "7. Click the Apply for graduation link.\n"
             "9. Select Expected Graduation Term and click the button.\n"
             "Source URL: " + TUTORIAL_URL + "\n"
@@ -502,16 +559,16 @@ def test_apply_to_graduate_prompt_pins_application_central_when_ranking_misses_i
     assert "at least 85 units" in note
     assert "priority registration" in note
     assert "List Planned Graduation Term rows from the sources" in note
-    assert "Do not present application deadlines that are before today as upcoming" in note
+    assert (
+        "Do not present application deadlines that are before today as upcoming" in note
+    )
 
 
 def test_pinned_context_keeps_the_short_mysjsu_navigation_path():
     """The overview chunk has no login line. The pinned path still includes it."""
     eligibility, table = _central_pieces()
     processor = DocumentProcessor(str(DOCS))
-    loaded = {
-        doc.metadata.get("source_url"): doc for doc in processor.load_documents()
-    }
+    loaded = {doc.metadata.get("source_url"): doc for doc in processor.load_documents()}
     tutorial_chunks = processor.split_documents([loaded[TUTORIAL_URL]])
     ranked = [
         chunk
@@ -558,7 +615,9 @@ def test_pinned_context_keeps_the_short_mysjsu_navigation_path():
 def test_tutorial_ranked_first_is_trimmed_and_placed_after_the_table():
     eligibility, table = _central_pieces()
     tutorial = Document(
-        page_content="Click the Apply for graduation link.\nUpdate Diploma Name stays out.",
+        page_content=(
+            "Click the Apply for graduation link.\n" "Update Diploma Name stays out."
+        ),
         metadata={"source": "tutorial.txt", "source_url": TUTORIAL_URL},
     )
     ordered = order_graduation_prompt_docs(
@@ -575,7 +634,9 @@ def test_tutorial_ranked_first_is_trimmed_and_placed_after_the_table():
 
 def test_pinning_does_not_run_for_course_questions_and_accepts_a_new_term():
     eligibility, table = _central_pieces()
-    untouched = [Document(page_content="ISDA 100 is required.", metadata={"source": "core.txt"})]
+    untouched = [
+        Document(page_content="ISDA 100 is required.", metadata={"source": "core.txt"})
+    ]
     assert (
         order_graduation_prompt_docs(
             "What are the ISDA core courses?", untouched, [eligibility, table]
@@ -606,7 +667,9 @@ def test_graduation_deadline_note_marks_past_dates_for_fixed_today():
     table = _deadline_chunk().page_content
     note = graduation_deadline_note(table, today=date(2026, 10, 13))
     assert "Today is 2026-10-13." in note
-    assert "Do not present application deadlines that are before today as upcoming" in note
+    assert (
+        "Do not present application deadlines that are before today as upcoming" in note
+    )
     assert "October 10, 2025" in note
     assert "March 20, 2026" in note
     assert "already passed" in note
@@ -627,19 +690,27 @@ def test_graduation_deadline_note_when_all_listed_deadlines_passed():
         "Deadline 2: March 20, 2026."
     )
     note = graduation_deadline_note(context, today=date(2026, 10, 13))
-    assert "Every listed Deadline 1/Deadline 2 date in the sources has already passed" in note
+    assert (
+        "Every listed Deadline 1/Deadline 2 date in the sources has already passed"
+        in note
+    )
     assert "Application Central" in note
     assert "do not invent replacement dates" in note.casefold()
     assert "Prefer still-open" not in note
 
 
 def test_both_or_unspecified_graduation_prompt_requires_both_programs():
-    guidance = _program_prompt_context("both", "When do I need to apply for graduation?")
+    guidance = _program_prompt_context(
+        "both", "When do I need to apply for graduation?"
+    )
     assert "Selected Program: BOTH" in guidance
     assert "BS ISDA" in guidance
     assert "MLIS" in guidance
     assert "Never silently answer for only one program" in guidance
-    assert _program_prompt_context(None, "When do I need to apply for graduation?") == guidance
+    assert (
+        _program_prompt_context(None, "When do I need to apply for graduation?")
+        == guidance
+    )
     # Non-graduation both keeps prior behavior (no selected-program banner).
     assert _program_prompt_context("both", "What are the master's core courses?") == ""
     assert "Selected Program: ISDA" in _program_prompt_context(
@@ -687,25 +758,34 @@ def test_passed_labeling_includes_actual_fall_2026_program_deadlines():
 @pytest.mark.parametrize(
     "reply, expected",
     [
-        ("- Deadline 1: October 9, 2026 (allows two semesters)",
-         "- Deadline 1: October 9, 2026 (already passed) (allows two semesters)"),
-        ("**Deadline 2:** October 9, 2026",
-         "**Deadline 2:** October 9, 2026 (already passed)"),
-        ("| Fall 2027 | October 9, 2026 | March 19, 2027 |",
-         "| Fall 2027 | October 9, 2026 (already passed) | March 19, 2027 |"),
+        (
+            "- Deadline 1: October 9, 2026 (allows two semesters)",
+            "- Deadline 1: October 9, 2026 (already passed) (allows two semesters)",
+        ),
+        (
+            "**Deadline 2:** October 9, 2026",
+            "**Deadline 2:** October 9, 2026 (already passed)",
+        ),
+        (
+            "| Fall 2027 | October 9, 2026 | March 19, 2027 |",
+            "| Fall 2027 | October 9, 2026 (already passed) | March 19, 2027 |",
+        ),
         ("Deadline 2: March 19, 2027", "Deadline 2: March 19, 2027"),
         ("Apply through MySJSU.", "Apply through MySJSU."),
         ("October 14, 2026", "October 14, 2026"),
-        ("Deadline 1: October 9, 2026 (already passed)",
-         "Deadline 1: October 9, 2026 (already passed)"),
+        (
+            "Deadline 1: October 9, 2026 (already passed)",
+            "Deadline 1: October 9, 2026 (already passed)",
+        ),
         ("October 8, 2026", "October 8, 2026"),
     ],
 )
 def test_reply_marks_only_past_source_deadline_dates(reply, expected):
     context = "\n".join(DEADLINE_ROWS) + " Deadline 1: October 14, 2026."
-    assert mark_passed_graduation_deadlines(
-        reply, context, today=date(2026, 10, 14)
-    ) == expected
+    assert (
+        mark_passed_graduation_deadlines(reply, context, today=date(2026, 10, 14))
+        == expected
+    )
 
 
 @pytest.mark.parametrize(
@@ -718,9 +798,10 @@ def test_reply_marks_only_past_source_deadline_dates(reply, expected):
 )
 def test_reply_that_already_says_passed_is_not_double_labeled(reply):
     context = "\n".join(DEADLINE_ROWS)
-    assert mark_passed_graduation_deadlines(
-        reply, context, today=date(2026, 10, 14)
-    ) == reply
+    assert (
+        mark_passed_graduation_deadlines(reply, context, today=date(2026, 10, 14))
+        == reply
+    )
 
 
 def test_passed_wording_for_a_later_date_does_not_suppress_label():
@@ -741,9 +822,12 @@ def test_passed_wording_on_next_line_does_not_suppress_label():
 
 def test_reply_without_source_deadline_dates_is_unchanged():
     reply = "Orientation is October 9, 2026."
-    assert mark_passed_graduation_deadlines(
-        reply, "Orientation is October 9, 2026.", today=date(2026, 10, 14)
-    ) == reply
+    assert (
+        mark_passed_graduation_deadlines(
+            reply, "Orientation is October 9, 2026.", today=date(2026, 10, 14)
+        )
+        == reply
+    )
 
 
 @pytest.mark.parametrize("program", ["isda", "both"])
@@ -761,10 +845,13 @@ def test_chat_corrects_model_ignoring_past_deadline_note(monkeypatch, program):
     reply = (
         "Here are the upcoming application deadlines:\n"
         "- Planned Graduation Term: Fall 2027\n"
-        "  - Deadline 1: October 9, 2026 (allows two semesters with priority registration)\n"
+        "  - Deadline 1: October 9, 2026 (allows two semesters with priority "
+        "registration)\n"
         "  - Deadline 2: March 19, 2027"
     )
-    bot.chain = SimpleNamespace(invoke=Mock(return_value=SimpleNamespace(content=reply)))
+    bot.chain = SimpleNamespace(
+        invoke=Mock(return_value=SimpleNamespace(content=reply))
+    )
     history = []
     result = bot.chat("When do I need to apply for graduation?", history, program)
     assert result["source"] == "rag"
@@ -788,4 +875,6 @@ def test_graduation_today_uses_los_angeles_at_utc_midnight(monkeypatch):
     assert rag_chatbot._graduation_today() == date(2026, 10, 9)
     reply = "Deadline 1: October 9, 2026"
     assert mark_passed_graduation_deadlines(reply, reply) == reply
-    assert "Today is 2026-10-09" in graduation_deadline_note(_deadline_chunk().page_content)
+    assert "Today is 2026-10-09" in graduation_deadline_note(
+        _deadline_chunk().page_content
+    )

@@ -23,9 +23,15 @@ def selected_programs(query: str, program=None) -> set[str]:
 
 def query_programs(query: str) -> set[str]:
     programs = set()
-    if re.search(r"\b(?:mlis|library\s+(?:and\s+information\s+)?science|master(?:['’]s|s)?)\b", query, re.I):
+    if re.search(
+        r"\b(?:mlis|library\s+(?:and\s+information\s+)?science|master(?:['’]s|s)?)\b",
+        query,
+        re.I,
+    ):
         programs.add("MLIS")
-    if re.search(r"\b(?:isda\d*[a-z]?|bsisda|undergraduate|bachelor(?:['’]s|s)?)\b", query, re.I):
+    if re.search(
+        r"\b(?:isda\d*[a-z]?|bsisda|undergraduate|bachelor(?:['’]s|s)?)\b", query, re.I
+    ):
         programs.add("ISDA")
     return programs
 

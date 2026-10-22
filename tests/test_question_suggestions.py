@@ -354,53 +354,64 @@ def test_browser_matcher_matches_python(tmp_path):
     case_path.write_text(json.dumps(payload), encoding="utf-8")
     runner = tmp_path / "check_suggestions.js"
     runner.write_text(
-        r"""
-const fs = require("fs");
-const vm = require("vm");
-const payload = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
-const sandbox = { console };
-sandbox.window = sandbox;
-sandbox.globalThis = sandbox;
-vm.createContext(sandbox);
-vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);
-const rank = sandbox.rankQuestionSuggestions;
-const normalize = sandbox.normalizeSuggestionText;
-const keyAction = sandbox.suggestionKeyAction;
-if (typeof rank !== "function") throw new Error("rankQuestionSuggestions missing");
-for (const sample of payload.samples) {
-  if (normalize(sample.text) !== sample.normalized) {
-    throw new Error("Normalize mismatch for " + sample.text + ": " + normalize(sample.text));
-  }
-}
-for (const item of payload.cases) {
-  const ranked = rank(item.query, payload.questions, { program: item.program, limit: item.limit });
-  const texts = ranked.map((question) => question.text);
-  if (JSON.stringify(texts) !== JSON.stringify(item.expected)) {
-    throw new Error(
-      "Rank mismatch for " + JSON.stringify(item.query) +
-      "\nexpected " + JSON.stringify(item.expected) +
-      "\ngot " + JSON.stringify(texts)
-    );
-  }
-}
-for (const item of payload.keys) {
-  const action = keyAction(item.key, item.state);
-  if (action.type !== item.type) {
-    throw new Error(item.key + " expected " + item.type + " got " + action.type);
-  }
-  if (item.key === "ArrowDown" && item.state.open && item.state.activeIndex === 3 && action.index !== 3) {
-    throw new Error("ArrowDown did not stay on the last option");
-  }
-  if (item.key === "ArrowDown" && !item.state.open && item.type === "move" && action.index !== 0) {
-    throw new Error("ArrowDown on a closed list did not start at the first option");
-  }
-  if (item.key === "Enter" && item.type === "select" && action.index !== 2) {
-    throw new Error("Enter did not select the active option");
-  }
-}
-if (sandbox.SUGGESTION_DEBOUNCE_MS !== 120) throw new Error("debounce changed");
-console.log("ok");
-""",
+        (
+            "\n"
+            'const fs = require("fs");\n'
+            'const vm = require("vm");\n'
+            "const payload = JSON.parse(fs.readFileSync(process.argv[3], "
+            '"utf8"));\n'
+            "const sandbox = { console };\n"
+            "sandbox.window = sandbox;\n"
+            "sandbox.globalThis = sandbox;\n"
+            "vm.createContext(sandbox);\n"
+            'vm.runInContext(fs.readFileSync(process.argv[2], "utf8"), sandbox);\n'
+            "const rank = sandbox.rankQuestionSuggestions;\n"
+            "const normalize = sandbox.normalizeSuggestionText;\n"
+            "const keyAction = sandbox.suggestionKeyAction;\n"
+            'if (typeof rank !== "function") throw new '
+            'Error("rankQuestionSuggestions missing");\n'
+            "for (const sample of payload.samples) {\n"
+            "  if (normalize(sample.text) !== sample.normalized) {\n"
+            '    throw new Error("Normalize mismatch for " + sample.text + ": " '
+            "+ normalize(sample.text));\n"
+            "  }\n"
+            "}\n"
+            "for (const item of payload.cases) {\n"
+            "  const ranked = rank(item.query, payload.questions, { program: "
+            "item.program, limit: item.limit });\n"
+            "  const texts = ranked.map((question) => question.text);\n"
+            "  if (JSON.stringify(texts) !== JSON.stringify(item.expected)) {\n"
+            "    throw new Error(\n"
+            '      "Rank mismatch for " + JSON.stringify(item.query) +\n'
+            '      "\\nexpected " + JSON.stringify(item.expected) +\n'
+            '      "\\ngot " + JSON.stringify(texts)\n'
+            "    );\n"
+            "  }\n"
+            "}\n"
+            "for (const item of payload.keys) {\n"
+            "  const action = keyAction(item.key, item.state);\n"
+            "  if (action.type !== item.type) {\n"
+            '    throw new Error(item.key + " expected " + item.type + " got " + '
+            "action.type);\n"
+            "  }\n"
+            '  if (item.key === "ArrowDown" && item.state.open && '
+            "item.state.activeIndex === 3 && action.index !== 3) {\n"
+            '    throw new Error("ArrowDown did not stay on the last option");\n'
+            "  }\n"
+            '  if (item.key === "ArrowDown" && !item.state.open && item.type === '
+            '"move" && action.index !== 0) {\n'
+            '    throw new Error("ArrowDown on a closed list did not start at '
+            'the first option");\n'
+            "  }\n"
+            '  if (item.key === "Enter" && item.type === "select" && '
+            "action.index !== 2) {\n"
+            '    throw new Error("Enter did not select the active option");\n'
+            "  }\n"
+            "}\n"
+            "if (sandbox.SUGGESTION_DEBOUNCE_MS !== 120) throw new "
+            'Error("debounce changed");\n'
+            'console.log("ok");\n'
+        ),
         encoding="utf-8",
     )
     completed = subprocess.run(

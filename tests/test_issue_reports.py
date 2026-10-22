@@ -80,9 +80,12 @@ def test_retention_purges_on_startup_and_keeps_recent_and_boundary_rows(
     assert restarted.get(old) is None
     assert {row["id"] for row in restarted.list_reports()} == {recent, boundary}
     with sqlite3.connect(database) as connection:
-        assert connection.execute(
-            "SELECT turns_json FROM answer_issue_reports WHERE id = ?", (old,)
-        ).fetchone() is None
+        assert (
+            connection.execute(
+                "SELECT turns_json FROM answer_issue_reports WHERE id = ?", (old,)
+            ).fetchone()
+            is None
+        )
     assert "Deleted 1 expired issue reports" in caplog.text
     assert "private earlier question" not in caplog.text
 
@@ -250,7 +253,10 @@ def test_opt_in_stores_transcript_model_and_only_links_present_in_the_text(tmp_p
             answer=answer,
             turns=[
                 {"role": "user", "text": "What came before?"},
-                {"role": "assistant", "text": "Earlier note with https://sjsu.edu/advising"},
+                {
+                    "role": "assistant",
+                    "text": "Earlier note with https://sjsu.edu/advising",
+                },
                 {"role": "user", "text": "Which course is required?"},
                 {"role": "bot", "text": answer},
             ],
@@ -310,9 +316,7 @@ def test_invalid_reports_are_rejected():
     with pytest.raises(IssueReportValidationError):
         build_issue_report(_report(comment="x" * 1001))
     with pytest.raises(IssueReportValidationError):
-        build_issue_report(
-            _report(include_conversation=True, conversation_id="nope")
-        )
+        build_issue_report(_report(include_conversation=True, conversation_id="nope"))
 
 
 def test_reports_share_the_reviews_database_and_list_newest_first(tmp_path):
@@ -373,7 +377,9 @@ def report_client(monkeypatch, tmp_path):
     monkeypatch.setattr(app_module, "_issue_report_store_key", None)
     monkeypatch.setattr(app_module, "_evaluation_store", None)
     monkeypatch.setattr(app_module, "_evaluation_store_key", None)
-    monkeypatch.setattr(app_module, "_rate_limiter", app_module._FixedWindowRateLimiter())
+    monkeypatch.setattr(
+        app_module, "_rate_limiter", app_module._FixedWindowRateLimiter()
+    )
     return app_module.app.test_client()
 
 
@@ -390,7 +396,9 @@ def _post_report(client, payload, csrf=None):
     return client.post("/api/issue-reports", json=payload, headers=headers)
 
 
-def test_report_endpoint_requires_csrf_and_stores_only_the_flagged_answer(report_client):
+def test_report_endpoint_requires_csrf_and_stores_only_the_flagged_answer(
+    report_client,
+):
     rejected = _post_report(report_client, _report())
     assert rejected.status_code == 403
 
@@ -489,7 +497,9 @@ def test_chat_history_model_wins_over_the_value_in_the_report(
     monkeypatch.setattr(Config, "OPENAI_MODEL", "gpt-test-report")
     monkeypatch.setattr(app_module, "chatbot", _EchoBot())
 
-    chat = report_client.post("/api/chat", json={"message": "Which course is required?"})
+    chat = report_client.post(
+        "/api/chat", json={"message": "Which course is required?"}
+    )
     assert chat.status_code == 200
     body = chat.get_json()
     assert body["provider"] == "openai"
@@ -518,18 +528,20 @@ def test_chat_history_model_wins_over_the_value_in_the_report(
     assert report["provider"] == "openai"
 
 
-def test_report_endpoint_rejects_bad_payloads_and_rate_limits(monkeypatch, report_client):
+def test_report_endpoint_rejects_bad_payloads_and_rate_limits(
+    monkeypatch, report_client
+):
     csrf = _csrf(report_client)
     invalid = _post_report(report_client, _report(reason="spam"), csrf)
     assert invalid.status_code == 400
 
     monkeypatch.setenv("ISSUE_REPORT_RATE_LIMIT", "2")
-    monkeypatch.setattr(app_module, "_rate_limiter", app_module._FixedWindowRateLimiter())
+    monkeypatch.setattr(
+        app_module, "_rate_limiter", app_module._FixedWindowRateLimiter()
+    )
     csrf = _csrf(report_client)
     assert _post_report(report_client, _report(), csrf).status_code == 200
-    second = _post_report(
-        report_client, _report(question="Another question?"), csrf
-    )
+    second = _post_report(report_client, _report(question="Another question?"), csrf)
     assert second.status_code == 200
     limited = _post_report(report_client, _report(question="Third question?"), csrf)
     assert limited.status_code == 429
@@ -552,7 +564,13 @@ def test_reason_summary_includes_zeros_and_stable_ties(tmp_path):
     assert summary["total"] == 5
     assert summary["reasons"] == [
         {"key": key, "label": issue_reports.REASON_LABELS[key], "count": count}
-        for key, count in [("made_up", 2), ("other", 2), ("incorrect_info", 1), ("outdated", 0), ("knowledge_gap", 0)]
+        for key, count in [
+            ("made_up", 2),
+            ("other", 2),
+            ("incorrect_info", 1),
+            ("outdated", 0),
+            ("knowledge_gap", 0),
+        ]
     ]
     assert len(store.list_reports(limit=1)) == 1
     assert store.reason_counts() == summary  # Counts cover more than the list limit.
@@ -571,7 +589,11 @@ def test_summary_excludes_expired_reports(tmp_path, retention_clock, monkeypatch
     summary = store.reason_counts()
     assert summary["total"] == 2
     assert {item["key"]: item["count"] for item in summary["reasons"]} == {
-        "incorrect_info": 1, "made_up": 0, "outdated": 0, "other": 1, "knowledge_gap": 0,
+        "incorrect_info": 1,
+        "made_up": 0,
+        "outdated": 0,
+        "other": 1,
+        "knowledge_gap": 0,
     }
     assert len(store.list_reports()) == 2
 
@@ -581,24 +603,39 @@ def test_reviewer_report_summary_and_reason_filter(report_client):
     for reason in ["other", "made_up", "other"]:
         store.save(build_issue_report(_report(reason=reason)))
     for query in ["", "?reason=other", "?reason=unknown"]:
-        assert report_client.get("/api/evaluation/issue-reports" + query).status_code == 401
-    assert report_client.post(
-        "/api/evaluation/session",
-        json={"reviewer": "Reviewer One", "access_token": "test-review-token"},
-    ).status_code == 200
+        assert (
+            report_client.get("/api/evaluation/issue-reports" + query).status_code
+            == 401
+        )
+    assert (
+        report_client.post(
+            "/api/evaluation/session",
+            json={"reviewer": "Reviewer One", "access_token": "test-review-token"},
+        ).status_code
+        == 200
+    )
     endpoint = "/api/evaluation/issue-reports"
     body = report_client.get(endpoint).get_json()
     assert len(body["reports"]) == 3
     assert body["summary"]["total"] == 3
     assert [reason["key"] for reason in body["summary"]["reasons"]] == [
-        "other", "made_up", "incorrect_info", "outdated", "knowledge_gap",
+        "other",
+        "made_up",
+        "incorrect_info",
+        "outdated",
+        "knowledge_gap",
     ]
     for reason in issue_reports.REASON_LABELS:
         response = report_client.get(endpoint, query_string={"reason": reason})
         assert response.status_code == 200
         filtered = response.get_json()
         assert all(report["reason"] == reason for report in filtered["reports"])
-        assert len(filtered["reports"]) == (2 if reason == "other" else 1 if reason == "made_up" else 0)
+        assert len(filtered["reports"]) == (
+            2 if reason == "other" else 1 if reason == "made_up" else 0
+        )
         assert filtered["summary"] == body["summary"]
     for reason in ["unknown", "", "other' OR 1=1 --"]:
-        assert report_client.get(endpoint, query_string={"reason": reason}).status_code == 400
+        assert (
+            report_client.get(endpoint, query_string={"reason": reason}).status_code
+            == 400
+        )

@@ -121,13 +121,11 @@ def popular_questions(
         connection = sqlite3.connect(path, timeout=1)
         try:
             connection.execute("PRAGMA busy_timeout=1000")
-            rows = connection.execute(
-                """
+            rows = connection.execute("""
                 SELECT created_at, question
                 FROM anonymized_student_questions
                 ORDER BY created_at ASC, rowid ASC
-                """
-            ).fetchall()
+                """).fetchall()
         finally:
             connection.close()
     except sqlite3.OperationalError as exc:
@@ -163,6 +161,4 @@ def popular_questions(
         groups.values(),
         key=lambda item: (-item["count"], item["question"].casefold()),
     )
-    return [
-        {"question": item["question"], "count": item["count"]} for item in ranked
-    ]
+    return [{"question": item["question"], "count": item["count"]} for item in ranked]

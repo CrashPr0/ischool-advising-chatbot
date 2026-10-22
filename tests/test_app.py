@@ -90,7 +90,9 @@ def test_document_admin_routes_fail_closed_without_token(monkeypatch):
 def _isolate_index_job(monkeypatch, tmp_path, commit="deploy-sha"):
     """Point index job files at a temp dir and reset the in-process rate limit."""
     monkeypatch.setenv("DOCS_LOAD_TOKEN", "test-docs-token")
-    monkeypatch.setattr(app_module, "_rate_limiter", app_module._FixedWindowRateLimiter())
+    monkeypatch.setattr(
+        app_module, "_rate_limiter", app_module._FixedWindowRateLimiter()
+    )
     monkeypatch.setattr(app_module, "_index_state_dir", lambda: str(tmp_path))
     monkeypatch.setattr(app_module, "_deployment_version", lambda: commit)
     monkeypatch.setattr(app_module, "_DOCS_INDEX_START_DELAY_SECONDS", 0.0)
@@ -204,7 +206,9 @@ def test_failed_rebuild_keeps_the_previous_receipt(monkeypatch, tmp_path):
     _isolate_index_job(monkeypatch, tmp_path, commit="new-sha")
     monkeypatch.setattr(app_module, "get_chatbot", lambda: FailingChatbot())
     (tmp_path / "index_build.json").write_text(
-        json.dumps({"commit": "old-sha", "source_files": 20, "vector_store_chunks": 189}),
+        json.dumps(
+            {"commit": "old-sha", "source_files": 20, "vector_store_chunks": 189}
+        ),
         encoding="utf-8",
     )
     client = app_module.app.test_client()
