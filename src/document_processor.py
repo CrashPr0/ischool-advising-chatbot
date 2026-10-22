@@ -167,7 +167,9 @@ def _embedding_token_counter() -> Callable[[str], int]:
         encoder = tiktoken.get_encoding("cl100k_base")
 
         def count(text: str) -> int:
-            return len(encoder.encode(text))
+            # Source documents may quote tokenizer markers. Count them as
+            # ordinary text instead of rejecting the entire embedding batch.
+            return len(encoder.encode(text, disallowed_special=()))
 
     except Exception:
 

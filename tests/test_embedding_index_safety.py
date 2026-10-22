@@ -15,6 +15,7 @@ from src.document_processor import (
     _create_embeddings,
     _is_rate_limit,
     _retry_delay_seconds,
+    estimate_embedding_tokens,
     pack_embedding_batches,
     promote_collection,
     restore_previous_collection,
@@ -154,6 +155,29 @@ def test_batches_stay_under_the_token_budget_and_retry_429():
     assert _is_rate_limit(_RateLimit())
     assert _retry_delay_seconds(_RateLimit("1"), 4.0) == 4.0
     assert _retry_delay_seconds(_RateLimit(None), 4.0) == 4.0
+
+
+@pytest.mark.parametrize("marker", ["<|endoftext|>", "<|fim_prefix|>"])
+def test_hosted_embedding_batches_treat_tokenizer_markers_as_literal_text(
+    monkeypatch, marker
+):
+    import tiktoken
+    from src.document_processor import _embedding_token_counter
+
+    # Exercise the real tokenizer rather than the optional fallback or a cache
+    # installed by another test.
+    monkeypatch.delattr(_embedding_token_counter, "_counter", raising=False)
+    text = f"Published document quotes {marker} as an example."
+    expected_tokens = len(tiktoken.get_encoding("cl100k_base").encode_ordinary(text))
+    assert estimate_embedding_tokens(text) == expected_tokens
+
+    inner = _Inner()
+    embeddings = DescribedEmbeddings(inner, _identity(), batch_tokens=expected_tokens)
+    assert embeddings.embed_documents([text, text]) == [
+        [float(len(text)), 0.0],
+        [float(len(text)), 0.0],
+    ]
+    assert inner.calls == [[text], [text]]
 
 
 def test_query_embedding_caps_attempts_and_does_not_sleep_out_retry_after():
