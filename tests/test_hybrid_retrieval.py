@@ -287,6 +287,24 @@ def test_hybrid_uses_bm25_when_query_embedding_fails():
     assert "ISDA 150" in hits[0].page_content
 
 
+def test_bm25_refreshes_changed_text_with_reused_chunk_ids():
+    records = [
+        ("first", "alpha", {}),
+        ("second", "beta", {}),
+    ]
+    store = _VectorStore(records, [])
+    hits = hybrid_retrieve(store, "alpha", k=1, collection_id="old")
+    assert [hit.page_content for hit in hits] == ["alpha"]
+    original_index = store._hybrid_bm25_cache[1]
+    hybrid_retrieve(store, "alpha", k=1, collection_id="old")
+    assert store._hybrid_bm25_cache[1] is original_index
+
+    store._collection = _Collection([("first", "beta", {}), ("second", "alpha", {})])
+    hits = hybrid_retrieve(store, "alpha", k=1, collection_id="new")
+    assert [hit.page_content for hit in hits] == ["alpha"]
+    assert store._hybrid_bm25_cache[1] is not original_index
+
+
 def test_retrieve_does_not_hold_the_index_lock_during_search(monkeypatch):
     monkeypatch.setenv("HYBRID_RETRIEVAL", "false")
     store = _VectorStore(_records(), ["office", "generic", "isda111", "elective"])
