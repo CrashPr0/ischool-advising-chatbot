@@ -68,6 +68,7 @@ from suggestion_usage import (
 )
 from voice_config import get_voice_config
 from program_scope import normalize_program
+from program_picker import wants_program_picker
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -1204,6 +1205,8 @@ def chat():
             payload["provider"] = provider
         if model:
             payload["model"] = model
+        if result.get("safety_tier") != "crisis" and wants_program_picker(user_message):
+            payload["ui_action"] = "show_program_picker"
         # Absent until the safety layer adds it. Include it only then so
         # older chatbot builds keep the previous JSON shape.
         if "safety_tier" in result:

@@ -74,7 +74,8 @@ def test_embed_query_hides_the_header_and_leaves_the_full_page_alone():
     assert b"<header class=\"site-header\">" in full.data
     assert b'class="is-embed"' in embed.data
     assert b'<header class="site-header" hidden>' in embed.data
-    assert b"BS ISDA and MLIS advising assistant." in embed.data
+    assert b'id="program-select" name="program" hidden' in embed.data
+    assert b'id="change-program-button"' in embed.data
 
 
 def test_embed_session_cookie_is_cross_site_only_on_https(monkeypatch, ready_chat_index):

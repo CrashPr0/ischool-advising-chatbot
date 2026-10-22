@@ -1550,3 +1550,25 @@ body.is-embed .suggest-list { max-height: min(220px, 36vh); }
   overflow-wrap: anywhere;
 }
 .advisor-handoff-note a { color: var(--sjsu-blue-dark); text-underline-offset: 3px; }
+
+/* Program selection stays inside an assistant card on both frontends. */
+.program-control[hidden] { display: none; }
+.program-picker p { margin: 0 0 12px; }
+.program-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.program-chip {
+  max-width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #64748b;
+  border-radius: 24px;
+  background: #fff;
+  color: #16334a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.program-chip:hover, .program-chip[aria-pressed="true"] {
+  background: #e6f0fa;
+  border-color: #0055a2;
+}
+.program-chip:focus-visible { outline: 3px solid #0055a2; outline-offset: 3px; }

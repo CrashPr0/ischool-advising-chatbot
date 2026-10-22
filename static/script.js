@@ -449,6 +449,7 @@ function showEmptyState() {
     chatBox.innerHTML = "";
   }
   chatBox.classList.add("is-empty");
+  showProgramPicker();
   emptyState.classList.remove("hidden");
 }
 
@@ -1146,7 +1147,8 @@ async function sendMessage(prefilledMessage = null) {
         source: data.source,
         retrievedDocs: data.retrieved_docs,
         provider: data.provider || null,
-        model: data.model || null
+        model: data.model || null,
+        uiAction: data.ui_action === "show_program_picker" ? data.ui_action : null
       }
     );
   } catch (error) {
@@ -1464,7 +1466,8 @@ function deliverBotReply(conversationId, text, meta) {
     source: meta && meta.source,
     retrievedDocs: meta ? meta.retrievedDocs : null,
     provider: meta && meta.provider ? meta.provider : null,
-    model: meta && meta.model ? meta.model : null
+    model: meta && meta.model ? meta.model : null,
+    uiAction: meta && meta.uiAction === "show_program_picker" ? meta.uiAction : null
   };
   let messages = plainTranscript;
   if (conversationId) {
@@ -1482,6 +1485,7 @@ function deliverBotReply(conversationId, text, meta) {
     reportable: true,
     report: reportContext(reportMessages, reportMessages.length - 1, conversationId)
   });
+  if (stored.uiAction === "show_program_picker") showProgramPicker();
 }
 
 function speakBotReply(responseText) {
@@ -1569,12 +1573,8 @@ clearButton.addEventListener("click", async (event) => {
   } else if (emptyState) {
     showEmptyState();
   } else {
-    chatBox.innerHTML = `
-    <div class="message bot-message">
-      <div class="message-label">iSchool Bot</div>
-      <div>Hi! I’m your BS ISDA and MLIS advising assistant. I can help you explore degree requirements, plan your courses, and navigate registration. Choose a topic or ask me a question to get started.</div>
-    </div>
-  `;
+    chatBox.innerHTML = "";
+    showProgramPicker();
   }
 
   resetTopicSelection();
@@ -1656,6 +1656,53 @@ function normalizeProgram(value) {
   return ["isda", "mlis", "both"].includes(value) ? value : "both";
 }
 
+// This UI card is never a transcript turn, so email drafts keep their current content.
+let programPickerCard = null;
+function showProgramPicker(focus = false) {
+  if (!chatBox || !programSelect) return;
+  if (programPickerCard) programPickerCard.remove();
+  hideEmptyState();
+  const card = document.createElement("div");
+  card.classList.add("message", "bot-message", "program-picker");
+  const label = document.createElement("div");
+  label.classList.add("message-label");
+  label.textContent = "iSchool Bot";
+  const greeting = document.createElement("p");
+  greeting.textContent = "Hi! I’m your BS ISDA and MLIS advising assistant. Choose your program to get started, or ask me a question.";
+  const chips = document.createElement("div");
+  chips.classList.add("program-chips");
+  chips.setAttribute("role", "group");
+  chips.setAttribute("aria-label", "Choose your program");
+  const buttons = [];
+  // Use the existing options as the single source of program values and labels.
+  Array.from(programSelect.options || []).forEach((option) => {
+    if (!["isda", "mlis", "both"].includes(option.value)) return;
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.classList.add("program-chip");
+    chip.textContent = option.textContent;
+    chip.setAttribute("aria-pressed", String(programSelect.value === option.value));
+    chip.addEventListener("click", () => {
+      programSelect.value = option.value;
+      onProgramChange();
+      buttons.forEach(({ button, value }) => {
+        button.setAttribute("aria-pressed", String(value === programSelect.value));
+      });
+      userInput?.focus();
+    });
+    buttons.push({ button: chip, value: option.value });
+    chips.appendChild(chip);
+  });
+  card.appendChild(label);
+  card.appendChild(greeting);
+  card.appendChild(chips);
+  chatBox.appendChild(card);
+  programPickerCard = card;
+  chatBox.scrollTop = chatBox.scrollHeight;
+  revealMessageOnPhone(card, "start");
+  if (focus && buttons.length) buttons[0].button.focus();
+}
+
 function onProgramChange() {
   lastSelectedProgram = normalizeProgram(programSelect.value);
   updateAdvisorHandoffNotes();
@@ -1715,6 +1762,9 @@ function normalizeMessage(message) {
     source: typeof message.source === "string" ? message.source : null,
     retrievedDocs: Number.isFinite(message.retrievedDocs) ? message.retrievedDocs : null
   };
+  if (message.role === "bot" && message.uiAction === "show_program_picker") {
+    normalized.uiAction = message.uiAction;
+  }
   if (typeof message.provider === "string" && message.provider) {
     normalized.provider = message.provider.slice(0, 120);
   }
@@ -1841,6 +1891,7 @@ function paintConversation(convo) {
     return;
   }
 
+  showProgramPicker();
   convo.messages.forEach((message, index) => {
     const isBot = message.role === "bot";
     addMessage(
@@ -1854,6 +1905,8 @@ function paintConversation(convo) {
       }
     );
   });
+
+  if (convo.messages.at(-1)?.uiAction === "show_program_picker") showProgramPicker();
 
   if (replyOperations.has(convo.id)) {
     showTypingIndicator();
@@ -2104,7 +2157,11 @@ function onTabKeydown(event) {
 function initConversations() {
   loadStoredConversations();
   if (programSelect) programSelect.value = lastSelectedProgram;
-  if (!tabsEnabled()) return;
+  if (!tabsEnabled()) {
+    if (chatBox) chatBox.innerHTML = "";
+    showProgramPicker();
+    return;
+  }
   if (!conversations.length) conversations = [createConversation()];
   if (!conversations.some((item) => item.id === activeConversationId)) {
     activeConversationId = conversations[conversations.length - 1].id;
@@ -2631,6 +2688,8 @@ function initQuestionSuggestions() {
 }
 
 initConversations();
+const changeProgramButton = document.getElementById("change-program-button");
+if (changeProgramButton) changeProgramButton.addEventListener("click", () => showProgramPicker(true));
 const advisorHandoffButton = document.getElementById("advisor-handoff-button");
 if (advisorHandoffButton) advisorHandoffButton.addEventListener("click", openAdvisorHandoff);
 updateAdvisorHandoffNotes();

@@ -8,9 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CSS = (ROOT / "static/style.css").read_text()
 HTML_FILES = ("templates/index.html", "docs/index.html")
 ASSET_PINS = {
-    "style.css": "20261017-dynamic-suggestions",
-    "suggestions.js": "20261017-dynamic-suggestions",
-    "script.js": "20261017-dynamic-suggestions",
+    "style.css": "20261022-program-picker",
+    "suggestions.js": "20261022-program-picker",
+    "script.js": "20261022-program-picker",
 }
 
 

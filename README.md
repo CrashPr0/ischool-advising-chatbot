@@ -52,6 +52,22 @@ The request path starts in [app.py](app.py). [RAGAdvisingChatbot](src/rag_chatbo
 
 Documents are ingested before chat requests. The web API checks an index receipt before answering, so an absent or mismatched index cannot silently serve a new release. The offline harness uses the same loader, splitter, hashing embedder, and hybrid ranking function in an isolated temporary index. It evaluates retrieval directly, bypassing curated-answer lookup and answer generation.
 
+## In-chat program picker
+
+New chats greet students with program chips using the existing labels: **Not sure / both**,
+**BS Information Science & Data Analytics (ISDA)**, and **MLIS**. A chip updates the hidden
+`#program-select` through `onProgramChange`, preserving program-scoped questions,
+browser conversation state, and advisor email drafts. **Change program** in the chat
+header reopens the same card without clearing the conversation.
+
+Direct requests such as “change my program” or “actually I'm in a different major”
+add `"ui_action": "show_program_picker"` to `/api/chat` JSON. The frontend displays
+the card after the reply, including replies received in a background conversation.
+The conservative detector uses only the user message; no model text markers are
+introduced. General advising questions such as “How do I change my major?” keep
+the ordinary response. Both the Flask page and `docs/index.html` use this flow;
+there is currently no streaming chat endpoint.
+
 ## Measured retrieval baseline
 
 The [generated report](docs/eval/latest.md) records the full method, input hashes, per-question expected/retrieved pages, exclusions, and timing evidence.
