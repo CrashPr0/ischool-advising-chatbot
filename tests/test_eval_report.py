@@ -153,6 +153,35 @@ def test_bad_label_inputs_fail(tmp_path, questions, labels):
         load_cases(question_path, label_path)
 
 
+@pytest.mark.parametrize(
+    "questions, labels, message",
+    [
+        (None, {}, "Questions must be a list"),
+        ({"id": "a"}, {}, "Questions must be a list"),
+        ([], [], "Expectations must be an object"),
+        ([None], {}, "Each question must be an object"),
+        (["a"], {}, "Each question must be an object"),
+        ([{"question": "q"}], {}, "Question IDs must be non-empty strings"),
+        ([{"id": []}], {}, "Question IDs must be non-empty strings"),
+        ([{"id": 1}], {}, "Question IDs must be non-empty strings"),
+        ([{"id": "  "}], {}, "Question IDs must be non-empty strings"),
+        ([{"id": "a", "question": "q"}], {"a": None}, "Invalid retrieval label: a"),
+        ([{"id": "a", "question": "q"}], {"a": []}, "Invalid retrieval label: a"),
+        ([{"id": "a", "question": "q"}], {"a": "url"}, "Invalid retrieval label: a"),
+    ],
+)
+def test_malformed_case_structure_has_actionable_error(
+    tmp_path, questions, labels, message
+):
+    question_path = tmp_path / "questions.json"
+    label_path = tmp_path / "labels.json"
+    question_path.write_text(json.dumps(questions))
+    label_path.write_text(json.dumps(labels))
+
+    with pytest.raises(ValueError, match=message):
+        load_cases(question_path, label_path)
+
+
 def test_labels_cannot_replace_curated_question_identity(tmp_path):
     questions = tmp_path / "questions.json"
     labels = tmp_path / "labels.json"
