@@ -1,0 +1,23 @@
+{
+  "admissions-two-pathways": {"expected_sources": ["https://ischool.sjsu.edu/bachelor-science-information-science-and-data-analytics"]},
+  "admissions-change-of-major": {"expected_sources": ["https://ischool.sjsu.edu/bsisda-advising"]},
+  "advising-who-and-how": {"expected_sources": ["https://ischool.sjsu.edu/bsisda-advising", "https://ischool.sjsu.edu/bsisda-freshmen-advising"]},
+  "registration-full-class-waitlist": {"expected_sources": ["https://www.sjsu.edu/registrar/registration/registration-basics/add-a-class.php"]},
+  "registration-external-prerequisite": {"expected_sources": ["https://www.sjsu.edu/registrar/registration/registration-basics/add-a-class.php"]},
+  "degree-completion-unit-split": {"expected_sources": ["https://ischool.sjsu.edu/bsisda-catalog-degree-completion", "https://ischool.sjsu.edu/bsisda-freshmen-summary-degree-units"]},
+  "degree-transfer-prerequisites": {"expected_sources": ["https://ischool.sjsu.edu/bsisda-catalog-degree-completion"]},
+  "degree-graduate-electives": {"expected_sources": ["https://ischool.sjsu.edu/bsisda-catalog-degree-completion"]},
+  "degree-minor-by-pathway": {"expected_sources": ["https://ischool.sjsu.edu/bsisda-freshmen-summary-degree-units", "https://ischool.sjsu.edu/bsisda-faqs"]},
+  "career-roles-and-support": {"expected_sources": ["https://www.sjsu.edu/online/programs/information-science-and-data-analytics-bachelors-degree.php"]},
+  "policies-special-session-aid-and-tuition": {"expected_sources": ["https://ischool.sjsu.edu/bsisda-advising", "https://ischool.sjsu.edu/bsisda-fees-and-scholarships"]},
+  "policies-missing-enrollment-appointment": {"expected_sources": ["https://www.sjsu.edu/registrar/registration/registration-basics/index.php"]},
+  "boundary-easiest-professor": {"skip_reason": "No relevant source expected; refusal behavior requires answer evaluation."},
+  "boundary-student-records-and-aid": {"skip_reason": "Student-record boundary requires answer evaluation, not retrieval scoring."},
+  "distress-academic-notice": {"skip_reason": "Distress response evaluation is outside this harness's scope."},
+  "distress-isda-101-second-attempt": {"skip_reason": "Distress response evaluation is outside this harness's scope."},
+  "distress-overwhelmed-stay-or-leave": {"skip_reason": "Distress response evaluation is outside this harness's scope."},
+  "mlis-core": {"expected_sources": ["https://ischool.sjsu.edu/mlis-required-courses"]},
+  "mlis-apply": {"expected_sources": ["https://ischool.sjsu.edu/graduate-application"]},
+  "mlis-eportfolio": {"expected_sources": ["https://ischool.sjsu.edu/info-289-e-portfolio-faqs"]},
+  "mlis-advising": {"expected_sources": ["https://ischool.sjsu.edu/advising-appointments"]}
+}
