@@ -1823,7 +1823,13 @@ def question_suggestions():
     Matching happens in the browser. This handler ignores query parameters
     and does not log them, so a partial question never reaches the server.
     """
-    store = get_suggestion_usage_store() if dynamic_suggestions_enabled() else None
+    store = None
+    if dynamic_suggestions_enabled():
+        try:
+            store = get_suggestion_usage_store()
+        except Exception:
+            # Ranking data is optional; the curated list must still load.
+            logger.exception("Suggestion usage store unavailable; serving curated list")
     response = jsonify(student_suggestion_payload(store))
     response.headers["Cache-Control"] = "no-store"
     return response
