@@ -157,6 +157,37 @@ def test_batches_stay_under_the_token_budget_and_retry_429():
     assert _retry_delay_seconds(_RateLimit(None), 4.0) == 4.0
 
 
+@pytest.mark.parametrize("invalid_value", [float("nan"), float("inf"), -float("inf")])
+@pytest.mark.parametrize("provider", ["azure_openai", "local"])
+@pytest.mark.parametrize("operation", ["embed_documents", "embed_query"])
+def test_non_finite_embeddings_are_rejected_without_retry(
+    invalid_value, provider, operation
+):
+    class InvalidEmbeddings(_Inner):
+        def embed_documents(self, texts):
+            self.calls.append(list(texts))
+            return [[0.0, invalid_value] for _ in texts]
+
+        def embed_query(self, text):
+            self.calls.append([text])
+            return [0.0, invalid_value]
+
+    inner = InvalidEmbeddings()
+    sleeps = []
+    embeddings = DescribedEmbeddings(
+        inner,
+        _identity(embedding_provider=provider),
+        count_tokens=lambda text: 1,
+        sleep=sleeps.append,
+    )
+    argument = ["ISDA courses"] if operation == "embed_documents" else "ISDA courses"
+
+    with pytest.raises(RuntimeError, match="Embedding provider returned non-finite values"):
+        getattr(embeddings, operation)(argument)
+
+    assert len(inner.calls) == 1
+    assert sleeps == []
+    assert embeddings.measured_dimension is None
 @pytest.mark.parametrize(
     "marker",
     [
