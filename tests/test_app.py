@@ -421,3 +421,47 @@ def test_chat_program_allowlist(monkeypatch, ready_chat_index):
         )
     assert client.post("/api/chat", json={"message": "core courses"}).status_code == 200
     assert bot.programs[-1] is None
+
+
+def test_chat_rejects_malformed_bodies_without_loading_the_model(
+    monkeypatch, ready_chat_index
+):
+    def _fail():
+        raise AssertionError("model must not load for an invalid request")
+
+    monkeypatch.setattr(app_module, "get_chatbot", _fail)
+    client = app_module.app.test_client()
+
+    for body in ("[]", '"hi"', "null", "not json"):
+        response = client.post(
+            "/api/chat", data=body, content_type="application/json"
+        )
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "Request body must be a JSON object"
+
+    for message in (None, 42, ["hi"], {"a": 1}):
+        response = client.post("/api/chat", json={"message": message})
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "message must be a string"
+    assert client.post("/api/chat", json={}).status_code == 400
+
+    for message in ("", "   \n\t "):
+        response = client.post("/api/chat", json={"message": message})
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "Empty message"
+
+
+def test_chat_message_length_limit_applies_after_stripping(
+    monkeypatch, ready_chat_index
+):
+    monkeypatch.setenv("CHAT_MESSAGE_MAX_LENGTH", "10")
+    bot = FakeChatbot()
+    monkeypatch.setattr(app_module, "get_chatbot", lambda: bot)
+    client = app_module.app.test_client()
+
+    padded = "  " + "a" * 10 + "  "
+    assert client.post("/api/chat", json={"message": padded}).status_code == 200
+
+    too_long = client.post("/api/chat", json={"message": "a" * 11})
+    assert too_long.status_code == 413
+    assert "10-character" in too_long.get_json()["error"]
