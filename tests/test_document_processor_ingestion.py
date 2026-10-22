@@ -73,6 +73,54 @@ def test_source_scan_excludes_scraper_control_files(tmp_path):
     }
 
 
+@pytest.mark.parametrize("suffix", [".txt", ".TXT", ".TxT"])
+def test_source_scan_counts_the_text_files_ingestion_accepts(tmp_path, suffix):
+    (tmp_path / f"approved{suffix}").write_text(
+        "Approved advising evidence.", encoding="utf-8"
+    )
+    processor = bare_processor()
+    processor._search_directories = lambda: [str(tmp_path)]
+
+    assert len(processor._load_from_directory(str(tmp_path))) == 1
+    assert processor.scan_source_files() == {
+        "roots": [str(tmp_path)],
+        "txt_files": 1,
+        "pdf_files": 0,
+        "total_files": 1,
+    }
+
+
+def test_source_scan_counts_pdf_extensions_case_insensitively(tmp_path):
+    for name in ("first.pdf", "second.PDF", "third.PdF"):
+        (tmp_path / name).write_bytes(b"%PDF-test")
+    (tmp_path / "scrape").mkdir()
+    (tmp_path / "scrape" / "control.PDF").write_bytes(b"%PDF-test")
+    processor = bare_processor()
+    processor._search_directories = lambda: [str(tmp_path)]
+
+    assert processor.scan_source_files() == {
+        "roots": [str(tmp_path)],
+        "txt_files": 0,
+        "pdf_files": 3,
+        "total_files": 3,
+    }
+
+
+def test_source_scan_does_not_count_directories_with_document_extensions(tmp_path):
+    (tmp_path / "empty.txt").mkdir()
+    (tmp_path / "empty.pdf").mkdir()
+    processor = bare_processor()
+    processor._search_directories = lambda: [str(tmp_path)]
+
+    assert processor._load_from_directory(str(tmp_path)) == []
+    assert processor.scan_source_files() == {
+        "roots": [str(tmp_path)],
+        "txt_files": 0,
+        "pdf_files": 0,
+        "total_files": 0,
+    }
+
+
 @pytest.mark.parametrize("candidate_index", range(4))
 def test_companion_metadata_uses_first_available_file(tmp_path, candidate_index):
     document_path = tmp_path / "txt" / "approved.txt"

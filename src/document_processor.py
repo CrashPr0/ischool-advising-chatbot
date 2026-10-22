@@ -741,16 +741,18 @@ class DocumentProcessor:
             try:
                 if not os.path.isdir(root):
                     continue
-                txt += sum(
-                    1
-                    for path in Path(root).rglob("*.txt")
-                    if self._is_document_path(path, root)
-                )
-                pdf += sum(
-                    1
-                    for path in Path(root).rglob("*.pdf")
-                    if self._is_document_path(path, root)
-                )
+                for path in Path(root).rglob("*"):
+                    suffix = path.suffix.casefold()
+                    if (
+                        suffix not in {".txt", ".pdf"}
+                        or not path.is_file()
+                        or not self._is_document_path(path, root)
+                    ):
+                        continue
+                    if suffix == ".txt":
+                        txt += 1
+                    else:
+                        pdf += 1
             except Exception:
                 continue
         return {
