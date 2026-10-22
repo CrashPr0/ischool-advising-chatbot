@@ -170,6 +170,8 @@ The committed current catalog is identified by `CURRENT_CATALOG_CATOID` (23) and
 
 See [Canvas embedding](docs/canvas-embed.md) and [curated suggestion ranking](docs/dynamic-suggestions.md) for integration details. Deployment settings, durable paths, health probes, and rollback procedures are documented in the runbook.
 
+**Follow-up suggestion chips.** `/api/chat` may return an optional `suggestions` array of 2-3 short replies. The model adds them with a final `SUGGESTIONS: [...]` line only when a follow-up helps, such as narrowing a broad question. `src/reply_suggestions.py` removes that line from the answer, caps the list at 3 items of 80 characters, and drops empties, duplicates, links, and personal information. The field is omitted when empty. Both pages render the replies as chips under the answer, and tapping one sends it as the next message.
+
 ## Hosting reference
 
 The existing Azure startup command is `gunicorn --config gunicorn.conf.py app:app`. Leave `VECTOR_STORE_PATH` unset to use the platform-aware defaults: `/home/data/chroma` for the Azure index and `/home/data/evaluation/reviews.sqlite3` for review data. `/tmp/chroma` is not durable across restarts. `/healthz` remains the liveness probe; `/readyz` validates the index receipt. HTTPS Only is enabled on the hosted app. See the [deployment runbook](AZURE_DEPLOYMENT.md) and [operations log](docs/ops-log.md) for the existing configuration.

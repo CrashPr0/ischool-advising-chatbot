@@ -1096,6 +1096,7 @@ async function sendMessage(prefilledMessage = null) {
   replyOperations.set(key, operation);
 
   hideSampleChips();
+  if (typeof clearReplySuggestions === "function") clearReplySuggestions();
   if (typeof closeQuestionSuggestions === "function") closeQuestionSuggestions();
   userInput.value = "";
   conversationDrafts.delete(key);
@@ -1151,7 +1152,8 @@ async function sendMessage(prefilledMessage = null) {
         retrievedDocs: data.retrieved_docs,
         provider: data.provider || null,
         model: data.model || null,
-        uiAction: data.ui_action === "show_program_picker" ? data.ui_action : null
+        uiAction: data.ui_action === "show_program_picker" ? data.ui_action : null,
+        suggestions: data.suggestions
       }
     );
   } catch (error) {
@@ -1483,12 +1485,60 @@ function deliverBotReply(conversationId, text, meta) {
   const reportMessages = conversationId
     ? messages.slice(0, index + 1)
     : messages.concat([stored]);
-  addMessage(text, "bot-message", "iSchool Bot", {
+  const botWrapper = addMessage(text, "bot-message", "iSchool Bot", {
     skipRecord: Boolean(conversationId),
     reportable: true,
     report: reportContext(reportMessages, reportMessages.length - 1, conversationId)
   });
   if (stored.uiAction === "show_program_picker") showProgramPicker();
+  attachReplySuggestions(botWrapper, meta && meta.suggestions);
+}
+
+// ── FOLLOW-UP SUGGESTION CHIPS ──
+// The server sends 2-3 short replies only when a follow-up helps. Missing or
+// empty means no chips and no placeholder. Tapping one sends it as the next
+// message through the normal send flow.
+const MAX_REPLY_SUGGESTIONS = 3;
+const MAX_REPLY_SUGGESTION_LENGTH = 80;
+
+function cleanReplySuggestions(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const cleaned = [];
+  value.forEach((item) => {
+    if (typeof item !== "string") return;
+    const text = item.replace(/\s+/g, " ").trim();
+    const key = text.toLowerCase();
+    if (!text || text.length > MAX_REPLY_SUGGESTION_LENGTH || seen.has(key)) return;
+    seen.add(key);
+    cleaned.push(text);
+  });
+  return cleaned.slice(0, MAX_REPLY_SUGGESTIONS);
+}
+
+function clearReplySuggestions() {
+  if (!chatBox || typeof chatBox.querySelectorAll !== "function") return;
+  chatBox.querySelectorAll(".reply-suggestions").forEach((node) => node.remove());
+}
+
+function attachReplySuggestions(wrapper, suggestions) {
+  const items = cleanReplySuggestions(suggestions);
+  if (!wrapper || !items.length) return null;
+  clearReplySuggestions();
+  const group = document.createElement("div");
+  group.classList.add("reply-suggestions");
+  group.setAttribute("role", "group");
+  group.setAttribute("aria-label", "Suggested replies");
+  items.forEach((text) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.classList.add("reply-suggestion-chip");
+    chip.textContent = text;
+    chip.addEventListener("click", () => sendMessage(text));
+    group.appendChild(chip);
+  });
+  wrapper.appendChild(group);
+  return group;
 }
 
 function speakBotReply(responseText) {

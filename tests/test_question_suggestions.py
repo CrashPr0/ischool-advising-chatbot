@@ -242,8 +242,8 @@ def test_combobox_markup_is_on_both_pages_and_client_does_not_send_partials():
         assert 'id="question-suggestions" class="suggest-list" role="listbox"' in html
         assert 'id="question-suggestions-status"' in html
         assert 'aria-live="polite"' in html
-        assert "suggestions.js?v=20261023-program-picker" in html or (
-            "filename='suggestions.js', v='20261023-program-picker'" in html
+        assert "suggestions.js?v=20261023-reply-suggestions" in html or (
+            "filename='suggestions.js', v='20261023-reply-suggestions'" in html
         )
 
     script = (ROOT / "static" / "script.js").read_text(encoding="utf-8")
