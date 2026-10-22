@@ -61,12 +61,23 @@ def load_cases(questions_path: Path, expectations_path: Path) -> list[dict]:
     """Require one explicit source label or exclusion for every curated question."""
     questions = json.loads(questions_path.read_text(encoding="utf-8"))
     labels = json.loads(expectations_path.read_text(encoding="utf-8"))
+    if not isinstance(questions, list):
+        raise ValueError("Questions must be a list of question objects")
+    if not isinstance(labels, dict):
+        raise ValueError("Expectations must be an object keyed by question ID")
+    for row in questions:
+        if not isinstance(row, dict):
+            raise ValueError("Each question must be an object")
+        if not isinstance(row.get("id"), str) or not row["id"].strip():
+            raise ValueError("Question IDs must be non-empty strings")
     ids = [row["id"] for row in questions]
     if not ids or len(ids) != len(set(ids)) or set(ids) != set(labels):
         raise ValueError("Question IDs must be unique and match expectation IDs")
     cases = []
     for question in questions:
         label = labels[question["id"]]
+        if not isinstance(label, dict):
+            raise ValueError(f"Invalid retrieval label: {question['id']} (must be an object)")
         expected = label.get("expected_sources", [])
         reason = label.get("skip_reason", "")
         if (
