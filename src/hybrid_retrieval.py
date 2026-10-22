@@ -169,8 +169,7 @@ def expand_graduation_application_query(query: str) -> str:
     if not isinstance(query, str) or not query.strip():
         return query if isinstance(query, str) else ""
     tokens = {
-        token for token in tokenize(query)
-        if not re.fullmatch(r"(?:19|20)\d{2}", token)
+        token for token in tokenize(query) if not re.fullmatch(r"(?:19|20)\d{2}", token)
     }
     if not tokens or not tokens <= _GRADUATION_QUERY_TERMS:
         return query
@@ -483,8 +482,8 @@ def _documents_for_ids(doc_ids, by_id, limit: int) -> list[Document]:
 
 
 def _bm25_for(vector_store, records: Sequence[tuple[str, str, dict]]) -> BM25Index:
-    """Reuse the BM25 index until the collection's ids change."""
-    signature = tuple(doc_id for doc_id, _content, _metadata in records)
+    """Reuse the BM25 index until chunk ids or text change."""
+    signature = tuple((doc_id, content) for doc_id, content, _metadata in records)
     cached = getattr(vector_store, "_hybrid_bm25_cache", None)
     if (
         isinstance(cached, tuple)
