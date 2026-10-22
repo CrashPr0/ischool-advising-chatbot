@@ -127,7 +127,7 @@ python -m black --check scripts/eval_report.py tests/test_eval_report.py
 python -m flake8 scripts/eval_report.py tests/test_eval_report.py --max-line-length=88
 ```
 
-Recorded local result from the commands above: **657 passed**, with a dependency deprecation warning; both lint checks passed. Black/Flake8 cover the offline harness files listed in those commands. The [pull request workflow](.github/workflows/pr-tests.yml) runs the full suite and a dependency audit; it does not currently enforce repository-wide lint.
+Recorded local result from the commands above: **756 passed**, with a dependency deprecation warning. The Black/Flake8 commands above cover the offline harness files listed in those commands. The [pull request workflow](.github/workflows/pr-tests.yml) runs the full suite and a dependency audit; it does not currently enforce repository-wide lint.
 
 Tests cover retrieval, catalog metadata, source-link handling, API behavior, reviewer storage/access, PII scrubbing, browser features, and ingestion. Harness tests verify metric denominators, duplicate-page handling, missing/invalid links, complete labels, protected curated question text, custom-input reproduction commands, and a real temporary-index run with network connections blocked and hosted embedding settings present.
 
