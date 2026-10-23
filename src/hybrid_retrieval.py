@@ -34,6 +34,9 @@ except ImportError:  # pragma: no cover - src/ on sys.path
 
 try:
     from .program_scope import (
+        PROGRAM_KEYS,
+        expand_program_tokens,
+        filter_program_documents,
         metadata_programs,
         normalize_program,
         prefer_program_documents,
@@ -41,6 +44,9 @@ try:
     )
 except ImportError:  # pragma: no cover
     from program_scope import (
+        PROGRAM_KEYS,
+        expand_program_tokens,
+        filter_program_documents,
         metadata_programs,
         normalize_program,
         prefer_program_documents,
@@ -136,6 +142,8 @@ _GRADUATION_QUERY_TERMS = {
     "major",
     "master",
     "mlis",
+    "mara",
+    "msis",
     "need",
     "science",
     "should",
@@ -271,7 +279,9 @@ def tokenize(text: str) -> list[str]:
     """Tokenize text after requisite and course-code normalization."""
     if not isinstance(text, str):
         return []
-    normalized = compact_course_codes(normalize_requisite_words(text)).casefold()
+    normalized = compact_course_codes(
+        normalize_requisite_words(expand_program_tokens(text))
+    ).casefold()
     return [
         _lighten_plural(token)
         for token in _TOKEN.findall(normalized)
@@ -558,6 +568,13 @@ def hybrid_retrieve(
     query = expand_graduation_application_query(query)
     try:
         records = _collection_records(vector_store, collection_id)
+        if program in PROGRAM_KEYS and records:
+            records = [
+                record for record in records
+                if program.upper() in metadata_programs(record[2])
+            ]
+            if not records:
+                return []
         if not records:
             return _program_vector_search(vector_store, query, k, program)
         pool = min(len(records), max(k, CANDIDATE_POOL))
@@ -613,7 +630,7 @@ def _program_vector_search(
     documents = reorder_documents(
         vector_store.similarity_search(
             expand_course_codes(query),
-            k=max(k, 40) if program in {"isda", "mlis"} else k,
+            k=max(k, 40) if program in PROGRAM_KEYS else k,
         )
     )
-    return prefer_program_documents(documents, query, program)[:k]
+    return prefer_program_documents(filter_program_documents(documents, program), query, program)[:k]

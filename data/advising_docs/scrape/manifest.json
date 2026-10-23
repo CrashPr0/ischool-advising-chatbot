@@ -727,6 +727,76 @@
       ]
     },
     {
+      "doc_id": "web-91c3ce18a5a89418",
+      "source_url": "https://ischool.sjsu.edu/mara-289-e-portfolio-handbook",
+      "title": "MARA 289 e-Portfolio Handbook - SJSU - School of Information",
+      "content_sha256": "5a2bb7480b2211ff628494c99f4c05ab7ff8ff355898fbc5bae995754141c6a0",
+      "programs": [
+        "MARA"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-ccc98b8a7be1447e",
+      "source_url": "https://ischool.sjsu.edu/mara-electives",
+      "title": "MARA Electives - SJSU - School of Information",
+      "content_sha256": "f0ef4d9d8944fa7ed745e1617b749cdac09cc81eef41ec9be3bd427af0f16dad",
+      "programs": [
+        "MARA"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-498d700163b77be4",
+      "source_url": "https://ischool.sjsu.edu/mara-professional-experience",
+      "title": "MARA Professional Experience - SJSU - School of Information",
+      "content_sha256": "b5e042c762f1dfc898dd212f4e88e08cc24579166e05c7c1c7390c75c3d8f733",
+      "programs": [
+        "MARA"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-91f354923a63aec5",
+      "source_url": "https://ischool.sjsu.edu/mara-required-courses",
+      "title": "MARA Required Courses - SJSU - School of Information",
+      "content_sha256": "9909f896e909d3ec6949557d8b83516188027f0408d8fa71fabfde4b068c01d8",
+      "programs": [
+        "MARA"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-486f61688d79ae23",
+      "source_url": "https://ischool.sjsu.edu/master-archives-and-records-administration",
+      "title": "Master of Archives and Records Administration - SJSU - School of Information",
+      "content_sha256": "10f675154ca7492cf685f1e07ed925aa6427aa93d236bf571b8562ed01ab48f0",
+      "programs": [
+        "MARA"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
       "doc_id": "web-cd919d38fc5046fd",
       "source_url": "https://ischool.sjsu.edu/master-library-and-information-science",
       "title": "Master of Library and Information Science - SJSU - School of Information",

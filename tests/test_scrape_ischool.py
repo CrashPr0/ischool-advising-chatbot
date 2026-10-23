@@ -176,5 +176,5 @@ def test_shared_page_keeps_both_programs_in_manifest_and_metadata(tmp_path):
 def test_sync_rejects_excluded_programs(tmp_path):
     import pytest
 
-    with pytest.raises(ValueError, match="only ISDA and MLIS"):
-        sync_pages([], tmp_path, programs=["MARA"])
+    with pytest.raises(ValueError, match="supports only"):
+        sync_pages([], tmp_path, programs=["UNKNOWN"])

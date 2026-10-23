@@ -32,11 +32,23 @@ from langchain_core.embeddings import Embeddings
 try:
     from .catalog_recency import apply_catalog_metadata, reorder_documents
     from .config import Config
-    from .program_scope import normalize_program, prefer_program_documents
+    from .program_scope import (
+        PROGRAM_KEYS,
+        expand_program_tokens,
+        filter_program_documents,
+        normalize_program,
+        prefer_program_documents,
+    )
 except ImportError:  # pragma: no cover
     from catalog_recency import apply_catalog_metadata, reorder_documents
     from config import Config
-    from program_scope import normalize_program, prefer_program_documents
+    from program_scope import (
+        PROGRAM_KEYS,
+        expand_program_tokens,
+        filter_program_documents,
+        normalize_program,
+        prefer_program_documents,
+    )
 
 
 class HashingEmbeddings(Embeddings):
@@ -92,7 +104,7 @@ class HashingEmbeddings(Embeddings):
         # vector and hide the course list. Course numbers stay; they are longer.
         tokens = [
             token
-            for token in re.findall(r"[a-z0-9]+", text.casefold())
+            for token in re.findall(r"[a-z0-9]+", expand_program_tokens(text).casefold())
             if token not in self._STOPWORDS
             and not (token.isdigit() and len(token) == 1)
         ]
@@ -1168,11 +1180,10 @@ class DocumentProcessor:
                 return hybrid_hits
             # Rank a wider pool before slicing so the selection can affect top-k.
             results = store.similarity_search(
-                query, k=max(k, 40) if program in {"isda", "mlis"} else k
+                query, k=max(k, 40) if program in PROGRAM_KEYS else k
             )
-            return prefer_program_documents(reorder_documents(results), query, program)[
-                :k
-            ]
+            results = filter_program_documents(reorder_documents(results), program)
+            return prefer_program_documents(results, query, program)[:k]
         except Exception as e:
             print(f"Error retrieving documents: {e}")
             return []
