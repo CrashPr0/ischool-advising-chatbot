@@ -136,12 +136,12 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "confidence: data.confidence" not in script
     assert 'id="confidence-badge"' not in template
     assert 'id="confidence-badge"' not in docs
-    assert "filename='style.css', v='20261023-reply-suggestions'" in template
-    assert "style.css?v=20261023-reply-suggestions" in docs
-    assert "filename='suggestions.js', v='20261023-reply-suggestions'" in template
-    assert "suggestions.js?v=20261023-reply-suggestions" in docs
-    assert "filename='script.js', v='20261023-reply-suggestions'" in template
-    assert "script.js?v=20261023-reply-suggestions" in docs
+    assert "filename='style.css', v='20261023-popular-question-ack'" in template
+    assert "style.css?v=20261023-popular-question-ack" in docs
+    assert "filename='suggestions.js', v='20261023-popular-question-ack'" in template
+    assert "suggestions.js?v=20261023-popular-question-ack" in docs
+    assert "filename='script.js', v='20261023-popular-question-ack'" in template
+    assert "script.js?v=20261023-popular-question-ack" in docs
     assert "20261014-advisor-handoff" not in template
     assert "20261014-advisor-handoff" not in docs
     assert "20261017-long-term-reports" not in template
@@ -214,7 +214,7 @@ async function check({ body = {}, ok = false, parseError, fetchError, cancelled 
   const noop = () => {};
   const sandbox = {
     AbortController, replyOperations: operations, activeReplyKey: () => "default",
-    userInput: { value: "Question" }, conversationDrafts: new Map(),
+    userInput: { value: "Question" }, conversationDrafts: new Map(), pendingSuggestionClick: null,
     hideSampleChips: noop, updateMeta: noop, addMessage: noop,
     showTypingIndicator: noop, updateReplyControls: noop, renderTabs: noop,
     programSelect: null, lastSelectedProgram: "both", normalizeProgram: value => value,

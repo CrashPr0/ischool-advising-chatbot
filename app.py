@@ -65,6 +65,7 @@ from suggestion_usage import (
     dynamic_suggestions_enabled,
     reviewer_ranking,
     student_suggestion_payload,
+    verified_popular_click,
 )
 from voice_config import get_voice_config
 from program_scope import normalize_program
@@ -1198,6 +1199,20 @@ def chat():
             # fault, not a bad request. Don't echo its text to the student.
             logger.exception("Chatbot raised ValueError while answering")
             return jsonify({"error": "Unable to process chat request"}), 500
+        # Metadata stays out of the retrieval query, model input, and user history.
+        popular_click = False
+        if isinstance(data.get("suggestion_click"), dict):
+            try:
+                popular_click = verified_popular_click(
+                    get_suggestion_usage_store(), data["suggestion_click"], user_message
+                )
+            except Exception:
+                logger.exception("Could not verify suggestion popularity")
+        if popular_click and result.get("safety_tier") != "crisis":
+            result["response"] = (
+                "Glad you asked — a lot of students have questions about this topic.\n\n"
+                + result["response"]
+            )
         provider, model = _stamp_chat_model(result)
         if result.get("safety_tier") != "crisis":
             _history_store.append(session_id, result)

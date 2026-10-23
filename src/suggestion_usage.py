@@ -435,6 +435,39 @@ class SuggestionUsageStore:
         return [row["name"] for row in rows]
 
 
+def verified_popular_click(
+    store: SuggestionUsageStore, click: object, message: str
+) -> bool:
+    """Match click metadata to the message and the current five most picked ids.
+
+    Zero-count and moderated-hidden questions cannot earn an acknowledgement.
+    Ties use the same alphabetical order as the reviewer ranking.
+    """
+    if (
+        not isinstance(click, dict)
+        or not suggestions_enabled()
+        or not ranking_uses_popularity()
+    ):
+        return False
+    questions = load_suggestion_catalog()["questions"]
+    counts = store.counts()
+    hidden = set(store.hidden_rows())
+    ranked = sorted(
+        (
+            item
+            for item in questions
+            if item["id"] not in hidden and counts.get(item["id"], 0) > 0
+        ),
+        key=lambda item: (-counts[item["id"]], item["text"].casefold(), item["id"]),
+    )[:5]
+    return any(
+        item["text"] == message
+        and click.get("text") == message
+        and ("id" not in click or click["id"] == item["id"])
+        for item in ranked
+    )
+
+
 def student_suggestion_payload(store: SuggestionUsageStore | None = None) -> dict:
     """Curated list, plus starters and all-time counts when the dynamic flag is on.
 

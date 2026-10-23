@@ -215,7 +215,7 @@ def test_script_wires_suggestions_into_send_and_delivery():
     assert "suggestions: data.suggestions" in script
     assert re.search(r"attachReplySuggestions\(botWrapper, meta && meta\.suggestions\)", script)
     assert 'if (typeof clearReplySuggestions === "function") clearReplySuggestions();' in script
-    assert 'chip.addEventListener("click", () => sendMessage(text))' in script
+    assert 'chip.addEventListener("click", () => sendMessage(text, { text }))' in script
     for page in ("templates/index.html", "docs/index.html"):
-        assert "20261023-reply-suggestions" in (ROOT / page).read_text(encoding="utf-8")
+        assert "20261023-popular-question-ack" in (ROOT / page).read_text(encoding="utf-8")
     assert ".reply-suggestion-chip" in (ROOT / "static" / "style.css").read_text(encoding="utf-8")

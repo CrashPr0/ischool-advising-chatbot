@@ -28,6 +28,7 @@ const voiceStatus = document.getElementById("voice-status");
 const voiceSupportBadge = document.getElementById("voice-support-badge");
 
 let activeTopic = null;
+let pendingSuggestionClick = null;
 
 // A static fallback page can point this bundle at the separately deployed
 // Flask API. Normal Flask rendering leaves API_BASE empty and uses same-origin
@@ -912,6 +913,7 @@ function finishReply(key, speak = true) {
 }
 
 function leaveConversation() {
+  pendingSuggestionClick = null;
   const key = activeReplyKey();
 
   conversationDrafts.set(key, userInput.value);
@@ -1079,11 +1081,14 @@ if (replyAction) {
 }
 
 // ── SEND MESSAGE ──
-async function sendMessage(prefilledMessage = null) {
+async function sendMessage(prefilledMessage = null, suggestionClick = null) {
   const message = (prefilledMessage || userInput.value).trim();
   const key = activeReplyKey();
 
   if (!message || replyOperations.has(key)) return;
+
+  const click = suggestionClick || (prefilledMessage === null ? pendingSuggestionClick : null);
+  pendingSuggestionClick = null;
 
   const conversationId = key === "default" ? null : key;
 
@@ -1108,6 +1113,10 @@ async function sendMessage(prefilledMessage = null) {
   renderTabs();
 
   const payload = { message, program: normalizeProgram(programSelect ? programSelect.value : lastSelectedProgram) };
+  if (click && click.text === message && (!click.conversationKey || click.conversationKey === key)) {
+    payload.suggestion_click = { text: click.text };
+    if (click.id) payload.suggestion_click.id = click.id;
+  }
 
   if (conversationId) {
     payload.conversation_id = conversationId;
@@ -1534,7 +1543,7 @@ function attachReplySuggestions(wrapper, suggestions) {
     chip.type = "button";
     chip.classList.add("reply-suggestion-chip");
     chip.textContent = text;
-    chip.addEventListener("click", () => sendMessage(text));
+    chip.addEventListener("click", () => sendMessage(text, { text }));
     group.appendChild(chip);
   });
   wrapper.appendChild(group);
@@ -1650,14 +1659,14 @@ document.querySelectorAll(".starter-chip").forEach((chip) => {
     if (suggestionId && typeof recordSuggestionPick === "function") {
       recordSuggestionPick(suggestionId, "chip");
     }
-    if (question) sendMessage(question);
+    if (question) sendMessage(question, { text: question, ...(suggestionId ? { id: suggestionId } : {}) });
   });
 });
 
 document.querySelectorAll(".prompt-chip").forEach((chip) => {
   chip.addEventListener("click", () => {
     const question = String(chip.textContent || "").trim();
-    if (question) sendMessage(question);
+    if (question) sendMessage(question, { text: question });
   });
 });
 
@@ -2674,6 +2683,7 @@ function applyQuestionSuggestion(text, suggestionId) {
   const question = String(text || "");
   if (!question || !userInput) return;
   userInput.value = question;
+  pendingSuggestionClick = { text: question, id: suggestionId, conversationKey: activeReplyKey() };
   closeQuestionSuggestions();
   if (suggestionId) recordSuggestionPick(suggestionId, "dropdown");
   if (typeof userInput.focus === "function") userInput.focus();
@@ -2785,7 +2795,10 @@ async function loadQuestionSuggestions() {
 
 function initQuestionSuggestions() {
   if (!userInput || !suggestionList || typeof rankQuestionSuggestions !== "function") return;
-  userInput.addEventListener("input", scheduleQuestionSuggestions);
+  userInput.addEventListener("input", () => {
+    pendingSuggestionClick = null;
+    scheduleQuestionSuggestions();
+  });
   userInput.addEventListener("blur", () => {
     suggestionBlurTimer = setTimeout(closeQuestionSuggestions, 150);
   });

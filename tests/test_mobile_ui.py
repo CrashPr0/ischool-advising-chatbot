@@ -8,9 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CSS = (ROOT / "static/style.css").read_text()
 HTML_FILES = ("templates/index.html", "docs/index.html")
 ASSET_PINS = {
-    "style.css": "20261023-reply-suggestions",
-    "suggestions.js": "20261023-reply-suggestions",
-    "script.js": "20261023-reply-suggestions",
+    "style.css": "20261023-popular-question-ack",
+    "suggestions.js": "20261023-popular-question-ack",
+    "script.js": "20261023-popular-question-ack",
 }
 
 
