@@ -202,3 +202,44 @@ def test_informatics_pages_ingest_as_msis(tmp_path):
                      'text': 'Fixture', 'title': 'Fixture'}], tmp_path, programs=['MSIS'])
     manifest = json.loads((tmp_path / 'scrape/manifest.json').read_text())
     assert {tuple(entry['programs']) for entry in manifest['documents']} == {('MSIS',)}
+    assert len(manifest['documents']) == 3
+
+
+def test_partial_and_empty_msis_refresh_preserve_existing_sources(tmp_path):
+    from hashlib import sha256
+    import yaml
+
+    overview = {'url': 'https://ischool.sjsu.edu/master-science-informatics',
+                'title': 'Fixture overview', 'text': 'Fixture overview text'}
+    required = {'url': 'https://ischool.sjsu.edu/informatics-required-courses',
+                'title': 'Fixture courses', 'text': 'Fixture course text'}
+    sync_pages([overview, required], tmp_path, programs=['MSIS'])
+    manifest_path = tmp_path / 'scrape/manifest.json'
+    original = json.loads(manifest_path.read_text())['documents']
+    retained = next(entry for entry in original if entry['source_url'] == required['url'])
+    snapshot_path = tmp_path / 'txt' / f"{retained['doc_id']}.txt"
+    metadata_path = tmp_path / 'meta' / f"{retained['doc_id']}.yml"
+    original_metadata = metadata_path.read_bytes()
+
+    updated = dict(overview, text='Updated fixture overview text')
+    for pages in ([updated], []):
+        sync_pages(pages, tmp_path, programs=['MSIS'])
+        entries = json.loads(manifest_path.read_text())['documents']
+        assert len(entries) == 2
+        assert retained in entries
+        assert metadata_path.read_bytes() == original_metadata
+        assert sha256(snapshot_path.read_bytes()).hexdigest() == retained['content_sha256']
+        overview_entry = next(entry for entry in entries if entry['source_url'] == overview['url'])
+        assert (tmp_path / 'txt' / f"{overview_entry['doc_id']}.txt").read_text() == updated['text'] + '\n'
+        metadata = yaml.safe_load((tmp_path / 'meta' / f"{overview_entry['doc_id']}.yml").read_text())
+        assert metadata['content_sha256'] == overview_entry['content_sha256']
+
+
+def test_other_program_refresh_preserves_shared_msis_source(tmp_path):
+    page = {'url': 'https://ischool.sjsu.edu/informatics-faqs',
+            'title': 'Fixture shared page', 'text': 'Fixture shared text'}
+    sync_pages([page], tmp_path, programs=['MARA', 'MSIS'])
+    manifest_path = tmp_path / 'scrape/manifest.json'
+    before = manifest_path.read_bytes()
+    sync_pages([], tmp_path, programs=['MARA'])
+    assert manifest_path.read_bytes() == before
