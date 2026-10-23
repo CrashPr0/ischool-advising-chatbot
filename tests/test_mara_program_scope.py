@@ -28,6 +28,10 @@ def test_new_program_keys_and_ingestion(tmp_path, program):
     assert selected_programs('MLIS core courses', program) == {program.upper()}
     page = {'url': f'https://ischool.sjsu.edu/{program}-test',
             'title': 'Test fixture', 'text': 'Test fixture only'}
+    if program == 'msis':
+        with pytest.raises(ValueError, match='disabled'):
+            sync_pages([page], tmp_path, programs=[program.upper()])
+        return
     sync_pages([page], tmp_path, programs=[program.upper()])
     manifest = json.loads((tmp_path / 'scrape' / 'manifest.json').read_text())
     assert manifest['documents'][0]['programs'] == [program.upper()]
@@ -39,8 +43,8 @@ def test_new_program_keys_and_ingestion(tmp_path, program):
     ('MS in Information Science requirements', {'MSIS'}),
     ('Master of Science in Information Science', {'MSIS'}),
     ('MSIS requirements', {'MSIS'}),
-    ('MS in Informatics required courses', {'MSIS'}),
-    ('INFM 211 capstone', {'MSIS'}),
+    ('MS in Informatics required courses', set()),
+    ('INFM 211 capstone', set()),
     ('Compare MARA, MLIS, MSIS and ISDA', {'MARA', 'MLIS', 'MSIS', 'ISDA'}),
 ])
 def test_named_program_hints(query, expected):
@@ -49,7 +53,7 @@ def test_named_program_hints(query, expected):
 
 def test_program_tokens_and_serialized_filter():
     assert {'archive', 'record', 'administration'} <= set(tokenize('MARA'))
-    assert 'informatic' in set(tokenize('MSIS'))
+    assert 'informatic' not in set(tokenize('MSIS'))
     shared = Document(page_content='shared', metadata={'programs': '["MARA", "MSIS"]'})
     other = Document(page_content='other', metadata={'programs': ['MLIS']})
     untagged = Document(page_content='untagged')

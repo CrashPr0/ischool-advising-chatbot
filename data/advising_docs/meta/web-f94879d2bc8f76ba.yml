@@ -4,7 +4,7 @@ owner: SJSU
 source_type: webpage
 source_url: https://ischool.sjsu.edu/admissions
 retrieved_at: '2026-10-23T02:24:57.534546+00:00'
-content_sha256: 8a123c3f69bce4b2c94782d10b8173033e2c528d5101b76d49f08e8cdfceabbb
+content_sha256: 0c5013b723fcd81971f67921b08ac663959bac051f10b1997eb108aa763bda4b
 programs:
 - MARA
 - MLIS
@@ -12,3 +12,6 @@ topics:
 - admissions
 - advising
 - degree-requirements
+verified_at: '2026-10-23T06:15:16.357773+00:00'
+verified_content_sha256: 0c5013b723fcd81971f67921b08ac663959bac051f10b1997eb108aa763bda4b
+verified_source_sha256: 74f3f3b5e25a395762e511406ccf1d9b9733628d098710a70f4cf0b698598ff3

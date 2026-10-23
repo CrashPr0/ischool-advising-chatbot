@@ -10,7 +10,7 @@ def expand_program_tokens(text: str) -> str:
     """Connect new program acronyms to the words used on official pages."""
     for acronym, name in (
         ("mara", "archives records administration"),
-        ("msis", "informatics"),
+        ("msis", "information science"),
     ):
         text = re.sub(
             rf"\b{acronym}\b",
@@ -46,7 +46,7 @@ def query_programs(query: str) -> set[str]:
     ):
         programs.add("MARA")
     if re.search(
-        r"\b(?:msis\d*[a-z]?|infm\s*\d{3}[a-z]?|informatics|m\.?s\.?\s+(?:in\s+)?information\s+science|"
+        r"\b(?:msis\d*[a-z]?|m\.?s\.?\s+(?:in\s+)?information\s+science|"
         r"master(?:['’]s)?\s+(?:of\s+science\s+in|of|in)\s+information\s+science)\b",
         query, re.I,
     ):
