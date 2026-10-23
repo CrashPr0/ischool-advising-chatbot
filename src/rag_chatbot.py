@@ -22,6 +22,7 @@ try:
     )
     from .config import Config
     from .program_scope import metadata_programs, normalize_program
+    from .reply_suggestions import split_reply_suggestions
     from .hybrid_retrieval import course_codes_in_query, is_apply_to_graduate_query
     from .llm_providers import LLMFactory, REASONING_RETRY
     from .knowledge_base import get_knowledge_base
@@ -44,6 +45,7 @@ except ImportError:  # pragma: no cover
     )
     from config import Config
     from program_scope import metadata_programs, normalize_program
+    from reply_suggestions import split_reply_suggestions
     from hybrid_retrieval import course_codes_in_query, is_apply_to_graduate_query
     from llm_providers import LLMFactory, REASONING_RETRY
     from knowledge_base import get_knowledge_base
@@ -974,7 +976,14 @@ with that source page's title.
 10. A current-catalog course listing is authoritative about which course numbers \
 exist for that prefix. If a requested INFO or ISDA number is absent from the \
 current catalog evidence, say it is not listed; do not infer course details from \
-a nearby number, and recommend checking with an advisor."""
+a nearby number, and recommend checking with an advisor.
+11. Answer the question first and in full. Only when a short follow-up would \
+genuinely help the student (for example, narrowing a broad question to one \
+program or topic), you may end the reply with one final line in exactly this \
+form: SUGGESTIONS: ["first reply", "second reply"]. Give 2 or 3 replies the \
+student could send next, each under 80 characters, with no links or personal \
+information. Most answers need none; omit the line then. Never ask a question \
+instead of answering, and never hold back an answer to wait for a reply."""
 
     def __init__(
         self, llm_provider: Optional[str] = None, docs_path: Optional[str] = None
@@ -1192,6 +1201,9 @@ Assistant Response:""",
             llm_started = time.perf_counter()
             try:
                 response_text = self._generate(payload, metrics)
+                response_text, suggestions = split_reply_suggestions(
+                    str(response_text)
+                )
                 response_limit = _bounded_env_int(
                     "RAG_RESPONSE_MAX_CHARS", 12_000, 500, 50_000
                 )
@@ -1222,6 +1234,8 @@ Assistant Response:""",
                     response_data["response"] = cleaned
                     response_data["source"] = "rag" if retrieved_docs else "llm"
                     response_data["confidence"] = 0.7 if retrieved_docs else 0.5
+                    if suggestions:
+                        response_data["suggestions"] = suggestions
                     link_outcome = OUTCOME_EDITED
                 # This turn's question only. Kept links are not included.
                 # Knowledge-base, busy, content-filter, and crisis replies

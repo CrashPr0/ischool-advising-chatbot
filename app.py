@@ -69,6 +69,7 @@ from suggestion_usage import (
 from voice_config import get_voice_config
 from program_scope import normalize_program
 from program_picker import wants_program_picker
+from reply_suggestions import clean_suggestions
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -1207,6 +1208,10 @@ def chat():
             "confidence": result["confidence"],
             "retrieved_docs": len(result["retrieved_docs"]),
         }
+        # Optional follow-up chips. Omitted when empty or invalid.
+        suggestions = clean_suggestions(result.get("suggestions"))
+        if suggestions:
+            payload["suggestions"] = suggestions
         if provider:
             payload["provider"] = provider
         if model:
