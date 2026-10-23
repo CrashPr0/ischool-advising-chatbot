@@ -48,3 +48,10 @@ def test_pick_events_skip_programs_the_usage_store_rejects():
     assert "if (!SUGGESTION_EVENT_PROGRAMS.includes(program)) return;" in script
     store = (ROOT / "src/suggestion_usage.py").read_text(encoding="utf-8")
     assert '_PROGRAMS = {"isda", "mlis", "both"}' in store
+
+
+def test_page_copy_names_mara_and_msis():
+    root = Path(__file__).resolve().parents[1]
+    for page in ("docs/index.html", "templates/index.html"):
+        text = (root / page).read_text(encoding="utf-8")
+        assert "MARA" in text and "MS Informatics" in text
