@@ -281,8 +281,11 @@ def tokenize(text: str) -> list[str]:
     """Tokenize text after requisite and course-code normalization."""
     if not isinstance(text, str):
         return []
-    normalized = compact_course_codes(
-        normalize_requisite_words(expand_program_tokens(text))
+    # Preserve course identity before expanding standalone program acronyms.
+    # Otherwise "MARA 283" becomes "MARA archives records administration 283"
+    # and no longer shares a token with "MARA283".
+    normalized = expand_program_tokens(
+        compact_course_codes(normalize_requisite_words(text))
     ).casefold()
     normalized = re.sub(r"\b(?:apply|applying)\b", "application", normalized)
     return [

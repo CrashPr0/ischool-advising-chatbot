@@ -150,6 +150,23 @@ def test_mara_eval_questions_retrieve_official_evidence(corpus_processor, monkey
             assert snippet in evidence, (mode, case['id'], snippet, evidence)
 
 
+@pytest.mark.parametrize('mode', ['hybrid', 'lexical'])
+@pytest.mark.parametrize('course', ['MARA 283', 'MARA283'])
+def test_mara_course_spellings_retrieve_prerequisite_evidence(corpus_processor, monkeypatch, mode, course):
+    monkeypatch.setenv('HYBRID_RETRIEVAL', 'true')
+    if mode == 'lexical':
+        def unavailable(*args, **kwargs):
+            raise RuntimeError('Embedding unavailable')
+        monkeypatch.setattr(corpus_processor.vector_store, 'similarity_search', unavailable)
+    hits = corpus_processor.retrieve_relevant_docs(
+        f'What are the prerequisites for {course}?', k=3, program='mara')
+    evidence = ' '.join(hit.page_content for hit in hits
+                        if hit.metadata.get('source_url') ==
+                        'https://ischool.sjsu.edu/mara-required-courses')
+    assert 'MARA 210 or MARA 211 or MARA 249' in ' '.join(evidence.split())
+    assert all('MARA' in metadata_programs(hit.metadata) for hit in hits)
+
+
 def test_mara_admissions_shared_sources_keep_existing_program_labels(corpus_processor):
     documents = {doc.metadata.get('source_url'): doc for doc in corpus_processor.load_documents()}
     for path in ('admissions', 'graduate-application'):
