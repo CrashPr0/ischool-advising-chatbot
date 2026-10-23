@@ -497,7 +497,7 @@ def test_event_script_does_not_send_the_typed_value():
 def test_event_route_acknowledges_mara_and_msis_without_recording(monkeypatch, tmp_path):
     database = _prepare(monkeypatch, tmp_path)
     client = app_module.app.test_client()
-    for program in ("mara", "MSIS"):
+    for program in ("mara", "MSIS", " Mara ", "\tmsis\n"):
         posted = client.post(
             "/api/question-suggestion-events",
             json={"id": "x", "type": "chip", "program": program},
