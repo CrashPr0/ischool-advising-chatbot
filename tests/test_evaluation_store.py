@@ -111,6 +111,44 @@ def test_workspace_stays_blind_until_both_candidates_are_reviewed(store):
     assert labels == {"Azure GPT-4o mini", "Azure GPT-5.6 Luna"}
 
 
+@pytest.mark.parametrize(
+    "sources",
+    [None, "handbook.md", {"file": "handbook.md"}, 42, [None], [42], ["   "]],
+)
+def test_malformed_benchmark_sources_are_rejected_before_reviewing(store, sources):
+    payload = json.loads(store.results_path.read_text(encoding="utf-8"))
+    payload["results"][0]["sources"] = sources
+    store.results_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    message = "Question q1 sources must be a list of non-empty strings"
+    with pytest.raises(EvaluationDataError, match=message):
+        store.workspace("Reviewer One")
+    with pytest.raises(EvaluationDataError, match=message):
+        store.save_review(
+            reviewer="Reviewer One", question_id="q1", candidate="A", **_scores()
+        )
+
+    with store._connect() as connection:
+        assert connection.execute("SELECT COUNT(*) FROM evaluation_reviews").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("sources", [[], ["handbook.md", "catalog.md"]])
+def test_workspace_accepts_valid_benchmark_sources(store, sources):
+    payload = json.loads(store.results_path.read_text(encoding="utf-8"))
+    payload["results"][0]["sources"] = sources
+    store.results_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert store.workspace("Reviewer One")["questions"][0]["sources"] == sources
+
+
+def test_workspace_defaults_missing_benchmark_sources_to_empty_list(store):
+    payload = json.loads(store.results_path.read_text(encoding="utf-8"))
+    del payload["results"][0]["sources"]
+    store.results_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert store.workspace("Reviewer One")["questions"][0]["sources"] == []
+
+
 def test_review_validation_enforces_score_and_short_rationale(store):
     with pytest.raises(EvaluationValidationError, match="between 1 and 5"):
         store.save_review(

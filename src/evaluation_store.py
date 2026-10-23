@@ -369,6 +369,14 @@ class EvaluationStore:
                     "Benchmark question IDs must be unique and non-empty"
                 )
             seen_ids.add(question_id)
+            sources = item.get("sources", [])
+            if not isinstance(sources, list) or any(
+                not isinstance(source, str) or not source.strip()
+                for source in sources
+            ):
+                raise EvaluationDataError(
+                    f"Question {question_id} sources must be a list of non-empty strings"
+                )
             for side in ("left", "right"):
                 response = item.get(side)
                 if not isinstance(response, dict):
