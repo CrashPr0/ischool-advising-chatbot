@@ -7,7 +7,7 @@ This folder is the **source** for Retrieval Augmented Generation (RAG).
 - `pdfs/`: official advising PDFs (preferred)
 - `meta/`: companion metadata (one YAML per PDF)
 - `txt/`: optional plain-text docs (mainly for quick prototyping)
-- `scrape/seed_urls.txt`: reviewed BS ISDA, MLIS, and SJSU pages for the offline crawler
+- `scrape/seed_urls.txt`: reviewed BS ISDA, MLIS, and SJSU pages (MARA and MSIS snapshots were saved from official ischool.sjsu.edu pages; see each `meta/` `source_url`) for the offline crawler
 - `scrape/manifest.json`: deterministic inventory and content hashes
 
 Files under `scrape/` are crawler controls and are never indexed as advising
