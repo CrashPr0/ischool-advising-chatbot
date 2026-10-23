@@ -1717,6 +1717,15 @@ const MARA_STARTERS = [
   { topic: "Electives", text: "How do MARA electives work?" },
   { topic: "e-Portfolio", text: "What is the MARA 289 e-Portfolio?" }
 ];
+// Welcome chips for MS Informatics (MSIS), matching the official iSchool
+// Informatics required courses, course load, capstone and advising pages.
+const MSIS_STARTERS = [
+  { topic: "Required courses", text: "What are the MS Informatics required courses?" },
+  { topic: "Course load", text: "What is the MS Informatics course load?" },
+  { topic: "Capstone", text: "What is the INFM 211 Informatics capstone course?" },
+  { topic: "Advising", text: "How does MS Informatics advising work?" }
+];
+const PROGRAM_STARTERS = { mara: MARA_STARTERS, msis: MSIS_STARTERS };
 let defaultStarters = null;
 
 function applyProgramStarters(program) {
@@ -1730,7 +1739,7 @@ function applyProgramStarters(program) {
     }));
   }
   chips.forEach((chip, index) => {
-    const mara = program === "mara" && MARA_STARTERS[index];
+    const mara = (PROGRAM_STARTERS[program] || [])[index];
     const base = defaultStarters[index];
     const text = mara ? mara.text : base?.question;
     if (!text) return;
