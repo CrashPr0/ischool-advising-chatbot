@@ -12,6 +12,7 @@ from src.document_processor import DocumentProcessor
 from src.hybrid_retrieval import tokenize
 from src.program_scope import (
     filter_program_documents,
+    metadata_programs,
     normalize_program,
     query_programs,
     selected_programs,
@@ -112,3 +113,53 @@ def test_catalog_parsers_accept_new_prefixes(prefix):
     source = 'https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=1'
     assert extract_course_snapshot(html, source, '2026-10-22').startswith(title + '\n')
     assert course_listing_entries(f'<a>{title}</a>', prefix=prefix) == [(f'{prefix} 200', 'Parser fixture only')]
+
+
+@pytest.mark.parametrize('mode', ['hybrid', 'lexical'])
+def test_mara_eval_questions_retrieve_official_evidence(corpus_processor, monkeypatch, mode):
+    from scripts.eval_report import load_cases
+
+    root = DOCS.parents[1]
+    cases = load_cases(root / 'evals/advising_questions.json',
+                       root / 'evals/retrieval_expectations.json')
+    mara_cases = [case for case in cases if case['id'].startswith('mara-')]
+    assert {case['id'] for case in mara_cases} == {
+        'mara-core', 'mara-electives', 'mara-eportfolio',
+        'mara-admission', 'mara-units', 'mara-apply',
+    }
+    monkeypatch.setenv('HYBRID_RETRIEVAL', 'false' if mode == 'vector' else 'true')
+    if mode == 'lexical':
+        def unavailable(*args, **kwargs):
+            raise RuntimeError('Embedding unavailable')
+        monkeypatch.setattr(corpus_processor.vector_store, 'similarity_search', unavailable)
+    for case in mara_cases:
+        hits = corpus_processor.retrieve_relevant_docs(case['question'], k=4, program='mara')
+        sources = {hit.metadata.get('source_url') for hit in hits}
+        assert sources.intersection(case['expected_sources']), (mode, case['id'], sources)
+        assert all('MARA' in metadata_programs(hit.metadata) for hit in hits)
+
+
+def test_mara_admissions_shared_sources_keep_existing_program_labels(corpus_processor):
+    documents = {doc.metadata.get('source_url'): doc for doc in corpus_processor.load_documents()}
+    for path in ('admissions', 'graduate-application'):
+        doc = documents[f'https://ischool.sjsu.edu/{path}']
+        assert {'MARA', 'MLIS'} <= set(doc.metadata['programs'])
+        assert 'MSIS' not in doc.metadata['programs']
+        assert sha256(Path(doc.metadata['source']).read_bytes()).hexdigest() == doc.metadata['content_sha256']
+    admissions = documents['https://ischool.sjsu.edu/admissions'].page_content
+    assert '3.0' in admissions and 'GMAT or GRE' in admissions
+
+
+@pytest.mark.parametrize('program', ['mara', 'msis'])
+def test_empty_selected_program_never_returns_other_programs(program):
+    from src.hybrid_retrieval import hybrid_retrieve
+
+    class OtherProgramStore:
+        def get(self, **kwargs):
+            return {'ids': ['other'], 'documents': ['MLIS core courses'],
+                    'metadatas': [{'programs': '["MLIS"]'}]}
+
+        def similarity_search(self, *args, **kwargs):
+            return [Document(page_content='MLIS core courses', metadata={'programs': '["MLIS"]'})]
+
+    assert hybrid_retrieve(OtherProgramStore(), 'core courses', k=4, program=program) == []

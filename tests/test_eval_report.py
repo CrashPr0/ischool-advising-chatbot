@@ -125,8 +125,8 @@ def test_committed_labels_cover_every_curated_question():
         ROOT / "evals/advising_questions.json",
         ROOT / "evals/retrieval_expectations.json",
     )
-    assert len(cases) == 21
-    assert sum(bool(case.get("expected_sources")) for case in cases) == 16
+    assert len(cases) == 27
+    assert sum(bool(case.get("expected_sources")) for case in cases) == 22
 
 
 @pytest.mark.parametrize(
