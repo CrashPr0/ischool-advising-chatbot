@@ -30,5 +30,6 @@
   "mara-283-prerequisites": {"expected_sources": ["https://ischool.sjsu.edu/mara-required-courses"], "expected_snippets": ["MARA 210 or MARA 211 or MARA 249"]},
   "mara-informatics-elective-limit": {"expected_sources": ["https://ischool.sjsu.edu/mara-electives"], "expected_snippets": ["up to 6 units of Informatics electives toward the MARA degree", "approval of the MARA advisor"]},
   "mara-professional-experience-elective": {"expected_sources": ["https://ischool.sjsu.edu/mara-electives"], "expected_snippets": ["45 hours", "highly recommended"]},
-  "mara-required-units": {"expected_sources": ["https://ischool.sjsu.edu/mara-required-courses"], "expected_snippets": ["30 Units"]}
+  "mara-required-units": {"expected_sources": ["https://ischool.sjsu.edu/mara-required-courses"], "expected_snippets": ["30 Units"]},
+  "fees-payment-deadline": {"expected_sources": ["https://www.sjsu.edu/bursar/fees-due-dates/payment-due-dates/fall.php", "https://www.sjsu.edu/bursar/fees-due-dates/payment-due-dates/spring.php", "https://www.sjsu.edu/bursar/fees-due-dates/payment-due-dates/index.php"], "expected_snippets": ["Payment Due Date"]}
 }

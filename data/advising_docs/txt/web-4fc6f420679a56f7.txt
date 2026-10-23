@@ -1,0 +1,14 @@
+Payment and Refunds
+Payment
+It is the student's responsibility to monitor due dates on MySJSU. For additional
+                  information, see [Methods of Payment](/bursar/payment-refunds/methods-payment/index.php), [Installment Payment Plan](/bursar/payment-refunds/installment-payment-plan.php), or [Financial Aid Disbursement](/bursar/payment-refunds/financial-aid.php).
+               
+Refunds
+Refunds are processed throughout the semester. A student does not need to submit a
+                  request to receive a refund. Refunds due to financial aid disbursements in excess
+                  of charges on a student’s account are issued to students automatically when there
+                  is a credit balance on a student's account, per standard processing schedules. Refunds
+                  for payments made on student accounts other than financial aid are processed throughout
+                  the semester, after the add/drop period has ended. All payments made by credit card
+                  that result in a credit will be refunded directly to the cardholder's account. For
+                  additional information, see [Refunds and Pro-Rata Charges](/bursar/payment-refunds/prorata-refund/index.php).
