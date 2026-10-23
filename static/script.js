@@ -465,6 +465,9 @@ const ADVISOR_HANDOFF_CONTACTS = {
   isda: { email: "kaitlyn.stauber@sjsu.edu", source: "https://ischool.sjsu.edu/bsisda-freshmen-advising" },
   // No MLIS advising email in the knowledge base; leave blank, student fills in; confirm with iSchool.
   mlis: { email: "", source: "https://ischool.sjsu.edu/advising-appointments" },
+  // No MARA/MSIS advising emails confirmed in the knowledge base; student fills in.
+  mara: { email: "", source: "https://ischool.sjsu.edu/advising-appointments" },
+  msis: { email: "", source: "https://ischool.sjsu.edu/advising-appointments" },
   both: { email: "", source: "https://ischool.sjsu.edu/advising-appointments" }
 };
 const ADVISOR_HANDOFF_MAX_URL_LENGTH = 1800;
@@ -509,8 +512,8 @@ function eligibleAdvisorQuestions(messages) {
 
 // Pure builder: accepts only the program and student-authored message records.
 function buildAdvisorMailto(program, messages) {
-  const key = ["isda", "mlis", "both"].includes(program) ? program : "both";
-  const label = { isda: "BS Information Science & Data Analytics (ISDA)", mlis: "MLIS", both: "Not sure / both" }[key];
+  const key = ["isda", "mlis", "mara", "msis", "both"].includes(program) ? program : "both";
+  const label = { isda: "BS Information Science & Data Analytics (ISDA)", mlis: "MLIS", mara: "Master of Archives and Records Administration (MARA)", msis: "MS in Information Science (MSIS)", both: "Not sure / both" }[key];
   const subject = `Advising question from the iSchool chatbot (${label})`;
   const eligibleQuestions = eligibleAdvisorQuestions(messages);
   // Screen the full selected questions before any draft truncation or removal.
@@ -1653,7 +1656,7 @@ let activeConversationId = null;
 let lastSelectedProgram = "both";
 
 function normalizeProgram(value) {
-  return ["isda", "mlis", "both"].includes(value) ? value : "both";
+  return ["isda", "mlis", "mara", "msis", "both"].includes(value) ? value : "both";
 }
 
 function onProgramChange() {
@@ -2157,6 +2160,8 @@ function chatExportProgramLabel(convo) {
   switch (program) {
     case "isda": return "ISDA";
     case "mlis": return "MLIS";
+    case "mara": return "MARA";
+    case "msis": return "MSIS";
     case "both": return "Not sure / both";
     default: return null;
   }
