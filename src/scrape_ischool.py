@@ -340,7 +340,7 @@ def sync_pages(
     programs: Iterable[str] = ("ISDA",),
     topics: Iterable[str] = ("advising",),
 ) -> dict[str, int]:
-    """Write snapshots; preserve manifest entries outside this run’s programs."""
+    """Write snapshots, retaining other programs and all existing MSIS sources."""
     text_dir = docs_root / "txt"
     meta_dir = docs_root / "meta"
     manifest_path = docs_root / "scrape" / "manifest.json"
@@ -365,6 +365,9 @@ def sync_pages(
     manifest_entries = [
         entry for entry in previous_entries
         if not set(entry.get("programs", [])).intersection(program_list)
+        # Bounded or failed crawls must retain approved Informatics inventory,
+        # including shared pages, until the URL is successfully refreshed.
+        or "MSIS" in entry.get("programs", [])
     ]
     for page in pages:
         doc_id = f"web-{sha256(page['url'].encode('utf-8')).hexdigest()[:16]}"
