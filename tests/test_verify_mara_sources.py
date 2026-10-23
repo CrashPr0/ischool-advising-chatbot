@@ -21,7 +21,7 @@ def test_audit_rejects_changed_units_courses_and_deadlines():
 def test_all_mara_snapshots_match_verified_content_hashes():
     entries = json.loads((DOCS / 'scrape/manifest.json').read_text())['documents']
     mara = [entry for entry in entries if 'MARA' in entry.get('programs', [])]
-    assert len(mara) == 7
+    assert len(mara) == 8
     for entry in mara:
         metadata = yaml.safe_load((DOCS / 'meta' / f"{entry['doc_id']}.yml").read_text())
         digest = sha256((DOCS / 'txt' / f"{entry['doc_id']}.txt").read_bytes()).hexdigest()

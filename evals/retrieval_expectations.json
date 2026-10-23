@@ -25,5 +25,10 @@
   "mara-eportfolio": {"expected_sources": ["https://ischool.sjsu.edu/mara-289-e-portfolio-handbook"]},
   "mara-admission": {"expected_sources": ["https://ischool.sjsu.edu/admissions"]},
   "mara-units": {"expected_sources": ["https://ischool.sjsu.edu/master-archives-and-records-administration"]},
-  "mara-apply": {"expected_sources": ["https://ischool.sjsu.edu/graduate-application"]}
+  "mara-apply": {"expected_sources": ["https://ischool.sjsu.edu/graduate-application"]},
+  "mara-289-eligibility": {"expected_sources": ["https://ischool.sjsu.edu/mara-289-eligibility"], "expected_snippets": ["All Incompletes", "3.00", "approved", "candidacy form"]},
+  "mara-283-prerequisites": {"expected_sources": ["https://ischool.sjsu.edu/mara-required-courses"], "expected_snippets": ["MARA 210 or MARA 211 or MARA 249"]},
+  "mara-informatics-elective-limit": {"expected_sources": ["https://ischool.sjsu.edu/mara-electives"], "expected_snippets": ["up to 6 units of Informatics electives toward the MARA degree", "approval of the MARA advisor"]},
+  "mara-professional-experience-elective": {"expected_sources": ["https://ischool.sjsu.edu/mara-electives"], "expected_snippets": ["45 hours", "highly recommended"]},
+  "mara-required-units": {"expected_sources": ["https://ischool.sjsu.edu/mara-required-courses"], "expected_snippets": ["30 Units"]}
 }

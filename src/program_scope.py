@@ -108,6 +108,11 @@ def program_document_priority(metadata: dict, query: str, wanted: set[str]):
     ):
         intent = r"\b(?:application|apply)\b"
     courses = re.findall(r"\b(MARA|MSIS|INFM|INFO|ISDA)\s*(\d{2,3}[a-z]?)\b", query, re.I)
+    if wanted <= {"MARA", "MSIS"} and not intent and not courses and re.search(
+        r"\b(?:core\s+courses?|required\s+(?:core\s+)?(?:courses?|units))\b",
+        query, re.I,
+    ):
+        intent = r"\brequired\s+courses\b"
     title_match = bool(intent and re.search(intent, title, re.I)) or any(
         re.search(rf"\b{department}\s*{number}\b", title, re.I)
         for department, number in courses
