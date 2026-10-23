@@ -1659,8 +1659,44 @@ function normalizeProgram(value) {
   return ["isda", "mlis", "mara", "msis", "both"].includes(value) ? value : "both";
 }
 
+// Welcome chips for MARA. Each question matches a MARA page in the knowledge
+// base (overview, required courses, electives, MARA 289 e-Portfolio).
+const MARA_STARTERS = [
+  { topic: "Program overview", text: "How many units does the MARA program require?" },
+  { topic: "Required courses", text: "What are the MARA required courses?" },
+  { topic: "Electives", text: "How do MARA electives work?" },
+  { topic: "e-Portfolio", text: "What is the MARA 289 e-Portfolio?" }
+];
+let defaultStarters = null;
+
+function applyProgramStarters(program) {
+  const chips = Array.from(document.querySelectorAll(".starter-chip"));
+  if (!chips.length) return;
+  if (!defaultStarters) {
+    defaultStarters = chips.map((chip) => ({
+      question: chip.getAttribute("data-question"),
+      id: chip.getAttribute("data-suggestion-id"),
+      topic: chip.querySelector(".starter-topic")?.textContent || "",
+    }));
+  }
+  chips.forEach((chip, index) => {
+    const mara = program === "mara" && MARA_STARTERS[index];
+    const base = defaultStarters[index];
+    const text = mara ? mara.text : base?.question;
+    if (!text) return;
+    chip.setAttribute("data-question", text);
+    if (mara || !base.id) chip.removeAttribute("data-suggestion-id");
+    else chip.setAttribute("data-suggestion-id", base.id);
+    const topic = chip.querySelector(".starter-topic");
+    const question = chip.querySelector(".starter-question");
+    if (topic) topic.textContent = mara ? mara.topic : base.topic;
+    if (question) question.textContent = text;
+  });
+}
+
 function onProgramChange() {
   lastSelectedProgram = normalizeProgram(programSelect.value);
+  applyProgramStarters(lastSelectedProgram);
   updateAdvisorHandoffNotes();
   scheduleQuestionSuggestions();
   const convo = tabsEnabled() ? getActiveConversation() : null;
@@ -2107,6 +2143,7 @@ function onTabKeydown(event) {
 function initConversations() {
   loadStoredConversations();
   if (programSelect) programSelect.value = lastSelectedProgram;
+  applyProgramStarters(lastSelectedProgram);
   if (!tabsEnabled()) return;
   if (!conversations.length) conversations = [createConversation()];
   if (!conversations.some((item) => item.id === activeConversationId)) {
@@ -2610,7 +2647,11 @@ async function loadQuestionSuggestions() {
     suggestionPopularity = dynamicSuggestions && data.popularity && typeof data.popularity === "object"
       ? data.popularity
       : {};
-    if (dynamicSuggestions) applyDynamicStarters(data.starters);
+    if (dynamicSuggestions) {
+      applyDynamicStarters(data.starters);
+      defaultStarters = null;
+      applyProgramStarters(lastSelectedProgram);
+    }
     suggestionsEnabled = suggestionCatalog.length > 0;
   } catch (_error) {
     suggestionsEnabled = false;
