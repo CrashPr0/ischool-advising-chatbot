@@ -438,3 +438,93 @@ def test_workflow_opens_a_review_pull_request_and_leaves_main_alone():
     assert 'git checkout -b "${branch}"' in workflow
     assert "scripts/check_sjsu_catalog.py" in workflow
     assert "python -m pytest tests/ -q" in workflow
+
+
+# Synthetic HTML below exercises detection without adding program claims to the corpus.
+def _additional_programs(pages):
+    listing = 'https://catalog.sjsu.edu/content.php?catoid=24&navoid=1'
+    mara = 'https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=22000'
+    msis = 'https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=22001'
+    pages[listing] += f'''
+    <a href="{mara}">Archives and Records Administration, MARA</a>
+    <a href="{msis}">Information Science, MS</a>
+    <a href="preview_program.php?catoid=24&poid=22002">Informatics, MS</a>
+    '''
+    pages[mara] = '''<main><h1>Archives and Records Administration, MARA</h1>
+    <p>MARA program parser fixture only.</p></main>'''
+    return mara, msis
+
+
+def test_new_program_links_are_scoped_and_official():
+    from src.catalog_update import program_links
+
+    pages = _pages()
+    mara, msis = _additional_programs(pages)
+    html = pages['https://catalog.sjsu.edu/content.php?catoid=24&navoid=1']
+    html += '''
+    <a href="https://example.org/preview_program.php?catoid=24&poid=1">Information Science, MS</a>
+    <a href="preview_program.php?catoid=23&poid=1">Archives and Records Administration, MARA</a>
+    <a href="preview_course.php?catoid=24&poid=1">Information Science, MS</a>
+    '''
+    assert program_links(html, '24', 'MARA') == [mara]
+    assert program_links(html, '24', 'MSIS') == [msis]
+    assert len(program_links(html, '24')) == 2
+    assert program_links(html, '24', 'unknown') == []
+
+
+def test_refresh_adds_citable_mara_but_never_fetches_or_ingests_msis(tmp_path):
+    from hashlib import sha256
+
+    repo = _repo(tmp_path)
+    pages = _pages()
+    mara, msis = _additional_programs(pages)
+    requested = []
+    fake_fetch = _fetch(pages)
+
+    def fetch(url):
+        requested.append(url)
+        assert url != msis
+        assert 'poid=22002' not in url
+        return fake_fetch(url)
+
+    result = check_for_newer_catalog(repo, fetch, today=date(2027, 9, 1))
+    assert result.status == 'updated'
+    assert mara in requested
+    assert result.msis_program_urls == [msis]
+    assert result.as_dict()['msis_program_urls'] == [msis]
+    assert msis in pull_request_body(result)
+    assert 'MSIS content remains disabled' in result.message
+    docs = repo / 'data/advising_docs'
+    manifest = json.loads((docs / 'scrape/manifest.json').read_text())
+    entry = next(item for item in manifest['documents'] if item['source_url'] == mara)
+    meta = yaml.safe_load((docs / 'meta' / f"{entry['doc_id']}.yml").read_text())
+    content = (docs / 'txt' / f"{entry['doc_id']}.txt").read_bytes()
+    assert entry['programs'] == meta['programs'] == ['MARA']
+    assert meta['catalog_year'] == '2027-2028'
+    assert meta['source_url'] == mara
+    assert sha256(content).hexdigest() == meta['content_sha256'] == entry['content_sha256']
+    assert f'Source URL: {mara}' in content.decode()
+    assert not any('MSIS' in item['programs'] for item in manifest['documents'])
+    assert msis not in (docs / 'scrape/seed_urls.txt').read_text()
+
+
+def test_unreadable_or_mismatched_mara_aborts_before_any_writes(tmp_path):
+    repo = _repo(tmp_path)
+    pages = _pages()
+    mara, _ = _additional_programs(pages)
+    before = {str(p.relative_to(repo)): p.read_bytes() for p in repo.rglob('*') if p.is_file()}
+    for body in (None, '<main><h1>Informatics, MS</h1><p>MARA mention</p></main>'):
+        if body is None:
+            del pages[mara]
+        else:
+            pages[mara] = body
+        result = check_for_newer_catalog(repo, _fetch(pages))
+        assert result.status == 'unavailable'
+        assert 'MARA program page' in result.message
+        assert before == {str(p.relative_to(repo)): p.read_bytes() for p in repo.rglob('*') if p.is_file()}
+
+
+def test_msis_snapshot_extraction_stays_disabled():
+    html = '<main><h1>Information Science, MS</h1><p>Parser fixture only.</p></main>'
+    assert extract_program_snapshot(html, 'https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=1',
+                                    '2027-09-01', '2027-2028', 'MSIS') == ''
