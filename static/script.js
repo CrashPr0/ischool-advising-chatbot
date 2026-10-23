@@ -2512,14 +2512,16 @@ function scheduleQuestionSuggestions() {
   suggestionTimer = setTimeout(refreshQuestionSuggestions, wait);
 }
 
+const SUGGESTION_EVENT_PROGRAMS = ["isda", "mlis", "both"];
+
 function recordSuggestionPick(suggestionId, eventType) {
   if (!dynamicSuggestions || !suggestionId) return;
   if (eventType !== "chip" && eventType !== "dropdown") return;
-  const payload = {
-    id: String(suggestionId),
-    type: eventType,
-    program: normalizeProgram(programSelect ? programSelect.value : lastSelectedProgram)
-  };
+  const program = normalizeProgram(programSelect ? programSelect.value : lastSelectedProgram);
+  // The usage store only accepts these three values and answers 400 for the
+  // rest, so MARA/MSIS picks are skipped instead of sending a doomed request.
+  if (!SUGGESTION_EVENT_PROGRAMS.includes(program)) return;
+  const payload = { id: String(suggestionId), type: eventType, program };
   fetch(apiUrl("/api/question-suggestion-events"), {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },

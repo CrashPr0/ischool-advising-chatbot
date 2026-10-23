@@ -40,3 +40,11 @@ def test_mara_sample_questions_are_wired():
     ):
         assert question in script
         assert f'class="prompt-chip">{question}</button>' in docs
+
+
+def test_pick_events_skip_programs_the_usage_store_rejects():
+    script = (ROOT / "static/script.js").read_text(encoding="utf-8")
+    assert 'const SUGGESTION_EVENT_PROGRAMS = ["isda", "mlis", "both"];' in script
+    assert "if (!SUGGESTION_EVENT_PROGRAMS.includes(program)) return;" in script
+    store = (ROOT / "src/suggestion_usage.py").read_text(encoding="utf-8")
+    assert '_PROGRAMS = {"isda", "mlis", "both"}' in store
