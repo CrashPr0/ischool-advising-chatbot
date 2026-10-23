@@ -139,3 +139,19 @@ def test_suggestion_events_export_failure_is_generic(reviewer, monkeypatch):
     response = client.get("/api/evaluation/suggestion-events.csv")
     assert response.status_code == 500
     assert response.get_json() == {"error": "Unable to export suggestion events"}
+
+
+def test_question_suggestions_survive_unavailable_usage_store(monkeypatch):
+    monkeypatch.setenv("DYNAMIC_SUGGESTIONS_ENABLED", "true")
+
+    def _broken_store():
+        raise OSError("database is read-only")
+
+    monkeypatch.setattr(app_module, "get_suggestion_usage_store", _broken_store)
+    response = app_module.app.test_client().get("/api/question-suggestions")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["enabled"] is True
+    assert payload["questions"]
+    assert payload["dynamic"] is False
+    assert "starters" not in payload

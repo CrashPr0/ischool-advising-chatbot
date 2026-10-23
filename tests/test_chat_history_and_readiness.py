@@ -377,3 +377,17 @@ def test_deploy_workflow_rebuilds_after_healthz_and_not_through_chat():
     assert "/api/chat" not in workflow
     assert "/api/chat" not in verifier
     assert "/api/load-docs?async=true" in verifier
+
+
+def test_chat_value_error_from_model_is_a_generic_500(monkeypatch, ready_chat_index):
+    class _BadBot:
+        def chat(self, message, history=None):
+            raise ValueError("bad vector shape at /srv/index.sqlite")
+
+    monkeypatch.setattr(app_module, "chatbot", _BadBot())
+    client = app_module.app.test_client()
+    response = client.post("/api/chat", json={"message": "What courses are required?"})
+    assert response.status_code == 500
+    assert response.get_json() == {"error": "Unable to process chat request"}
+    assert "/srv" not in response.get_data(as_text=True)
+    assert _history(client) == []

@@ -1,0 +1,87 @@
+/* Mobile-first chat shell. Desktop and the no-JavaScript page keep their layout. */
+@media screen and (max-width: 860px) {
+  html.mobile-chat-layout, .mobile-chat-layout body { height: 100%; overflow: hidden; }
+  .mobile-chat-layout .page-shell { height: var(--mobile-viewport-height, 100dvh); display: flex; flex-direction: column; overflow: hidden; }
+  .mobile-chat-layout .site-header { flex: none; padding: 12px 0; border-top-width: 3px; }
+  .mobile-chat-layout .header-content { width: calc(100% - 32px); }
+  .mobile-chat-layout .brand-row { gap: 12px; }
+  .mobile-chat-layout .brand-left { padding: 0; border: 0; }
+  .mobile-chat-layout .ischool-logo { width: 44px; height: 44px; }
+  .mobile-chat-layout .brand-kicker { font-size: 9px; letter-spacing: .1em; margin: 0 0 3px; }
+  .mobile-chat-layout .site-header h1 { font-size: 18px; line-height: 1.25; margin: 0; }
+  .mobile-chat-layout .hero-subtitle { display: none; }
+  .mobile-chat-layout .main-layout { flex: 1; min-height: 0; width: 100%; margin: 0; gap: 0; }
+  .mobile-chat-layout .left-panel { display: none; }
+  .mobile-chat-layout .chat-panel { flex: 1; min-height: 0; order: 0; gap: 0; }
+  .mobile-chat-layout .chat-card { flex: 1; min-height: 0; padding: 0 16px; border: 0; border-radius: 0; box-shadow: none; overflow: hidden; }
+  .mobile-chat-layout .chat-header { flex: none; flex-direction: row; align-items: center; padding: 12px 0 8px; gap: 10px; }
+  .mobile-chat-layout .chat-header > div { width: auto; min-width: 0; }
+  .mobile-chat-layout .chat-header > div:first-child { flex: 1; }
+  .mobile-chat-layout .chat-header h2 { font-size: 17px; line-height: 1.3; margin: 0; }
+  .mobile-chat-layout .chat-header p { display: none; }
+  .mobile-chat-layout .header-actions { flex: none; }
+  .mobile-chat-layout #clear-button { min-height: 44px; padding: 8px 12px; border-radius: 12px; font-size: 13px; }
+  .mobile-chat-layout .mobile-topics { flex: none; background: #f4f7fb; border-bottom: 1px solid #dfe7ef; }
+  .mobile-chat-layout .mobile-options { flex: none; border-bottom: 1px solid #e8edf3; }
+  .mobile-chat-layout summary { cursor: pointer; }
+  .mobile-chat-layout .mobile-topics > summary,
+  .mobile-chat-layout .mobile-options > summary { min-height: 44px; padding: 12px 0; color: #27557c; font-size: 14px; font-weight: 600; line-height: 20px; }
+  .mobile-chat-layout .mobile-topics > summary { padding-left: 16px; padding-right: 16px; }
+  .mobile-chat-layout summary:focus-visible { outline: 3px solid #0055a2; outline-offset: -3px; }
+  .mobile-chat-layout .mobile-disclosure-body { max-height: min(38dvh, 320px); overflow-y: auto; overscroll-behavior: contain; padding: 4px 0 16px; }
+  .mobile-chat-layout .mobile-topics .mobile-disclosure-body { padding: 0 16px 16px; }
+  .mobile-chat-layout .panel-card { display: block; border: 0; border-radius: 0; box-shadow: none; background: transparent; padding: 12px 0; }
+  .mobile-chat-layout .topics-header { padding: 0 0 12px; }
+  .mobile-chat-layout .topics-header h2 { font-size: 17px; }
+  .mobile-chat-layout .topics-header p { font-size: 14px; }
+  .mobile-chat-layout .topic-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0; overflow: visible; }
+  .mobile-chat-layout .topic-list li { min-width: 0; }
+  .mobile-chat-layout .topic-btn { width: 100%; height: 100%; min-height: 60px; padding: 12px; border-radius: 12px; }
+  .mobile-chat-layout .topic-name { white-space: normal; font-size: 14px; }
+  .mobile-chat-layout .topic-sub { display: none; }
+  .mobile-chat-layout .resource-list a { display: inline-flex; align-items: center; min-height: 44px; }
+  .mobile-chat-layout .program-control { flex-direction: column; align-items: stretch; margin: 0 0 16px; gap: 8px; }
+  .mobile-chat-layout .program-control select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+  .mobile-chat-layout .advisor-handoff { margin: 0 0 16px; }
+  .mobile-chat-layout .advisor-handoff-note { font-size: 13px; line-height: 1.55; }
+  .mobile-chat-layout .voice-tools { margin: 8px 0 16px; }
+  .mobile-chat-layout .chat-disclaimer, .mobile-chat-layout .scope-notice { font-size: 13px; line-height: 1.55; margin-top: 16px; }
+  .mobile-chat-layout .conversations-label { flex: none; margin: 10px 0 4px; font-size: 12px; }
+  .mobile-chat-layout .conversations-label span { font-size: 11px; }
+  .mobile-chat-layout .chat-tabs { flex: none; margin: 0; padding: 4px 0 10px; gap: 8px; }
+  .mobile-chat-layout .chat-tab { min-width: 100px; max-width: 200px; min-height: 44px; border-radius: 10px; }
+  .mobile-chat-layout .chat-tab-close { width: 44px; height: 44px; flex-basis: 44px; }
+  .mobile-chat-layout .conversation-stage { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .mobile-chat-layout .empty-state { flex: none; padding: 22px 0 16px; gap: 22px; }
+  .mobile-chat-layout .empty-kicker { display: none; }
+  .mobile-chat-layout .empty-state h3 { font-size: 22px; line-height: 1.35; max-width: 28ch; }
+  .mobile-chat-layout .empty-lead { font-size: 15px; line-height: 1.6; margin-top: 10px; }
+  .mobile-chat-layout .starter-grid { grid-template-columns: 1fr; gap: 10px; }
+  .mobile-chat-layout .starter-chip { min-height: 64px; padding: 14px; border-radius: 14px; }
+  .mobile-chat-layout .conversation-stage .chat-box { flex: none; height: auto; min-height: 0; overflow: visible; padding: 16px 0; scroll-padding: 16px; }
+  .mobile-chat-layout .message { max-width: 95%; font-size: 16px; line-height: 1.6; padding: 14px; margin-bottom: 18px; scroll-margin-bottom: 16px; }
+  .mobile-chat-layout .message pre { max-width: 100%; overflow-x: auto; }
+  .mobile-chat-layout .composer { position: relative; bottom: auto; z-index: 3; flex: none; margin: 0; padding: 10px 0 0; box-shadow: none; border-top: 1px solid #e8edf3; background: white; }
+  .mobile-chat-layout .input-container { min-height: 54px; padding: 4px 4px 4px 14px; border-radius: 20px; box-shadow: none; }
+  .mobile-chat-layout #user-input { font-size: 16px; min-width: 0; min-height: 44px; }
+  .mobile-chat-layout #voice-listen-button, .mobile-chat-layout #send-button { width: 44px; height: 44px; min-width: 44px; flex: 0 0 44px; }
+  .mobile-chat-layout .composer-footer { flex: none; gap: 4px; padding: 4px 0 max(8px, env(safe-area-inset-bottom)); margin: 0; }
+  .mobile-chat-layout .voice-status { font-size: 11px; line-height: 1.4; margin: 0; }
+  .mobile-chat-layout .reply-progress { margin: 0; }
+  .mobile-chat-layout .reply-progress:has(#reply-status:empty):has(#reply-action[hidden]) { display: none; }
+  .mobile-chat-layout .meta-row:has(.hidden):not(:has(.meta-pill:not(.hidden))) { display: none; }
+  .mobile-chat-layout .meta-row { margin: 0; }
+  .mobile-chat-layout #question-suggestions { max-height: min(34dvh, 220px); overflow-y: auto; }
+  @media (max-height: 540px) {
+    .mobile-chat-layout .site-header { display: none; }
+    .mobile-chat-layout .conversations-label { display: none; }
+    .mobile-chat-layout .chat-header { padding-top: 4px; padding-bottom: 0; }
+    .mobile-chat-layout .chat-tabs { padding-bottom: 4px; }
+  }
+}
+@media screen and (max-width: 860px) {
+  /* Keep the existing reply auto-scroll attached to the actual scroll surface. */
+  .mobile-chat-layout .conversation-stage { overflow: hidden; }
+  .mobile-chat-layout .empty-state { flex: 1; overflow-y: auto; min-height: 0; }
+  .mobile-chat-layout .conversation-stage .chat-box { flex: 1; min-height: 0; overflow-y: auto; }
+}

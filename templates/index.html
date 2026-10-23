@@ -8,7 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261022-program-picker') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261023-program-picker') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='mobile-layout.css', v='20261022-mobile') }}" />
 </head>
 
 <body{% if embed %} class="is-embed"{% endif %}>
@@ -265,6 +266,8 @@
                 <option value="both">Not sure / both</option>
                 <option value="isda">BS Information Science &amp; Data Analytics (ISDA)</option>
                 <option value="mlis">MLIS</option>
+                <option value="mara">Master of Archives and Records Administration (MARA)</option>
+                <option value="msis">MS Informatics (MSIS)</option>
               </select>
             </div>
             <div class="advisor-handoff">
@@ -396,6 +399,8 @@
   </div>
 
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
-  <script src="{{ url_for('static', filename='suggestions.js', v='20261022-program-picker') }}"></script>
-  <script src="{{ url_for('static', filename='script.js', v='20261022-program-picker') }}"></script></body>
+  <script src="{{ url_for('static', filename='suggestions.js', v='20261023-program-picker') }}"></script>
+  <script src="{{ url_for('static', filename='script.js', v='20261023-program-picker') }}"></script>
+<script src="{{ url_for('static', filename='mobile-layout.js', v='20261022-mobile') }}"></script>
+</body>
 </html>

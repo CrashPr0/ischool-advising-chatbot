@@ -3,7 +3,7 @@
 // The typed text stays in the browser. Nothing here sends or logs it.
 
 (function (root) {
-  var TRUE_PROGRAMS = { isda: true, mlis: true, both: true };
+  var TRUE_PROGRAMS = { isda: true, mlis: true, mara: true, msis: true, both: true };
   var DEFAULT_LIMIT = 6;
   var MAX_LIMIT = 8;
   var POPULARITY_CAP = 60;

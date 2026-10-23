@@ -32,11 +32,23 @@ from langchain_core.embeddings import Embeddings
 try:
     from .catalog_recency import apply_catalog_metadata, reorder_documents
     from .config import Config
-    from .program_scope import normalize_program, prefer_program_documents
+    from .program_scope import (
+        PROGRAM_KEYS,
+        expand_program_tokens,
+        filter_program_documents,
+        normalize_program,
+        prefer_program_documents,
+    )
 except ImportError:  # pragma: no cover
     from catalog_recency import apply_catalog_metadata, reorder_documents
     from config import Config
-    from program_scope import normalize_program, prefer_program_documents
+    from program_scope import (
+        PROGRAM_KEYS,
+        expand_program_tokens,
+        filter_program_documents,
+        normalize_program,
+        prefer_program_documents,
+    )
 
 
 class HashingEmbeddings(Embeddings):
@@ -92,7 +104,7 @@ class HashingEmbeddings(Embeddings):
         # vector and hide the course list. Course numbers stay; they are longer.
         tokens = [
             token
-            for token in re.findall(r"[a-z0-9]+", text.casefold())
+            for token in re.findall(r"[a-z0-9]+", expand_program_tokens(text).casefold())
             if token not in self._STOPWORDS
             and not (token.isdigit() and len(token) == 1)
         ]
@@ -167,7 +179,9 @@ def _embedding_token_counter() -> Callable[[str], int]:
         encoder = tiktoken.get_encoding("cl100k_base")
 
         def count(text: str) -> int:
-            return len(encoder.encode(text))
+            # Source documents and questions may contain literal tokenizer
+            # markers. Count them as ordinary text rather than rejecting them.
+            return len(encoder.encode(text, disallowed_special=()))
 
     except Exception:
 
@@ -467,6 +481,15 @@ class DescribedEmbeddings(Embeddings):
         width = len(vectors[0])
         if any(len(vector) != width for vector in vectors):
             raise RuntimeError("Embedding provider returned mixed dimensions")
+        if any(not math.isfinite(value) for vector in vectors for value in vector):
+            raise RuntimeError("Embedding provider returned non-finite values")
+        # Batches and queries must share the same vector space. Keep the last
+        # valid measurement if a deployment starts returning a different width.
+        if self.measured_dimension is not None and width != self.measured_dimension:
+            raise RuntimeError(
+                "Embedding provider dimension changed from "
+                f"{self.measured_dimension} to {width}"
+            )
         self.measured_dimension = width
 
 
@@ -732,16 +755,18 @@ class DocumentProcessor:
             try:
                 if not os.path.isdir(root):
                     continue
-                txt += sum(
-                    1
-                    for path in Path(root).rglob("*.txt")
-                    if self._is_document_path(path, root)
-                )
-                pdf += sum(
-                    1
-                    for path in Path(root).rglob("*.pdf")
-                    if self._is_document_path(path, root)
-                )
+                for path in Path(root).rglob("*"):
+                    suffix = path.suffix.casefold()
+                    if (
+                        suffix not in {".txt", ".pdf"}
+                        or not path.is_file()
+                        or not self._is_document_path(path, root)
+                    ):
+                        continue
+                    if suffix == ".txt":
+                        txt += 1
+                    else:
+                        pdf += 1
             except Exception:
                 continue
         return {
@@ -1155,11 +1180,10 @@ class DocumentProcessor:
                 return hybrid_hits
             # Rank a wider pool before slicing so the selection can affect top-k.
             results = store.similarity_search(
-                query, k=max(k, 40) if program in {"isda", "mlis"} else k
+                query, k=max(k, 40) if program in PROGRAM_KEYS else k
             )
-            return prefer_program_documents(reorder_documents(results), query, program)[
-                :k
-            ]
+            results = filter_program_documents(reorder_documents(results), program)
+            return prefer_program_documents(results, query, program)[:k]
         except Exception as e:
             print(f"Error retrieving documents: {e}")
             return []

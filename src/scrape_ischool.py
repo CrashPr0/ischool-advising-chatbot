@@ -351,8 +351,8 @@ def sync_pages(
     program_list = sorted(
         {value.strip().upper() for value in programs if value.strip()}
     )
-    if not program_list or not set(program_list) <= {"ISDA", "MLIS"}:
-        raise ValueError("The advising corpus supports only ISDA and MLIS")
+    if not program_list or not set(program_list) <= {"ISDA", "MLIS", "MARA", "MSIS"}:
+        raise ValueError("The advising corpus supports only ISDA, MLIS, MARA, and MSIS")
     topic_list = sorted({value.strip() for value in topics if value.strip()})
     stats = {"processed": 0, "added": 0, "updated": 0, "unchanged": 0}
     # A program-specific refresh must not erase the other program's inventory.

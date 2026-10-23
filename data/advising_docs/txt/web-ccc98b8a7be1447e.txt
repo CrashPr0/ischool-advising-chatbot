@@ -1,0 +1,146 @@
+MARA Electives
+Overview
+June 10, 2018
+Electives — MARA
+12 Units
+MARA students customize their program based on their own interests by selecting 12 units of electives from MLIS, Informatics, and/or MARA offerings. (Up to 9 of the 12 units can be from MLIS/INFM. Three units must be from MARA electives).
+Students interested in taking courses from the MLIS program, must select from a
+pre-approved list
+of approximately 46 courses and then complete the
+MLIS electives form
+.
+Students interested in taking courses from the Informatics program, may select from all offerings but must receive pre-approval from their
+MARA advisor
+.
+Students interested in taking MARA electives can select from any offered.* MARA students taking an MLIS course from the pre-approved list are not required to have taken the course pre-requisites.
+MARA 284 – Seminar in Archives and Records Management
+This course explores current issues and practices in archives and records management. Examples of topics touched upon: blockchain, community archives, digital ledger technology, ethics, and virtual reality.
+Prerequisites: MARA 200 and MARA 204 for MARA students.
+These prerequisites are waived for non-MARA majors.
+MARA 284 three-unit courses  (See current
+topics
+.)
+Data Governance (Spring only)
+Digital Forensics for Archivists (Fall only)
+Leadership and Advocacy (Fall only)
+Technology, Privacy and the Law (Spring only)
+MARA 284 one-two unit courses  (See current
+topics
+.)
+Construction of an Archival Vault
+(2 units – Fall only)
+Design for Teaching & Learning in Social Virtual Reality (1 unit – Fall only)
+Navigating the archives and records/information management job market (1 unit – Summer only)
+Records, Archives and Ethics (1 unit – Summer only)
+MARA 294 Professional Experience
+Professional Experience gained through completion of an internship assignment, an organizational consulting project, or a special project related to the field of archives, records management and/or information governance.
+Students must be in good academic standing [3.0 CUM GPA or above and no outstanding incompletes]. Credit/No Credit grading. 3 Units. Each unit is equivalent to a minimum of 45 hours of work.
+Prerequisites: MARA 200, 204, and six advanced courses.
+Not repeatable.
+MARA 294 – Professional Experience is a
+highly recommended
+course for 3 of the 12 elective units possible.  Credit for one year of work experience toward
+ICRM certification
+is granted to students who complete one of the following:
+Internship or OCP
+.
+MARA 295 Organizational Consulting Project
+Students who come into the MARA program with at least three years of work experience in archives and/or records management have the option of undertaking an Organizational Consulting Project when enrolled in MARA 295, Professional Experience. See the
+Organizational Consulting Project
+page.
+MARA Elective Clusters
+5
+Elective clusters
+have been designed to aid you in selecting elective courses to meet your career interests.
+Non-MARA Electives
+MARA students may take up to a total of 9 units of elective credit comprised of Non-MARA courses (MLIS courses or Informatics courses).
+MLIS Courses as Electives
+MARA students may take up to 9 units of elective credit from the MLIS program. For those not following one of the elective clusters, popular MLIS electives include:
+INFO 256
+Archives and Manuscripts (ACA Pre-Approved Course)
+INFO 259
+Preservation Management (ACA Pre-Approved Course)
+INFO 240
+Information Technology, Tools and Applications
+INFO 284
+Seminar in Archives and Records Management with offerings in electronic records, digital curation (ACA Pre-Approved Course), encoded archival description, oral history, digitization and digital preservation (ACA Pre-Approved Course), special collections in a Web 2.0 world, characteristics and curation of new digital media, photographic archives and more from which to choose.
+Informatics courses as electives
+Informatics courses are listed as
+required
+or
+electives
+within that program. Although MARA students may elect to take any courses (up to 6 units of Informatics electives toward the MARA degree), they must first receive approval of the MARA advisor since:
+Fees are higher for INFM courses.
+The informatics classes are intensive and run at different dates from our MLIS and MARA classes.
+Students must demonstrate a strong technical foundation by having completed coursework and/or work experience with either 1) HTML5 and CSS, 2) a programming language, or 3) in information systems
+MLIS Pre-Approved Electives for MARA Students
+(Updated Jan. 16, 2025)
+INFO 202 – Information Retrieval
+INFO 210 – Reference & Information Services
+INFO 220 – Data Services in Libraries
+INFO 220 – Resources & Information Services: Digital Humanities
+INFO 220 – Resources & Information Services: Film & Media
+INFO 220 – LGBTIQ Resources and Services
+INFO 221 – Government Information Sources
+INFO 240 – Information Technology Tools and Applications
+INFO 241 – Automated Library Systems
+INFO 242 – Database Design and Management
+INFO 246 – Learning to use Drupal and Understanding Content Management Systems
+INFO 246 – MySQL in Depth
+INFO 246 – Tools and Applications – Advanced Information Visualization
+INFO 246 – Tools and Applications – Big Data Analytics and Management
+INFO 246 – Tools and Applications – Information Architecture
+INFO 246 – Tools and Applications – Information Visualization
+INFO 246 – Tools and Applications - Web 2.0 and Social Media
+INFO 246 – Tools and Applications – Web/Text/Data Mining
+INFO 247 – Vocabulary Design
+INFO 248 – Beginning Cataloging and Classification
+INFO 251 – Web Usability
+INFO 256 – Archives and Manuscripts (ACA Pre-Approved Course)
+INFO 259 – Preservation Management (ACA Pre-Approved Course)
+INFO 281 – Emerging Technologies and Impacts on the Information Experience (1 unit)
+INFO 281 – Globalization and Communication
+INFO 281 – Information Privacy
+INFO 281 – Information Secrecy
+INFO 281 – Intercultural Communication
+INFO 281 – Metadata
+INFO 281 – Outreach and Equity
+INFO 282 - Change Management
+INFO 282 – Digital Asset Management (ACA Pre-Approved Course)
+INFO 282 – Grant Writing
+INFO 282 – Managing Information Technology in the 21st Century
+INFO 282 – Project Management (assignments geared to archives and records/information organizations)
+INFO 282 - Using Social Media for Competitive and Company Research
+INFO 284 – Archivists Meet Web 2.0
+INFO 284 – Characteristics and Curation of New Digital Media
+INFO 284 - Curating Exhibitions from Archival Collections
+INFO 284 – Digital Curation (ACA Pre-Approved Course)
+INFO 284 – Digitization and Digital Preservation (ACA Pre-Approved Course)
+INFO 284 - Encoded Archival Description (EAD)
+INFO 284 – Genealogy
+INFO 284 – History of Books
+INFO 284 – History of Libraries in the US
+INFO 284 – Managing Photographic Collections
+INFO 284 – Medieval Manuscripts: Codicology and Paleography
+INFO 284 – Medieval Manuscripts: Codicology
+INFO 284 - Medieval Manuscripts: Genres
+INFO 284 – Medieval Manuscripts: Paleography
+INFO 284 – Oral History
+INFO 284 – Photographic Preservation
+INFO 284 – Rare Books
+INFO 284 – Reference and Information Services in Archives
+INFO 284 – Special Collections
+INFO 284 - Tools, Services, Methodologies for Digital Curation
+INFO 287 - AI, Data, and Ethics
+INFO 287 - Collecting and Analyzing Data for Evidence Based Decisions
+INFO 287 – Cybersecurity
+INFO 287 – Institutional Repositories: Management and Outreach
+INFO 287 – Problem Solving With Data
+INFO 287 – Virtual Worlds
+INFO 287 – Virtual Environments: Immersive Learning for Libraries and Archives
+INFO 293 – Introduction to Data Networking
+INFO 298 – Independent Study
+Contact the
+MARA Coordinator
+for approval regarding any variable unit (1 and 2 unit) INFO electives that are not listed on the approved list.
+Read more

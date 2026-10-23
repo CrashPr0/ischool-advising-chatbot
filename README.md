@@ -2,6 +2,8 @@
 
 An advising assistant for San José State University's BS in Information Science and Data Analytics (ISDA) and Master of Library and Information Science (MLIS) programs. Students can ask about published requirements, registration, and advising resources, follow source links, and prepare an advisor email draft.
 
+The saved source corpus and program filters cover ISDA, MLIS, MARA (Master of Archives and Records Administration), and MSIS. In this project MSIS means the [MS in Informatics](https://ischool.sjsu.edu/master-science-informatics); its sources are official ischool.sjsu.edu Informatics pages.
+
 Built with Python, Flask, LangChain, and Chroma, the project combines curated answers with retrieval-augmented generation (RAG). The engineering focus is inspectable answers: hybrid retrieval over saved official sources, catalog-year context, reviewable feedback, and an offline retrieval benchmark that runs without credentials or paid model calls.
 
 [Hosted demo](https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/) · [Offline evaluation report](docs/eval/latest.md) · [Canvas integration](docs/canvas-embed.md)
@@ -143,7 +145,7 @@ python -m black --check scripts/eval_report.py tests/test_eval_report.py
 python -m flake8 scripts/eval_report.py tests/test_eval_report.py --max-line-length=88
 ```
 
-Recorded local result from the commands above: **573 passed**, with a dependency deprecation warning; both lint checks passed. Black/Flake8 cover the offline harness files listed in those commands. The [pull request workflow](.github/workflows/pr-tests.yml) runs the full suite and a dependency audit; it does not currently enforce repository-wide lint.
+Recorded local result from the commands above: **756 passed**, with a dependency deprecation warning. The Black/Flake8 commands above cover the offline harness files listed in those commands. The [pull request workflow](.github/workflows/pr-tests.yml) runs the full suite and a dependency audit; it does not currently enforce repository-wide lint.
 
 Tests cover retrieval, catalog metadata, source-link handling, API behavior, reviewer storage/access, PII scrubbing, browser features, and ingestion. Harness tests verify metric denominators, duplicate-page handling, missing/invalid links, complete labels, protected curated question text, custom-input reproduction commands, and a real temporary-index run with network connections blocked and hosted embedding settings present.
 

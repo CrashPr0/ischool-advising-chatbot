@@ -15,6 +15,7 @@ from src.document_processor import (
     _create_embeddings,
     _is_rate_limit,
     _retry_delay_seconds,
+    estimate_embedding_tokens,
     pack_embedding_batches,
     promote_collection,
     restore_previous_collection,
@@ -156,6 +157,71 @@ def test_batches_stay_under_the_token_budget_and_retry_429():
     assert _retry_delay_seconds(_RateLimit(None), 4.0) == 4.0
 
 
+@pytest.mark.parametrize("invalid_value", [float("nan"), float("inf"), -float("inf")])
+@pytest.mark.parametrize("provider", ["azure_openai", "local"])
+@pytest.mark.parametrize("operation", ["embed_documents", "embed_query"])
+def test_non_finite_embeddings_are_rejected_without_retry(
+    invalid_value, provider, operation
+):
+    class InvalidEmbeddings(_Inner):
+        def embed_documents(self, texts):
+            self.calls.append(list(texts))
+            return [[0.0, invalid_value] for _ in texts]
+
+        def embed_query(self, text):
+            self.calls.append([text])
+            return [0.0, invalid_value]
+
+    inner = InvalidEmbeddings()
+    sleeps = []
+    embeddings = DescribedEmbeddings(
+        inner,
+        _identity(embedding_provider=provider),
+        count_tokens=lambda text: 1,
+        sleep=sleeps.append,
+    )
+    argument = ["ISDA courses"] if operation == "embed_documents" else "ISDA courses"
+
+    with pytest.raises(RuntimeError, match="Embedding provider returned non-finite values"):
+        getattr(embeddings, operation)(argument)
+
+    assert len(inner.calls) == 1
+    assert sleeps == []
+    assert embeddings.measured_dimension is None
+@pytest.mark.parametrize(
+    "marker",
+    [
+        "<|endoftext|>",
+        "<|fim_prefix|>",
+        "<|fim_middle|>",
+        "<|fim_suffix|>",
+        "<|endofprompt|>",
+    ],
+)
+def test_embedding_token_count_treats_special_markers_as_document_text(marker):
+    import tiktoken
+
+    text = f"Catalog example: {marker} with advising information."
+    expected = len(tiktoken.get_encoding("cl100k_base").encode_ordinary(text))
+
+    assert estimate_embedding_tokens(text) == expected
+    assert estimate_embedding_tokens("") == 1
+
+
+def test_hosted_embedding_batches_accept_literal_special_markers():
+    import tiktoken
+
+    text = "Catalog example: <|endoftext|>"
+    budget = len(tiktoken.get_encoding("cl100k_base").encode_ordinary(text))
+    inner = _Inner()
+    embeddings = DescribedEmbeddings(inner, _identity(), batch_tokens=budget)
+
+    vectors = embeddings.embed_documents([text, text])
+
+    assert inner.calls == [[text], [text]]
+    assert vectors == [[float(len(text)), 0.0]] * 2
+
+
 def test_query_embedding_caps_attempts_and_does_not_sleep_out_retry_after():
     sleeps = []
     inner = _Inner(failures=5, retry_after="30")
@@ -172,6 +238,54 @@ def test_query_embedding_caps_attempts_and_does_not_sleep_out_retry_after():
     assert vector == [float(len("ISDA scholarships")), 0.0]
     assert len(recovering.calls) == 2
     assert sleeps == [2.0]
+
+
+def test_embedding_batches_reject_dimension_changes_without_retrying():
+    class ChangingDimensions(_Inner):
+        def embed_documents(self, texts):
+            self.calls.append(list(texts))
+            return [[1.0] * (len(self.calls) + 1) for _ in texts]
+
+    inner = ChangingDimensions()
+    sleeps = []
+    embeddings = DescribedEmbeddings(
+        inner,
+        _identity(),
+        count_tokens=lambda text: 1,
+        batch_tokens=1,
+        sleep=sleeps.append,
+    )
+
+    with pytest.raises(RuntimeError, match="dimension changed from 2 to 3"):
+        embeddings.embed_documents(["one", "two", "three"])
+
+    assert inner.calls == [["one"], ["two"]]
+    assert sleeps == []
+    assert embeddings.measured_dimension == 2
+
+
+@pytest.mark.parametrize("provider", ["azure_openai", "local"])
+def test_query_embedding_preserves_index_dimension_after_bad_response(provider):
+    class ChangingDimensions(_Inner):
+        width = 2
+
+        def embed_documents(self, texts):
+            return [[1.0] * self.width for _ in texts]
+
+        def embed_query(self, text):
+            return [1.0] * self.width
+
+    inner = ChangingDimensions()
+    embeddings = DescribedEmbeddings(inner, _identity(embedding_provider=provider))
+    assert embeddings.embed_documents(["indexed document"]) == [[1.0, 1.0]]
+    inner.width = 3
+
+    with pytest.raises(RuntimeError, match="dimension changed from 2 to 3"):
+        embeddings.embed_query("question")
+
+    assert embeddings.measured_dimension == 2
+    inner.width = 2
+    assert embeddings.embed_query("question") == [1.0, 1.0]
 
 
 def test_query_embedding_records_request_metrics():

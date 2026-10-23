@@ -37,7 +37,7 @@ def test_mlis_golden_retrieval(corpus_processor, question, source_parts):
     hits = corpus_processor.retrieve_relevant_docs(question, k=8)
     assert hits
     assert any(any(part in hit.metadata.get("source_url", "") for part in source_parts) for hit in hits)
-    assert hits[0].metadata["programs"] == ["MLIS"]
+    assert "MLIS" in hits[0].metadata["programs"]
 
 
 def test_isda_still_leads_core_retrieval(corpus_processor):
@@ -48,7 +48,7 @@ def test_isda_still_leads_core_retrieval(corpus_processor):
 
 def test_all_official_mlis_pages_load_program_metadata(corpus_processor):
     loaded = corpus_processor.load_documents()
-    mlis = [doc for doc in loaded if doc.metadata.get("programs") == ["MLIS"]]
+    mlis = [doc for doc in loaded if "MLIS" in doc.metadata.get("programs", [])]
     assert len(mlis) == 19
     assert any(doc.page_content.startswith("INFO 210 -") for doc in mlis)
     assert all(doc.metadata.get("source_url", "").startswith("https://") for doc in mlis)
@@ -57,7 +57,7 @@ def test_all_official_mlis_pages_load_program_metadata(corpus_processor):
         == doc.metadata["content_sha256"] for doc in mlis
     )
     manifest = json.loads((DOCS / "scrape" / "manifest.json").read_text())
-    assert {entry["source_url"] for entry in manifest["documents"] if entry["programs"] == ["MLIS"]} == {doc.metadata["source_url"] for doc in mlis}
+    assert {entry["source_url"] for entry in manifest["documents"] if "MLIS" in entry["programs"]} == {doc.metadata["source_url"] for doc in mlis}
 
 
 def test_mlis_core_answer_cites_retrieved_source_through_guardrail(corpus_processor):
@@ -97,7 +97,7 @@ def test_mlis_core_answer_cites_retrieved_source_through_guardrail(corpus_proces
 def test_every_mlis_chunk_exposes_its_ingested_citation(corpus_processor):
     bot = RAGAdvisingChatbot.__new__(RAGAdvisingChatbot)
     mlis = [doc for doc in corpus_processor.load_documents()
-            if doc.metadata.get("programs") == ["MLIS"]]
+            if "MLIS" in doc.metadata.get("programs", [])]
     for chunk in corpus_processor.split_documents(mlis):
         source = chunk.metadata["source_url"]
         context = bot._build_context("MLIS requirements", [chunk])
@@ -163,7 +163,7 @@ def test_both_pages_offer_mlis_topics_and_keep_isda():
         assert "How do I apply to the MLIS program?" in text
         assert "What is the MLIS e-portfolio?" in text
         assert "MLIS advising" in text
-        assert "20261022-program-picker" in text
+        assert "20261023-program-picker" in text
 
 
 def test_mlis_retrieval_survives_query_embedding_failure(corpus_processor, monkeypatch):
@@ -173,7 +173,7 @@ def test_mlis_retrieval_survives_query_embedding_failure(corpus_processor, monke
     monkeypatch.setattr(corpus_processor.vector_store, "similarity_search", unavailable)
     hits = corpus_processor.retrieve_relevant_docs("What are the MLIS core courses?", k=8)
     assert any("/mlis-required-courses" in hit.metadata.get("source_url", "") for hit in hits)
-    assert hits[0].metadata["programs"] == ["MLIS"]
+    assert "MLIS" in hits[0].metadata["programs"]
 
 
 @pytest.mark.parametrize("program,expected", [("isda", "ISDA"), ("mlis", "MLIS")])
@@ -183,7 +183,7 @@ def test_selected_program_controls_ambiguous_retrieval(
     hits = corpus_processor.retrieve_relevant_docs(
         "What are the core courses?", k=8, program=program
     )
-    assert hits[0].metadata["programs"] == [expected]
+    assert expected in hits[0].metadata["programs"]
 
 
 @pytest.mark.parametrize("program", [None, "bogus", [], {}, 42, "MLIS"])
@@ -228,7 +228,7 @@ def test_selection_overrides_query_in_each_retrieval_path(
     hits = corpus_processor.retrieve_relevant_docs(
         "What are the master's core courses?", k=8, program=program
     )
-    assert hits[0].metadata["programs"] == [expected]
+    assert expected in hits[0].metadata["programs"]
 
 
 def test_invalid_retrieval_program_matches_no_selection(corpus_processor):

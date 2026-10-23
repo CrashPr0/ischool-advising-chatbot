@@ -136,12 +136,12 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "confidence: data.confidence" not in script
     assert 'id="confidence-badge"' not in template
     assert 'id="confidence-badge"' not in docs
-    assert "filename='style.css', v='20261022-program-picker'" in template
-    assert "style.css?v=20261022-program-picker" in docs
-    assert "filename='suggestions.js', v='20261022-program-picker'" in template
-    assert "suggestions.js?v=20261022-program-picker" in docs
-    assert "filename='script.js', v='20261022-program-picker'" in template
-    assert "script.js?v=20261022-program-picker" in docs
+    assert "filename='style.css', v='20261023-program-picker'" in template
+    assert "style.css?v=20261023-program-picker" in docs
+    assert "filename='suggestions.js', v='20261023-program-picker'" in template
+    assert "suggestions.js?v=20261023-program-picker" in docs
+    assert "filename='script.js', v='20261023-program-picker'" in template
+    assert "script.js?v=20261023-program-picker" in docs
     assert "20261014-advisor-handoff" not in template
     assert "20261014-advisor-handoff" not in docs
     assert "20261017-long-term-reports" not in template
@@ -891,7 +891,7 @@ vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), sandbox);
 def test_evaluation_report_summary_and_filters_render_safely(tmp_path):
     template = (ROOT / "templates" / "evaluation.html").read_text(encoding="utf-8")
     for filename in ["evaluation.js", "evaluation.css"]:
-        assert f"filename='{filename}', v='20261022-program-picker'" in template
+        assert f"filename='{filename}', v='20261023-program-picker'" in template
     assert 'role="status" aria-live="polite"' in template
     assert 'role="group" aria-label="Filter reports by reason"' in template
     runner = tmp_path / "check_evaluation_reports.js"
@@ -916,6 +916,8 @@ def test_program_picker_markup_uses_only_existing_programs():
             ("both", "Not sure / both"),
             ("isda", "BS Information Science & Data Analytics (ISDA)"),
             ("mlis", "MLIS"),
+            ("mara", "Master of Archives and Records Administration (MARA)"),
+            ("msis", "MS Informatics (MSIS)"),
         ]
         button = soup.select_one(".chat-header #change-program-button")
         assert button["type"] == "button"

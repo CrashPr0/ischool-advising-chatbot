@@ -1095,7 +1095,7 @@ def _popular_questions_days() -> int | None:
     text = str(raw).strip()
     if not text:
         return 30
-    if not text.isdigit() or int(text) not in _POPULAR_QUESTION_WINDOWS:
+    if not (text.isascii() and text.isdigit()) or int(text) not in _POPULAR_QUESTION_WINDOWS:
         return None
     return int(text)
 
@@ -1186,11 +1186,17 @@ def chat():
         chatbot_instance = get_chatbot()
         prior_turns = _history_store.snapshot(session_id)
         program = normalize_program(data.get("program"))
-        result = chatbot_instance.chat(
-            user_message,
-            history=prior_turns,
-            **({"program": program} if program else {}),
-        )
+        try:
+            result = chatbot_instance.chat(
+                user_message,
+                history=prior_turns,
+                **({"program": program} if program else {}),
+            )
+        except ValueError:
+            # A ValueError out of the model or retrieval layer is a server
+            # fault, not a bad request. Don't echo its text to the student.
+            logger.exception("Chatbot raised ValueError while answering")
+            return jsonify({"error": "Unable to process chat request"}), 500
         provider, model = _stamp_chat_model(result)
         if result.get("safety_tier") != "crisis":
             _history_store.append(session_id, result)
@@ -1820,7 +1826,13 @@ def question_suggestions():
     Matching happens in the browser. This handler ignores query parameters
     and does not log them, so a partial question never reaches the server.
     """
-    store = get_suggestion_usage_store() if dynamic_suggestions_enabled() else None
+    store = None
+    if dynamic_suggestions_enabled():
+        try:
+            store = get_suggestion_usage_store()
+        except Exception:
+            # Ranking data is optional; the curated list must still load.
+            logger.exception("Suggestion usage store unavailable; serving curated list")
     response = jsonify(student_suggestion_payload(store))
     response.headers["Cache-Control"] = "no-store"
     return response

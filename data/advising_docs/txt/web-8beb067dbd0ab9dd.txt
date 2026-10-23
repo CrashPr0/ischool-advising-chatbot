@@ -1,0 +1,19 @@
+Informatics Course Rotations
+|  | Fall Session 1 | Fall Session 2 | Spring Session 1 | Spring Session 2 | Summer Session | 
+|---|---|---|---|---|---|
+| INFM 200 – Informatics: Fundamentals (3 units) | x |  | x |  |  | 
+| INFM 201 – Informatics: Technical Foundations (2 units) | x |  | x |  |  | 
+| INFM 202 – Inf. Security: One (1 unit) | x |  | x |  |  | 
+| INFM 203 – Big Data Analytics & Management (2 units) |  | x |  | x |  | 
+| INFM 204 – Human Centered Design (2 units) |  | x |  | x |  | 
+| INFM 205 Informatics: Project Management (2 units) |  | x |  | x |  | 
+| INFM 206 – Elect Records: foundations (3 units) |  |  | x |  | x | 
+| INFM 207 – DAM (2 units) |  |  | x |  | x | 
+| INFM 208 – Inf. Sec: Two (1 unit) |  |  | x |  | x | 
+| INFM 211 Capstone (3 units) | x |  | x |  | x | 
+| Career Pathway (6 units) |  | Cybersecurity: INFM 216 (3 units) INFM 217 (3 units) |  | Health: INFM 210 (3 units) INFM 213 (3 units) | Health: INFM 214 (3 units) Cybersecurity: INFM 215 (3 units) | 
+* Career Pathway frequencies may increase and be adjusted depending on the needs of students.
+* INFM 284 special topics classes may be periodically offered as alternatives to the regular career pathway courses.
+*Beginning Spring 2021, all incoming students will be required to take INFM 200 (Informatics Fundamentals) in their first session.
+	
+	MS in Informatics students may use the [iSchool Unit Planning Tool](/webform/ischool-unit-planning-tool) to create a customized plan to complete their degree.

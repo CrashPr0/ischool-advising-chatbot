@@ -466,6 +466,9 @@ const ADVISOR_HANDOFF_CONTACTS = {
   isda: { email: "kaitlyn.stauber@sjsu.edu", source: "https://ischool.sjsu.edu/bsisda-freshmen-advising" },
   // No MLIS advising email in the knowledge base; leave blank, student fills in; confirm with iSchool.
   mlis: { email: "", source: "https://ischool.sjsu.edu/advising-appointments" },
+  // No MARA/MSIS advising emails confirmed in the knowledge base; student fills in.
+  mara: { email: "", source: "https://ischool.sjsu.edu/advising-appointments" },
+  msis: { email: "", source: "https://ischool.sjsu.edu/advising-appointments" },
   both: { email: "", source: "https://ischool.sjsu.edu/advising-appointments" }
 };
 const ADVISOR_HANDOFF_MAX_URL_LENGTH = 1800;
@@ -510,8 +513,8 @@ function eligibleAdvisorQuestions(messages) {
 
 // Pure builder: accepts only the program and student-authored message records.
 function buildAdvisorMailto(program, messages) {
-  const key = ["isda", "mlis", "both"].includes(program) ? program : "both";
-  const label = { isda: "BS Information Science & Data Analytics (ISDA)", mlis: "MLIS", both: "Not sure / both" }[key];
+  const key = ["isda", "mlis", "mara", "msis", "both"].includes(program) ? program : "both";
+  const label = { isda: "BS Information Science & Data Analytics (ISDA)", mlis: "MLIS", mara: "Master of Archives and Records Administration (MARA)", msis: "MS Informatics (MSIS)", both: "Not sure / both" }[key];
   const subject = `Advising question from the iSchool chatbot (${label})`;
   const eligibleQuestions = eligibleAdvisorQuestions(messages);
   // Screen the full selected questions before any draft truncation or removal.
@@ -1653,7 +1656,42 @@ let activeConversationId = null;
 let lastSelectedProgram = "both";
 
 function normalizeProgram(value) {
-  return ["isda", "mlis", "both"].includes(value) ? value : "both";
+  return ["isda", "mlis", "mara", "msis", "both"].includes(value) ? value : "both";
+}
+
+// Welcome chips for MARA. Each question matches a MARA page in the knowledge
+// base (overview, required courses, electives, MARA 289 e-Portfolio).
+const MARA_STARTERS = [
+  { topic: "Program overview", text: "How many units does the MARA program require?" },
+  { topic: "Required courses", text: "What are the MARA required courses?" },
+  { topic: "Electives", text: "How do MARA electives work?" },
+  { topic: "e-Portfolio", text: "What is the MARA 289 e-Portfolio?" }
+];
+let defaultStarters = null;
+
+function applyProgramStarters(program) {
+  const chips = Array.from(document.querySelectorAll(".starter-chip"));
+  if (!chips.length) return;
+  if (!defaultStarters) {
+    defaultStarters = chips.map((chip) => ({
+      question: chip.getAttribute("data-question"),
+      id: chip.getAttribute("data-suggestion-id"),
+      topic: chip.querySelector(".starter-topic")?.textContent || "",
+    }));
+  }
+  chips.forEach((chip, index) => {
+    const mara = program === "mara" && MARA_STARTERS[index];
+    const base = defaultStarters[index];
+    const text = mara ? mara.text : base?.question;
+    if (!text) return;
+    chip.setAttribute("data-question", text);
+    if (mara || !base.id) chip.removeAttribute("data-suggestion-id");
+    else chip.setAttribute("data-suggestion-id", base.id);
+    const topic = chip.querySelector(".starter-topic");
+    const question = chip.querySelector(".starter-question");
+    if (topic) topic.textContent = mara ? mara.topic : base.topic;
+    if (question) question.textContent = text;
+  });
 }
 
 // This UI card is never a transcript turn, so email drafts keep their current content.
@@ -1668,7 +1706,7 @@ function showProgramPicker(focus = false) {
   label.classList.add("message-label");
   label.textContent = "iSchool Bot";
   const greeting = document.createElement("p");
-  greeting.textContent = "Hi! I’m your BS ISDA and MLIS advising assistant. Choose your program to get started, or ask me a question.";
+  greeting.textContent = "Hi! I’m your SJSU iSchool advising assistant for BS ISDA, MLIS, MARA, and MS Informatics (MSIS). Choose your program to get started, or ask me a question.";
   const chips = document.createElement("div");
   chips.classList.add("program-chips");
   chips.setAttribute("role", "group");
@@ -1676,7 +1714,7 @@ function showProgramPicker(focus = false) {
   const buttons = [];
   // Use the existing options as the single source of program values and labels.
   Array.from(programSelect.options || []).forEach((option) => {
-    if (!["isda", "mlis", "both"].includes(option.value)) return;
+    if (!["isda", "mlis", "mara", "msis", "both"].includes(option.value)) return;
     const chip = document.createElement("button");
     chip.type = "button";
     chip.classList.add("program-chip");
@@ -1705,6 +1743,7 @@ function showProgramPicker(focus = false) {
 
 function onProgramChange() {
   lastSelectedProgram = normalizeProgram(programSelect.value);
+  applyProgramStarters(lastSelectedProgram);
   updateAdvisorHandoffNotes();
   scheduleQuestionSuggestions();
   const convo = tabsEnabled() ? getActiveConversation() : null;
@@ -2157,6 +2196,7 @@ function onTabKeydown(event) {
 function initConversations() {
   loadStoredConversations();
   if (programSelect) programSelect.value = lastSelectedProgram;
+  applyProgramStarters(lastSelectedProgram);
   if (!tabsEnabled()) {
     if (chatBox) chatBox.innerHTML = "";
     showProgramPicker();
@@ -2214,6 +2254,8 @@ function chatExportProgramLabel(convo) {
   switch (program) {
     case "isda": return "ISDA";
     case "mlis": return "MLIS";
+    case "mara": return "MARA";
+    case "msis": return "MSIS";
     case "both": return "Not sure / both";
     default: return null;
   }
@@ -2527,14 +2569,16 @@ function scheduleQuestionSuggestions() {
   suggestionTimer = setTimeout(refreshQuestionSuggestions, wait);
 }
 
+const SUGGESTION_EVENT_PROGRAMS = ["isda", "mlis", "both"];
+
 function recordSuggestionPick(suggestionId, eventType) {
   if (!dynamicSuggestions || !suggestionId) return;
   if (eventType !== "chip" && eventType !== "dropdown") return;
-  const payload = {
-    id: String(suggestionId),
-    type: eventType,
-    program: normalizeProgram(programSelect ? programSelect.value : lastSelectedProgram)
-  };
+  const program = normalizeProgram(programSelect ? programSelect.value : lastSelectedProgram);
+  // The usage store only accepts these three values and answers 400 for the
+  // rest, so MARA/MSIS picks are skipped instead of sending a doomed request.
+  if (!SUGGESTION_EVENT_PROGRAMS.includes(program)) return;
+  const payload = { id: String(suggestionId), type: eventType, program };
   fetch(apiUrl("/api/question-suggestion-events"), {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -2662,7 +2706,11 @@ async function loadQuestionSuggestions() {
     suggestionPopularity = dynamicSuggestions && data.popularity && typeof data.popularity === "object"
       ? data.popularity
       : {};
-    if (dynamicSuggestions) applyDynamicStarters(data.starters);
+    if (dynamicSuggestions) {
+      applyDynamicStarters(data.starters);
+      defaultStarters = null;
+      applyProgramStarters(lastSelectedProgram);
+    }
     suggestionsEnabled = suggestionCatalog.length > 0;
   } catch (_error) {
     suggestionsEnabled = false;

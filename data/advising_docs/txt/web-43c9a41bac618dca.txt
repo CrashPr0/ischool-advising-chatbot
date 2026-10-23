@@ -1,0 +1,21 @@
+Informatics Academics
+The Master of Science in Informatics program includes core foundational courses as well as career pathway classes that focus on specific domains such as health or cybersecurity.
+All course work will focus on human/computer interaction and the best ways to meet the needs of the end user.
+Course work (18 units) will provide the foundations and skills needed to:
+- Manage and secure electronic records;
+- Set up secure digital assets management systems (DAM) working with metadata, workflow, taxonomy, and data security of digital assets;
+- Manage projects: people, timelines, resources, goals, and outcomes.
+Students will have an opportunity to apply the Informatics skill set in one of two contexts with an additional 9 units focused on end users within a selected domain, including the following career pathways:
+- Health (including Telehealth)
+- Cybersecurity and Privacy
+  Please note classes for these career pathways may not always
+  be available. Be sure to consult the [Course Rotations](/informatics-course-rotations) and [Career Pathways Calendar](/node/4545) pages to plan your
+  schedule and career pathway. 
+  MS in Informatics students may use the [iSchool Unit Planning
+  Tool](/webform/ischool-unit-planning-tool) to create a customized plan to complete their
+  degree.
+The culminating requirement for all students is an Organizational Consulting project (3 units) where students will apply the knowledge and skills developed in the program to address a specific problem in their chosen domain (career pathways including health or cybersecurity and privacy).
+30 Total Units to Degree
+- 18 Units Skills and Foundation
+- 9 Units Career Pathway
+- 3 Units Culminating Project

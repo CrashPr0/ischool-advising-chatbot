@@ -124,5 +124,41 @@
     "category": "advising access",
     "question": "How do I schedule an MLIS advising appointment?",
     "review_focus": "Use advising-appointments; do not claim access to student records or advisor assignments."
+  },
+  {
+    "id": "mara-core",
+    "category": "degree requirements",
+    "question": "What are the MARA required core courses?",
+    "review_focus": "Use mara-required-courses, including the technology workshop and the published prerequisites; do not substitute MLIS core courses."
+  },
+  {
+    "id": "mara-electives",
+    "category": "degree requirements",
+    "question": "How many elective units can MARA students take from MLIS or Informatics?",
+    "review_focus": "Use mara-electives: 12 elective units, up to 9 from MLIS/INFM, with 3 from MARA electives. Preserve the separate Informatics limit and advisor approval condition."
+  },
+  {
+    "id": "mara-eportfolio",
+    "category": "degree requirements",
+    "question": "What is the MARA culminating experience and when do I take MARA 289?",
+    "review_focus": "Use mara-289-e-portfolio-handbook: required e-Portfolio, final semester, 3 units counted within the 42-unit degree. Keep professional experience separate from the culminating experience."
+  },
+  {
+    "id": "mara-admission",
+    "category": "admissions",
+    "question": "What GPA and degree do I need for MARA admission? Is the GRE required?",
+    "review_focus": "Use admissions requirements for MARA, including a regionally accredited bachelor’s degree and 3.0 GPA rule. Do not apply the MS in Informatics 2.8 threshold to MARA or invent an application deadline."
+  },
+  {
+    "id": "mara-units",
+    "category": "degree requirements",
+    "question": "How many total units does the Master of Archives and Records Administration (MARA) require?",
+    "review_focus": "Use the official MARA overview for the 42-unit total; distinguish the 30 required units from the 12 elective units."
+  },
+  {
+    "id": "mara-apply",
+    "category": "admissions",
+    "question": "How do I apply to the MARA program?",
+    "review_focus": "Use graduate-application, which explicitly includes MARA. Keep the MLIS Regular/Special Session discussion scoped to MLIS; do not infer a MARA deadline."
   }
 ]

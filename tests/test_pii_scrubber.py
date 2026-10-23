@@ -40,6 +40,40 @@ def test_scrub_pii_redacts_student_ids_emails_phones_and_addresses():
     assert scrub_pii(scrubbed) == scrubbed
 
 
+@pytest.mark.parametrize(
+    "phone",
+    ["(408)555-1234", "(408)555.1234", "(408)555 1234", "+1 (408)555-1234"],
+)
+def test_scrub_pii_redacts_phone_without_space_after_parenthesized_area_code(phone):
+    assert scrub_pii(f"Call {phone} about INFO 202.") == (
+        f"Call {REDACTED_PHONE} about INFO 202."
+    )
+
+
+@pytest.mark.parametrize("text", ["4085551234", "14085551234", "(408)5551234"])
+def test_scrub_pii_requires_separator_between_phone_exchange_and_line_number(text):
+    assert scrub_pii(text) == text
+
+
+def test_issue_report_scrubs_compact_parenthesized_phone_before_storage(tmp_path):
+    phone = "(408)555-1234"
+    record = build_issue_report(
+        {
+            "reason": "incorrect_info",
+            "comment": f"Please call {phone}.",
+            "question": "Which course should I take?",
+            "answer": "Take INFO 202.",
+        }
+    )
+    database = tmp_path / "reviews.sqlite3"
+    store = IssueReportStore(database)
+
+    stored = store.get(store.save(record))
+
+    assert stored["comment"] == f"Please call {REDACTED_PHONE}."
+    assert phone.encode() not in database.read_bytes()
+
+
 def test_scrub_pii_redacts_each_address_shape():
     samples = [
         "456 Oak Ave",
