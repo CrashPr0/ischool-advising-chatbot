@@ -447,8 +447,8 @@ def _additional_programs(pages):
     msis = 'https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=22001'
     pages[listing] += f'''
     <a href="{mara}">Archives and Records Administration, MARA</a>
-    <a href="{msis}">Information Science, MS</a>
-    <a href="preview_program.php?catoid=24&poid=22002">Informatics, MS</a>
+    <a href="{msis}">Informatics, MS</a>
+    <a href="preview_program.php?catoid=24&poid=22002">Information Science, MS</a>
     '''
     pages[mara] = '''<main><h1>Archives and Records Administration, MARA</h1>
     <p>MARA program parser fixture only.</p></main>'''
@@ -472,12 +472,24 @@ def test_new_program_links_are_scoped_and_official():
     assert program_links(html, '24', 'unknown') == []
 
 
-def test_refresh_adds_citable_mara_but_never_fetches_or_ingests_msis(tmp_path):
+def test_catalog_refresh_preserves_ischool_only_msis_ingestion(tmp_path):
     from hashlib import sha256
 
     repo = _repo(tmp_path)
     pages = _pages()
     mara, msis = _additional_programs(pages)
+    # An existing iSchool MSIS snapshot must survive a catalog refresh intact.
+    from src.scrape_ischool import sync_pages
+
+    docs = repo / 'data/advising_docs'
+    source = 'https://ischool.sjsu.edu/master-science-informatics'
+    sync_pages([{'url': source, 'title': 'MS Informatics fixture',
+                 'text': 'Synthetic preservation fixture only.'}], docs, programs=['MSIS'])
+    previous = json.loads((docs / 'scrape/manifest.json').read_text())
+    msis_entry = next(item for item in previous['documents'] if item['source_url'] == source)
+    msis_paths = [docs / folder / f"{msis_entry['doc_id']}.{suffix}"
+                  for folder, suffix in [('txt', 'txt'), ('meta', 'yml')]]
+    msis_before = {path: path.read_bytes() for path in msis_paths}
     requested = []
     fake_fetch = _fetch(pages)
 
@@ -493,7 +505,9 @@ def test_refresh_adds_citable_mara_but_never_fetches_or_ingests_msis(tmp_path):
     assert result.msis_program_urls == [msis]
     assert result.as_dict()['msis_program_urls'] == [msis]
     assert msis in pull_request_body(result)
-    assert 'MSIS content remains disabled' in result.message
+    assert 'MS Informatics (MSIS) ingestion uses official ischool.sjsu.edu pages' in result.message
+    assert 'src/scrape_ischool.py --program MSIS' in pull_request_body(result)
+    assert 'pending confirmation' not in pull_request_body(result)
     docs = repo / 'data/advising_docs'
     manifest = json.loads((docs / 'scrape/manifest.json').read_text())
     entry = next(item for item in manifest['documents'] if item['source_url'] == mara)
@@ -504,7 +518,8 @@ def test_refresh_adds_citable_mara_but_never_fetches_or_ingests_msis(tmp_path):
     assert meta['source_url'] == mara
     assert sha256(content).hexdigest() == meta['content_sha256'] == entry['content_sha256']
     assert f'Source URL: {mara}' in content.decode()
-    assert not any('MSIS' in item['programs'] for item in manifest['documents'])
+    assert [item for item in manifest['documents'] if 'MSIS' in item['programs']] == [msis_entry]
+    assert all(path.read_bytes() == content for path, content in msis_before.items())
     assert msis not in (docs / 'scrape/seed_urls.txt').read_text()
 
 
@@ -524,7 +539,7 @@ def test_unreadable_or_mismatched_mara_aborts_before_any_writes(tmp_path):
         assert before == {str(p.relative_to(repo)): p.read_bytes() for p in repo.rglob('*') if p.is_file()}
 
 
-def test_msis_snapshot_extraction_stays_disabled():
-    html = '<main><h1>Information Science, MS</h1><p>Parser fixture only.</p></main>'
+def test_catalog_msis_snapshot_uses_separate_ischool_ingestion():
+    html = '<main><h1>Informatics, MS</h1><p>Parser fixture only.</p></main>'
     assert extract_program_snapshot(html, 'https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=1',
                                     '2027-09-01', '2027-2028', 'MSIS') == ''
