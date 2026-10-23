@@ -42,6 +42,19 @@ def test_mara_sample_questions_are_wired():
         assert f'class="prompt-chip">{question}</button>' in docs
 
 
+def test_msis_sample_questions_are_wired():
+    script = (ROOT / "static/script.js").read_text(encoding="utf-8")
+    assert "MSIS_STARTERS" in script
+    assert "PROGRAM_STARTERS = { mara: MARA_STARTERS, msis: MSIS_STARTERS }" in script
+    for question in (
+        "What are the MS Informatics required courses?",
+        "What is the MS Informatics course load?",
+        "What is the INFM 211 Informatics capstone course?",
+        "How does MS Informatics advising work?",
+    ):
+        assert question in script
+
+
 def test_pick_events_skip_programs_the_usage_store_rejects():
     script = (ROOT / "static/script.js").read_text(encoding="utf-8")
     assert 'const SUGGESTION_EVENT_PROGRAMS = ["isda", "mlis", "both"];' in script
