@@ -45,6 +45,7 @@ def test_mara_sample_questions_are_wired():
 def test_msis_sample_questions_are_wired():
     script = (ROOT / "static/script.js").read_text(encoding="utf-8")
     assert "MSIS_STARTERS" in script
+    docs = (ROOT / "docs/index.html").read_text(encoding="utf-8")
     assert "PROGRAM_STARTERS = { mara: MARA_STARTERS, msis: MSIS_STARTERS }" in script
     for question in (
         "What are the MS Informatics required courses?",
@@ -53,6 +54,7 @@ def test_msis_sample_questions_are_wired():
         "How does MS Informatics advising work?",
     ):
         assert question in script
+        assert f'class="prompt-chip">{question}</button>' in docs
 
 
 def test_pick_events_skip_programs_the_usage_store_rejects():
