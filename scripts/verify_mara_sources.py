@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 import requests
+import yaml
 
 from src.scrape_ischool import _safe_text
 
@@ -26,12 +27,33 @@ def unsupported_lines(snapshot, html):
             if normalize(line) and not any(normalize(line) in source for source in sources)]
 
 
-def verify_sources(docs_root):
+def mara_entries(docs_root):
+    """Include shared snapshots mentioning MARA, even with another program tag.
+
+    Metadata-only documents are ingestible too, so the scrape manifest alone
+    cannot define the audit's coverage.
+    """
     entries = json.loads((docs_root / 'scrape/manifest.json').read_text())['documents']
-    results = []
+    by_id = {entry['doc_id']: entry for entry in entries if 'doc_id' in entry}
+    for path in sorted((docs_root / 'meta').glob('*.yml')):
+        metadata = yaml.safe_load(path.read_text())
+        if path.stem not in by_id:
+            entries.append(metadata)
     for entry in entries:
-        if 'MARA' not in entry.get('programs', []):
+        if 'MARA' in entry.get('programs', []):
+            yield entry
             continue
+        snapshot = docs_root / 'txt' / f"{entry['doc_id']}.txt"
+        if snapshot.exists() and re.search(
+            r'\b(?:MARA\d*|Archives\s+and\s+Records\s+Administration)\b',
+            snapshot.read_text(), re.I,
+        ):
+            yield entry
+
+
+def verify_sources(docs_root):
+    results = []
+    for entry in mara_entries(docs_root):
         url = entry['source_url']
         if urlparse(url).scheme != 'https' or urlparse(url).hostname not in {
             'ischool.sjsu.edu', 'catalog.sjsu.edu'
