@@ -1,6 +1,6 @@
 # SJSU iSchool Advising Chatbot
 
-An advising assistant for San José State University's BS in Information Science and Data Analytics (ISDA) and Master of Library and Information Science (MLIS) programs. Students can ask about published requirements, registration, and advising resources, follow source links, and prepare an advisor email draft.
+An advising assistant for San José State University's BS in Information Science and Data Analytics (ISDA), Master of Library and Information Science (MLIS), Master of Archives and Records Administration (MARA), and MS in Informatics (MSIS) programs. Students can ask about published requirements, registration, and advising resources, follow source links, and prepare an advisor email draft.
 
 The saved source corpus and program filters cover ISDA, MLIS, MARA (Master of Archives and Records Administration), and MSIS. In this project MSIS means the [MS in Informatics](https://ischool.sjsu.edu/master-science-informatics); its sources are official ischool.sjsu.edu Informatics pages.
 
@@ -57,7 +57,7 @@ Documents are ingested before chat requests. The web API checks an index receipt
 ## In-chat program picker
 
 New chats greet students with program chips using the existing labels: **Not sure / both**,
-**BS Information Science & Data Analytics (ISDA)**, and **MLIS**. A chip updates the hidden
+**BS Information Science & Data Analytics (ISDA)**, **MLIS**, **Master of Archives and Records Administration (MARA)**, and **MS Informatics (MSIS)**. A chip updates the hidden
 `#program-select` through `onProgramChange`, preserving program-scoped questions,
 browser conversation state, and advisor email drafts. **Change program** in the chat
 header reopens the same card without clearing the conversation.
@@ -164,7 +164,7 @@ For human answer review, visit `/evaluation`. Localhost can use the reviewer wor
 | Evaluation | [scripts/eval_report.py](scripts/eval_report.py), [evals/](evals/), pytest |
 | Hosting and operations | Azure App Service; [deployment runbook](AZURE_DEPLOYMENT.md), [operations log](docs/ops-log.md) |
 
-Add source text or PDFs under `data/advising_docs/txt/` or `pdfs/`, with matching YAML under `meta/`. Metadata carries stable IDs, titles, source URLs, topics, and program tags. The crawler saves snapshots before indexing and does not run at query time. Review source changes and rebuild the index before using them in chat. Relevant university-wide sources remain available alongside program-specific ISDA and MLIS pages.
+Add source text or PDFs under `data/advising_docs/txt/` or `pdfs/`, with matching YAML under `meta/`. Metadata carries stable IDs, titles, source URLs, topics, and program tags. The crawler saves snapshots before indexing and does not run at query time. Review source changes and rebuild the index before using them in chat. Relevant university-wide sources remain available alongside program-specific ISDA, MLIS, MARA, and MSIS pages.
 
 The committed current catalog is identified by `CURRENT_CATALOG_CATOID` (23) and `CURRENT_CATALOG_YEAR` (2026-2027). Reproduce these catalog values with `cat data/catalog_identity.json`. The catalog update tool maintains these README values alongside the catalog identity file; older snapshots remain available for earlier catalog rights.
 
