@@ -190,5 +190,11 @@
     "category": "degree requirements",
     "question": "How many required course units are in MARA, before electives?",
     "review_focus": "Use MARA Required Courses for 30 required units; do not call the full 42-unit degree required coursework or invent individual course units."
+  },
+  {
+    "id": "fees-payment-deadline",
+    "category": "policies and deadlines",
+    "question": "What is the fee payment deadline?",
+    "review_focus": "Use the Bursar Payment Due Dates pages: due dates depend on when registration charges post, are shown in MySJSU after registering, and differ by term. Quote only the published Fall 2026 and Spring 2027 dates, say Open University and Special Session students have different due dates, and point to MySJSU and the Bursar's Office rather than computing a personal deadline."
   }
 ]

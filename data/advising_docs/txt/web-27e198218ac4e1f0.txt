@@ -1,0 +1,17 @@
+Pay Online Now
+Pay online through your [MySJSU](https://one.sjsu.edu/) account until 11:50 p.m. on [Payment Due Dates](/bursar/fees-due-dates/payment-due-dates/index.php) and 24 hours all other days.
+Complete payment transactions by 11:50 p.m. on the payment due dates to avoid enrollment cancellation.
+The university accepts the following payment methods online:
+SJSU does not accept online payments initiated through your bank’s bill pay website.
+How to Pay Online Now
+To make a payment, sign in to [MySJSU](https://one.sjsu.edu/), and then scroll down to the  finances section in your Student Center and click on the Pay Now button.
+For step-by-step instructions on how to make a payment online, see [How to make an Online Payment \[pdf\]](/bursar/docs/steps/how-to-pay-online.pdf).
+Authorized Payers (Parent or Guardian)
+As an Authorized Payer, you can log in to the Illumia (formerly Transact/Cashnet)
+                  [parent payment portal](https://commerce.cashnet.com/cashnetc/selfserve/ebilllogin.aspx?client=SJSU_PROD<=P) and make a payment towards your student’s account. To set up parent access, your
+                  student must follow the illustrated guide on [how to set up an Authorized Payer \[pdf\]](/bursar/docs/steps/authorized-payer.pdf). 
+Parents and other authorized users log in differently than students. Authorized payers
+                  may access the payment site only via [Illumia (formerly Transact/Cashnet)](https://commerce.cashnet.com/cashnetc/selfserve/ebilllogin.aspx?client=SJSU_PROD<=P).
+Help
+If you are having problems with accessing your MySJSU account, contact the IT Help
+                  Desk at 408-924-1530 or [itservicedesk@sjsu.edu](mailto:itservicedesk@sjsu.edu). Include your full name, SJSU ID and date of birth.

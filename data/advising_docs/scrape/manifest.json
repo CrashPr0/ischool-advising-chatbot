@@ -1065,6 +1065,81 @@
       ]
     },
     {
+      "doc_id": "web-78cc5eed446503c4",
+      "source_url": "https://www.sjsu.edu/bursar/fees-due-dates/payment-due-dates/fall.php",
+      "title": "Fall Payment Due Dates | Bursar's Office",
+      "content_sha256": "118f7a204027b1df4e00d897043bb1698d2b5aeab74c397f7281071efabfe534",
+      "programs": [
+        "ISDA",
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-6a0256eec055e968",
+      "source_url": "https://www.sjsu.edu/bursar/fees-due-dates/payment-due-dates/index.php",
+      "title": "Payment Due Dates | Bursar's Office",
+      "content_sha256": "5a5e107c4cc46568c004929ae36df72a59f110d1ee10f21008de5c3c3ef72364",
+      "programs": [
+        "ISDA",
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-4b05fb97a0415b41",
+      "source_url": "https://www.sjsu.edu/bursar/fees-due-dates/payment-due-dates/spring.php",
+      "title": "Spring Payment Due Dates | Bursar's Office",
+      "content_sha256": "4b168f0b75c08adaa85675cdfb74efbc90a2bbfb7cb286e3a944e149c999b2b7",
+      "programs": [
+        "ISDA",
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-4fc6f420679a56f7",
+      "source_url": "https://www.sjsu.edu/bursar/payment-refunds/index.php",
+      "title": "Payment and Refunds | Bursar's Office",
+      "content_sha256": "cdc3ab3964872227e6b5ec1a19a181fa2ed2e8994a6c7501657274018c83c38f",
+      "programs": [
+        "ISDA",
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-27e198218ac4e1f0",
+      "source_url": "https://www.sjsu.edu/bursar/payment-refunds/pay-now.php",
+      "title": "Pay Online Now | Bursar's Office",
+      "content_sha256": "d1bffb43a01d7d51e2e5d55491eef9724752261587d0c628d89750b674b297c0",
+      "programs": [
+        "ISDA",
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
       "doc_id": "web-7cb352458448ad58",
       "source_url": "https://www.sjsu.edu/commencement/ceremonies/index.php",
       "title": "Schedule of Events | Commencement",
@@ -1179,6 +1254,21 @@
       ]
     },
     {
+      "doc_id": "web-c1b99546a97c16a7",
+      "source_url": "https://www.sjsu.edu/registrar/calendar/",
+      "title": "Registration Calendars - Registrar | Office of the Registrar",
+      "content_sha256": "779d72f63a3d06bc57e5317de45a1b47b38c5c18551c263cbbc78f8715499790",
+      "programs": [
+        "ISDA",
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
       "doc_id": "web-8ea16420cf98e932",
       "source_url": "https://www.sjsu.edu/registrar/calendar/fall-2026.php",
       "title": "Fall 2026 Dates and Deadlines | Office of the Registrar",
@@ -1189,6 +1279,21 @@
       "topics": [
         "advising",
         "graduation",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-27d6622c1c70ba1b",
+      "source_url": "https://www.sjsu.edu/registrar/calendar/spring-2027.php",
+      "title": "Spring 2027 | Office of the Registrar",
+      "content_sha256": "0929820f13885aeb390f5cbf46c6c38377da9a4ef08162884879e98cad314031",
+      "programs": [
+        "ISDA",
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "financial-aid",
         "registration"
       ]
     },
