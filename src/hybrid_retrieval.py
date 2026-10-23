@@ -40,6 +40,7 @@ try:
         metadata_programs,
         normalize_program,
         prefer_program_documents,
+        program_document_priority,
         selected_programs,
     )
 except ImportError:  # pragma: no cover
@@ -50,6 +51,7 @@ except ImportError:  # pragma: no cover
         metadata_programs,
         normalize_program,
         prefer_program_documents,
+        program_document_priority,
         selected_programs,
     )
 
@@ -282,6 +284,7 @@ def tokenize(text: str) -> list[str]:
     normalized = compact_course_codes(
         normalize_requisite_words(expand_program_tokens(text))
     ).casefold()
+    normalized = re.sub(r"\b(?:apply|applying)\b", "application", normalized)
     return [
         _lighten_plural(token)
         for token in _TOKEN.findall(normalized)
@@ -497,7 +500,10 @@ def _documents_for_ids(
 
 def _bm25_for(vector_store, records: Sequence[tuple[str, str, dict]]) -> BM25Index:
     """Reuse the BM25 index until chunk ids or text change."""
-    signature = tuple((doc_id, content) for doc_id, content, _metadata in records)
+    signature = tuple(
+        (doc_id, content, str(metadata.get("title", "")))
+        for doc_id, content, metadata in records
+    )
     cached = getattr(vector_store, "_hybrid_bm25_cache", None)
     if (
         isinstance(cached, tuple)
@@ -506,7 +512,12 @@ def _bm25_for(vector_store, records: Sequence[tuple[str, str, dict]]) -> BM25Ind
         and isinstance(cached[1], BM25Index)
     ):
         return cached[1]
-    index = BM25Index([tokenize(content) for _doc_id, content, _metadata in records])
+    # A shared graduate page names the programs in its introduction, while
+    # later chunks still need their page title for admission/application queries.
+    index = BM25Index([
+        tokenize(f"{metadata.get('title', '')}\n{content}")
+        for _doc_id, content, metadata in records
+    ])
     try:
         setattr(vector_store, "_hybrid_bm25_cache", (signature, index))
     except (AttributeError, TypeError):
@@ -541,8 +552,7 @@ def _prefer_program_ids(
         return ids
 
     def priority(doc_id):
-        programs = metadata_programs(by_id[doc_id][1])
-        return 0 if programs & wanted else (1 if not programs else 2)
+        return program_document_priority(by_id[doc_id][1], query, wanted)
 
     return sorted(ids, key=priority)
 
@@ -579,13 +589,16 @@ def hybrid_retrieve(
             return _program_vector_search(vector_store, query, k, program)
         pool = min(len(records), max(k, CANDIDATE_POOL))
         index = _bm25_for(vector_store, records)
-        bm25_positions = index.top_indices(tokenize(query), pool)
+        bm25_positions = index.top_indices(tokenize(query), len(records))
         bm25_ids = [records[position][0] for position in bm25_positions]
         by_content: dict[str, list[str]] = {}
         by_id: dict[str, tuple[str, dict]] = {}
         for doc_id, content, metadata in records:
             by_content.setdefault(content, []).append(doc_id)
             by_id[doc_id] = (content, metadata)
+        # Apply program and title preferences before cutting the candidate pool;
+        # otherwise short shared application pages can never reach fusion.
+        bm25_ids = _prefer_program_ids(bm25_ids, by_id, query, program)[:pool]
         try:
             vector_ids = _vector_ids(vector_store, query, pool, by_content)
         except Exception as error:

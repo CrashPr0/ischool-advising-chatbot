@@ -385,3 +385,20 @@ def test_retrieve_does_not_hold_the_index_lock_during_search(monkeypatch):
     assert acquired == [True]
     assert hits
     assert hits[0].metadata["source"] == "office.txt"
+
+
+def test_bm25_uses_shared_page_titles_and_invalidates_title_changes():
+    from src.hybrid_retrieval import _bm25_for, tokenize
+
+    class Store:
+        pass
+
+    store = Store()
+    rows = [('shared', 'Graduate program information', {'title': 'Admissions'})]
+    first = _bm25_for(store, rows)
+    assert first.top_indices(tokenize('admissions'), 1) == [0]
+    changed = [('shared', 'Graduate program information', {'title': 'Graduate Application'})]
+    second = _bm25_for(store, changed)
+    assert second is not first
+    assert second.top_indices(tokenize('How do I apply?'), 1) == [0]
+    assert second.top_indices(tokenize('admissions'), 1) == []

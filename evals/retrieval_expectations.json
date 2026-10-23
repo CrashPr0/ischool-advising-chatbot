@@ -19,5 +19,11 @@
   "mlis-core": {"expected_sources": ["https://ischool.sjsu.edu/mlis-required-courses"]},
   "mlis-apply": {"expected_sources": ["https://ischool.sjsu.edu/graduate-application"]},
   "mlis-eportfolio": {"expected_sources": ["https://ischool.sjsu.edu/info-289-e-portfolio-faqs"]},
-  "mlis-advising": {"expected_sources": ["https://ischool.sjsu.edu/advising-appointments"]}
+  "mlis-advising": {"expected_sources": ["https://ischool.sjsu.edu/advising-appointments"]},
+  "mara-core": {"expected_sources": ["https://ischool.sjsu.edu/mara-required-courses"]},
+  "mara-electives": {"expected_sources": ["https://ischool.sjsu.edu/mara-electives"]},
+  "mara-eportfolio": {"expected_sources": ["https://ischool.sjsu.edu/mara-289-e-portfolio-handbook"]},
+  "mara-admission": {"expected_sources": ["https://ischool.sjsu.edu/admissions"]},
+  "mara-units": {"expected_sources": ["https://ischool.sjsu.edu/master-archives-and-records-administration"]},
+  "mara-apply": {"expected_sources": ["https://ischool.sjsu.edu/graduate-application"]}
 }

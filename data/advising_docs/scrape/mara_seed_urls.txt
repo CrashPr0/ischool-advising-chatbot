@@ -1,0 +1,8 @@
+# Reviewed official MARA sources. Refresh separately with --program MARA.
+https://ischool.sjsu.edu/master-archives-and-records-administration
+https://ischool.sjsu.edu/mara-required-courses
+https://ischool.sjsu.edu/mara-electives
+https://ischool.sjsu.edu/mara-289-e-portfolio-handbook
+https://ischool.sjsu.edu/mara-professional-experience
+https://ischool.sjsu.edu/admissions
+https://ischool.sjsu.edu/graduate-application

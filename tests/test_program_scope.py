@@ -62,3 +62,26 @@ def test_ambiguous_query_preserves_iterator_order(query):
 
     assert isinstance(ranked, list)
     assert ranked == original
+
+
+@pytest.mark.parametrize('program', ['mara', 'msis'])
+@pytest.mark.parametrize('question,title', [
+    ('What GPA do I need for admission?', 'Admissions'),
+    ('How do I apply to the program?', 'Graduate Application'),
+])
+def test_shared_graduate_titles_match_intent_within_selected_program(program, question, title):
+    shared = Document(page_content='Official shared graduate page',
+                      metadata={'programs': ['MARA', 'MSIS', 'MLIS'], 'title': title})
+    curriculum = Document(page_content='Program curriculum',
+                          metadata={'programs': [program.upper()], 'title': 'Required Courses'})
+    other = Document(page_content='Other program',
+                     metadata={'programs': ['ISDA'], 'title': title})
+    assert prefer_program_documents([other, curriculum, shared], question, program) == [shared, curriculum, other]
+
+
+def test_admission_title_does_not_override_graduation_or_ambiguous_programs():
+    curriculum = Document(page_content='MARA courses', metadata={'programs': ['MARA']})
+    admission = Document(page_content='Application', metadata={'programs': ['MARA'], 'title': 'Graduate Application'})
+    original = [curriculum, admission]
+    assert prefer_program_documents(original, 'How do I apply to graduate?', 'mara') == original
+    assert prefer_program_documents(original, 'Compare MARA and MSIS admissions') == original

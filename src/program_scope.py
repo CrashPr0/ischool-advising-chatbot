@@ -91,6 +91,30 @@ def filter_program_documents(documents, program=None):
     ]
 
 
+def program_document_priority(metadata: dict, query: str, wanted: set[str]):
+    """Prefer the selected program, then titles matching a clear question intent.
+
+    Shared graduate pages may mention MARA only in their opening paragraph.
+    Their admission/application titles remain useful evidence for later chunks.
+    """
+    programs = metadata_programs(metadata)
+    scope = 0 if programs & wanted else (1 if not programs else 2)
+    title = str(metadata.get("title", ""))
+    intent = None
+    if re.search(r"\b(?:admission|admissions|gpa|gre)\b", query, re.I):
+        intent = r"\badmissions?\b"
+    elif re.search(r"\b(?:apply|application)\b", query, re.I) and not re.search(
+        r"\b(?:graduate|graduation|candidacy|award)\b", query, re.I
+    ):
+        intent = r"\b(?:application|apply)\b"
+    courses = re.findall(r"\b(MARA|MSIS|INFO|ISDA)\s*(\d{2,3}[a-z]?)\b", query, re.I)
+    title_match = bool(intent and re.search(intent, title, re.I)) or any(
+        re.search(rf"\b{department}\s*{number}\b", title, re.I)
+        for department, number in courses
+    )
+    return scope, 0 if title_match else 1
+
+
 def prefer_program_documents(documents, query: str, program=None):
     """Stable preference within candidates, retaining untagged fallback evidence.
 
@@ -101,8 +125,4 @@ def prefer_program_documents(documents, query: str, program=None):
     if len(wanted) != 1:
         return list(documents)
 
-    def priority(document):
-        programs = metadata_programs(document.metadata or {})
-        return 0 if programs & wanted else (1 if not programs else 2)
-
-    return sorted(documents, key=priority)
+    return sorted(documents, key=lambda doc: program_document_priority(doc.metadata or {}, query, wanted))
