@@ -2,6 +2,8 @@
 
 An advising assistant for San José State University's BS in Information Science and Data Analytics (ISDA) and Master of Library and Information Science (MLIS) programs. Students can ask about published requirements, registration, and advising resources, follow source links, and prepare an advisor email draft.
 
+The saved source corpus and backend program filters currently cover ISDA and MLIS only. The web program selector also lists MARA and MSIS, but no MARA or MSIS source documents are ingested and the backend does not scope retrieval to them yet, so answers for those choices are not grounded in program-specific sources. MSIS in particular has no matching page on the official [iSchool programs list](https://ischool.sjsu.edu/programs) and is unverified.
+
 Built with Python, Flask, LangChain, and Chroma, the project combines curated answers with retrieval-augmented generation (RAG). The engineering focus is inspectable answers: hybrid retrieval over saved official sources, catalog-year context, reviewable feedback, and an offline retrieval benchmark that runs without credentials or paid model calls.
 
 [Hosted demo](https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/) · [Offline evaluation report](docs/eval/latest.md) · [Canvas integration](docs/canvas-embed.md)
