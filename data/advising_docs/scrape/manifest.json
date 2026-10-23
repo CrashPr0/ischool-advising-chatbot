@@ -855,6 +855,20 @@
       ]
     },
     {
+      "doc_id": "web-c05c003c1ee500c0",
+      "source_url": "https://ischool.sjsu.edu/mara-289-eligibility",
+      "title": "MARA 289 Eligibility - SJSU - School of Information",
+      "content_sha256": "245dc7d92ce10b04ff6d386aceec9d23f08d73fede1b42b67687f0eaf54a204c",
+      "programs": [
+        "MARA"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
       "doc_id": "web-ccc98b8a7be1447e",
       "source_url": "https://ischool.sjsu.edu/mara-electives",
       "title": "MARA Electives - SJSU - School of Information",

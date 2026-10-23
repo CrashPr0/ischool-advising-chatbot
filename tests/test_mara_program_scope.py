@@ -128,6 +128,9 @@ def test_mara_eval_questions_retrieve_official_evidence(corpus_processor, monkey
     assert {case['id'] for case in mara_cases} == {
         'mara-core', 'mara-electives', 'mara-eportfolio',
         'mara-admission', 'mara-units', 'mara-apply',
+        'mara-289-eligibility', 'mara-283-prerequisites',
+        'mara-informatics-elective-limit', 'mara-professional-experience-elective',
+        'mara-required-units',
     }
     monkeypatch.setenv('HYBRID_RETRIEVAL', 'false' if mode == 'vector' else 'true')
     if mode == 'lexical':
@@ -139,6 +142,12 @@ def test_mara_eval_questions_retrieve_official_evidence(corpus_processor, monkey
         sources = {hit.metadata.get('source_url') for hit in hits}
         assert sources.intersection(case['expected_sources']), (mode, case['id'], sources)
         assert all('MARA' in metadata_programs(hit.metadata) for hit in hits)
+        evidence = ' '.join(hit.page_content for hit in hits
+                            if hit.metadata.get('source_url') in case['expected_sources'])
+        # Require answer-bearing chunks, rather than only a matching page URL.
+        evidence = ' '.join(evidence.split())
+        for snippet in case.get('expected_snippets', []):
+            assert snippet in evidence, (mode, case['id'], snippet, evidence)
 
 
 def test_mara_admissions_shared_sources_keep_existing_program_labels(corpus_processor):

@@ -160,5 +160,35 @@
     "category": "admissions",
     "question": "How do I apply to the MARA program?",
     "review_focus": "Use graduate-application, which explicitly includes MARA. Keep the MLIS Regular/Special Session discussion scoped to MLIS; do not infer a MARA deadline."
+  },
+  {
+    "id": "mara-289-eligibility",
+    "category": "admissions",
+    "question": "What must I complete before registering for MARA 289? Do I need an approved candidacy form?",
+    "review_focus": "Use MARA 289 Eligibility: clear all Incompletes before the semester, cumulative GPA of 3.00 or higher, approved candidacy form on file before registration. Do not treat admission GPA as eligibility evidence."
+  },
+  {
+    "id": "mara-283-prerequisites",
+    "category": "degree requirements",
+    "question": "What are the prerequisites for MARA 283 Enterprise Content Management and Digital Preservation?",
+    "review_focus": "Use MARA Required Courses: MARA 210 or MARA 211 or MARA 249. Preserve the OR relationship; do not require all three."
+  },
+  {
+    "id": "mara-informatics-elective-limit",
+    "category": "degree requirements",
+    "question": "Can I count 9 units of Informatics courses toward my MARA electives?",
+    "review_focus": "Use MARA Electives: non-MARA electives have a combined 9-unit ceiling, while Informatics has a 6-unit ceiling and requires MARA advisor approval. Do not apply MS Informatics degree requirements to MARA."
+  },
+  {
+    "id": "mara-professional-experience-elective",
+    "category": "degree requirements",
+    "question": "Is MARA 294 Professional Experience required or an elective, and how much work is each unit?",
+    "review_focus": "Use MARA Electives: highly recommended for 3 of the 12 elective units, credit/no credit, minimum 45 hours per unit, not repeatable. Keep this distinct from the required MARA 289 culminating experience."
+  },
+  {
+    "id": "mara-required-units",
+    "category": "degree requirements",
+    "question": "How many required course units are in MARA, before electives?",
+    "review_focus": "Use MARA Required Courses for 30 required units; do not call the full 42-unit degree required coursework or invent individual course units."
   }
 ]

@@ -85,3 +85,18 @@ def test_admission_title_does_not_override_graduation_or_ambiguous_programs():
     original = [curriculum, admission]
     assert prefer_program_documents(original, 'How do I apply to graduate?', 'mara') == original
     assert prefer_program_documents(original, 'Compare MARA and MSIS admissions') == original
+
+
+@pytest.mark.parametrize('program', ['mara', 'msis'])
+def test_required_units_prefers_curriculum_without_overriding_specific_courses(program):
+    required = Document(page_content='Required coursework', metadata={
+        'programs': [program.upper()], 'title': 'Required Courses'})
+    elective = Document(page_content='Elective coursework', metadata={
+        'programs': [program.upper()], 'title': 'Electives'})
+    course = Document(page_content='Course details', metadata={
+        'programs': [program.upper()], 'title': f'{program.upper()} 289 Handbook'})
+    original = [elective, course, required]
+    assert prefer_program_documents(original, 'How many required course units?', program) == [
+        required, elective, course]
+    assert prefer_program_documents(original, f'Is {program.upper()} 289 a required course?', program) == [
+        course, elective, required]
