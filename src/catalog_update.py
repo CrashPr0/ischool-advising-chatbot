@@ -9,7 +9,9 @@ A run writes files only after a newer academic year has been identified and
 every discovered ISDA/MARA program page and ISDA course page has been read. Anything
 else — the same catalog, a network error, a bot challenge, or HTML that no
 longer matches the catalog menu — leaves the tree alone.
-MSIS links are reported only, pending confirmation of the program's identity.
+MSIS means MS Informatics. Its approved ingestion path is the iSchool crawler
+(``src/scrape_ischool.py --program MSIS``), restricted to ischool.sjsu.edu.
+Catalog Informatics links are reported for reference only.
 """
 
 from __future__ import annotations
@@ -263,15 +265,15 @@ def _program_title_matches(title: str, program: str) -> bool:
         return bool(re.search(r"\barchives and records administration\b", title, re.I))
     if program == "MSIS":
         return bool(re.fullmatch(
-            r"(?:information science,?\s+(?:MS|M\.S\.)|"
-            r"(?:MS|M\.S\.|Master of Science)\s+(?:in\s+)?Information Science)",
+            r"(?:informatics,?\s+(?:MS|M\.S\.)|"
+            r"(?:MS|M\.S\.|Master of Science)\s+(?:in\s+)?Informatics)",
             title.strip(), re.I,
         ))
     return False
 
 
 def program_links(html: str, catoid: str, program: str = "ISDA") -> list[str]:
-    """Official program links; MSIS discovery does not authorize ingestion."""
+    """Official program links; MSIS (Informatics) uses iSchool-only ingestion."""
     soup = BeautifulSoup(html or "", "html.parser")
     found: list[str] = []
     for anchor in soup.find_all("a"):
@@ -503,7 +505,7 @@ def extract_program_snapshot(
 ) -> str:
     """Turn an Acalog program page into snapshot text, or return an empty string."""
     if program not in {"ISDA", "MARA"}:
-        return ""  # MSIS content remains disabled pending program confirmation.
+        return ""  # MSIS is ingested from official iSchool pages by scrape_ischool.
     soup = BeautifulSoup(html or "", "html.parser")
     for tag in soup.find_all(["script", "style", "noscript"]):
         tag.decompose()
@@ -763,8 +765,9 @@ def pull_request_body(result: CatalogCheckResult) -> str:
                 "overrides the file, so clear or update it when you accept this catalog."
             ),
             "",
-            "MSIS content remains disabled pending program confirmation.",
-            *[f"Detected MSIS program link (not fetched): {url}" for url in result.msis_program_urls],
+            "MS Informatics (MSIS) is ingested from official ischool.sjsu.edu pages "
+            "using `src/scrape_ischool.py --program MSIS`.",
+            *[f"Detected catalog Informatics link (iSchool ingestion handles MSIS): {url}" for url in result.msis_program_urls],
             "",
             "## Test plan",
             (
@@ -999,7 +1002,8 @@ def check_for_newer_catalog(
     if mara_program_urls:
         message += f" Refreshed {len(mara_program_urls)} MARA program page(s)."
     message += (f" Detected {len(msis_program_urls)} MSIS program link(s); "
-                "MSIS content remains disabled pending confirmation.")
+                "MS Informatics (MSIS) ingestion uses official ischool.sjsu.edu pages "
+                "via src/scrape_ischool.py --program MSIS.")
     LOGGER.info("%s", message)
     files = [f"data/advising_docs/txt/{record['doc_id']}.txt" for record in records]
     files.extend(
