@@ -55,3 +55,12 @@ def test_page_copy_names_mara_and_msis():
     for page in ("docs/index.html", "templates/index.html"):
         text = (root / page).read_text(encoding="utf-8")
         assert "MARA" in text and "MS Informatics" in text
+
+
+def test_flask_sidebar_offers_mara_topics():
+    template = (ROOT / "templates/index.html").read_text(encoding="utf-8")
+    for question in (
+        "What are the MARA required courses?",
+        "What is the MARA 289 e-Portfolio?",
+    ):
+        assert f'data-hint="{question}"' in template
