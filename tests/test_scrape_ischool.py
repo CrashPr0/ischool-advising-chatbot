@@ -178,3 +178,28 @@ def test_sync_rejects_excluded_programs(tmp_path):
 
     with pytest.raises(ValueError, match="supports only"):
         sync_pages([], tmp_path, programs=["UNKNOWN"])
+
+
+def test_repeated_shared_page_refresh_preserves_labels_and_topics(tmp_path):
+    import yaml
+
+    page = {'url': 'https://ischool.sjsu.edu/admissions',
+            'title': 'Admissions', 'text': 'Shared fixture'}
+    sync_pages([page], tmp_path, programs=['MLIS'], topics=['admissions'])
+    sync_pages([page], tmp_path, programs=['MARA'], topics=['advising'])
+    for refreshed in (page, dict(page, text='Updated shared fixture')):
+        sync_pages([refreshed], tmp_path, programs=['MARA'], topics=['advising'])
+        entry = json.loads((tmp_path / 'scrape/manifest.json').read_text())['documents'][0]
+        metadata = yaml.safe_load(next((tmp_path / 'meta').glob('*.yml')).read_text())
+        assert entry['programs'] == metadata['programs'] == ['MARA', 'MLIS']
+        assert entry['topics'] == metadata['topics'] == ['admissions', 'advising']
+
+
+def test_informatics_pages_cannot_be_mislabeled_as_supported_program(tmp_path):
+    import pytest
+
+    for path in ('master-science-informatics', 'informatics-required-courses',
+                 'infm-211-informatics-culminating-project-capstone-course'):
+        with pytest.raises(ValueError, match='Informatics ingestion is disabled'):
+            sync_pages([{'url': f'https://ischool.sjsu.edu/{path}',
+                         'text': 'Fixture', 'title': 'Fixture'}], tmp_path, programs=['MARA'])

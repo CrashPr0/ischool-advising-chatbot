@@ -353,6 +353,11 @@ def sync_pages(
     )
     if not program_list or not set(program_list) <= {"ISDA", "MLIS", "MARA", "MSIS"}:
         raise ValueError("The advising corpus supports only ISDA, MLIS, MARA, and MSIS")
+    if "MSIS" in program_list:
+        raise ValueError("MSIS ingestion is disabled pending program confirmation")
+    pages = list(pages)
+    if any(re.search(r"(?:informatics|/infm-)", page["url"], re.I) for page in pages):
+        raise ValueError("Informatics ingestion is disabled pending program confirmation")
     topic_list = sorted({value.strip() for value in topics if value.strip()})
     stats = {"processed": 0, "added": 0, "updated": 0, "unchanged": 0}
     # A program-specific refresh must not erase the other program's inventory.
@@ -371,7 +376,7 @@ def sync_pages(
         meta_path = meta_dir / f"{doc_id}.yml"
         # A shared URL has one snapshot, with both program labels.
         shared = next(
-            (entry for entry in manifest_entries if entry["source_url"] == page["url"]),
+            (entry for entry in previous_entries if entry["source_url"] == page["url"]),
             None,
         )
         page_programs = sorted(set(program_list) | set((shared or {}).get("programs", [])))
@@ -404,7 +409,7 @@ def sync_pages(
                 ),
                 encoding="utf-8",
             )
-        if previous == content and shared and meta_path.is_file():
+        if previous == content and meta_path.is_file():
             metadata = yaml.safe_load(meta_path.read_text(encoding="utf-8"))
             if metadata.get("programs") != page_programs or metadata.get("topics") != page_topics:
                 metadata.update(programs=page_programs, topics=page_topics)
