@@ -1865,6 +1865,12 @@ def question_suggestion_event():
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "Request body must be a JSON object"}), 400
+    # MARA and MS Informatics are selectable programs but have no usage-store
+    # bucket; acknowledge without recording instead of answering 400.
+    if isinstance(data.get("program"), str) and data["program"].strip().lower() in {"mara", "msis"}:
+        response = jsonify({"ok": True, "recorded": False, "duplicate": False})
+        response.headers["Cache-Control"] = "no-store"
+        return response
     try:
         result = get_suggestion_usage_store().record_pick(
             suggestion_id=data.get("id") if isinstance(data.get("id"), str) else "",

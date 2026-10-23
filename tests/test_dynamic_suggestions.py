@@ -492,3 +492,16 @@ def test_event_script_does_not_send_the_typed_value():
     page = (ROOT / "templates" / "evaluation.html").read_text(encoding="utf-8")
     assert 'id="suggestion-ranking"' in page
     assert "Download event CSV" in page
+
+
+def test_event_route_acknowledges_mara_and_msis_without_recording(monkeypatch, tmp_path):
+    database = _prepare(monkeypatch, tmp_path)
+    client = app_module.app.test_client()
+    for program in ("mara", "MSIS"):
+        posted = client.post(
+            "/api/question-suggestion-events",
+            json={"id": "x", "type": "chip", "program": program},
+        )
+        assert posted.status_code == 200
+        assert posted.get_json() == {"ok": True, "recorded": False, "duplicate": False}
+    assert not database.exists()
