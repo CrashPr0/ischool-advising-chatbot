@@ -1,4 +1,4 @@
-"""Detect a newer SJSU catalog and refresh the committed ISDA snapshots.
+"""Detect a newer SJSU catalog and refresh supported program snapshots.
 
 The weekly workflow calls :func:`check_for_newer_catalog`. The web app does
 not import this module. Fetching stays in the caller-supplied function so
@@ -6,9 +6,10 @@ tests can pass HTML fixtures and a live run is the only place that opens a
 network connection.
 
 A run writes files only after a newer academic year has been identified and
-every ISDA program and course page for that year has been read. Anything
+every discovered ISDA/MARA program page and ISDA course page has been read. Anything
 else — the same catalog, a network error, a bot challenge, or HTML that no
 longer matches the catalog menu — leaves the tree alone.
+MSIS links are reported only, pending confirmation of the program's identity.
 """
 
 from __future__ import annotations
@@ -99,6 +100,7 @@ class CatalogCheckResult:
     previous_catoid: str = ""
     previous_year: str = ""
     files: list[str] = field(default_factory=list)
+    msis_program_urls: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {
@@ -109,6 +111,7 @@ class CatalogCheckResult:
             "previous_catoid": self.previous_catoid,
             "previous_year": self.previous_year,
             "files": list(self.files),
+            "msis_program_urls": list(self.msis_program_urls),
         }
 
 
@@ -253,13 +256,27 @@ def course_links(html: str, catoid: str) -> list[str]:
     return _unique(found)
 
 
-def program_links(html: str, catoid: str) -> list[str]:
-    """BS ISDA program preview URLs for this catoid."""
+def _program_title_matches(title: str, program: str) -> bool:
+    if program == "ISDA":
+        return "information science and data analytics" in title.casefold()
+    if program == "MARA":
+        return bool(re.search(r"\barchives and records administration\b", title, re.I))
+    if program == "MSIS":
+        return bool(re.fullmatch(
+            r"(?:information science,?\s+(?:MS|M\.S\.)|"
+            r"(?:MS|M\.S\.|Master of Science)\s+(?:in\s+)?Information Science)",
+            title.strip(), re.I,
+        ))
+    return False
+
+
+def program_links(html: str, catoid: str, program: str = "ISDA") -> list[str]:
+    """Official program links; MSIS discovery does not authorize ingestion."""
     soup = BeautifulSoup(html or "", "html.parser")
     found: list[str] = []
     for anchor in soup.find_all("a"):
         text = _clean(anchor.get_text(" ", strip=True)).casefold()
-        if "information science and data analytics" not in text:
+        if not _program_title_matches(text, program):
             continue
         href = _absolute(anchor.get("href") or "")
         if not href or "preview_program.php" not in href:
@@ -481,9 +498,12 @@ def _isolate_core_heading(text: str) -> str:
 
 
 def extract_program_snapshot(
-    html: str, source_url: str, retrieved: str, catalog_year: str
+    html: str, source_url: str, retrieved: str, catalog_year: str,
+    program: str = "ISDA",
 ) -> str:
     """Turn an Acalog program page into snapshot text, or return an empty string."""
+    if program not in {"ISDA", "MARA"}:
+        return ""  # MSIS content remains disabled pending program confirmation.
     soup = BeautifulSoup(html or "", "html.parser")
     for tag in soup.find_all(["script", "style", "noscript"]):
         tag.decompose()
@@ -498,7 +518,9 @@ def extract_program_snapshot(
         node = title_node.parent
     if node is None:
         return ""
-    if (
+    if program == "MARA" and not _program_title_matches(title, program):
+        return ""
+    if program == "ISDA" and (
         "information science and data analytics"
         not in (title + " " + node.get_text(" ", strip=True)).casefold()
     ):
@@ -513,7 +535,7 @@ def extract_program_snapshot(
         body_lines.append(line)
     body = _isolate_core_heading("\n".join(body_lines))
     body = re.sub(r"\n{3,}", "\n\n", body).strip()
-    if "ISDA" not in body and "ISDA" not in title:
+    if program == "ISDA" and "ISDA" not in body and "ISDA" not in title:
         return ""
     lines = [f"{catalog_year} Academic Catalog"]
     if title:
@@ -728,7 +750,7 @@ def pull_request_body(result: CatalogCheckResult) -> str:
             ),
             "",
             (
-                "This pull request refreshes the ISDA program and course snapshots "
+                "This pull request refreshes ISDA program and course snapshots and linked MARA program snapshots "
                 "from that catalog and updates `data/catalog_identity.json`, "
                 "`.env.example`, and the catalog year named in the README. Older "
                 "catalog snapshots stay in the corpus."
@@ -740,6 +762,9 @@ def pull_request_body(result: CatalogCheckResult) -> str:
                 "`CURRENT_CATALOG_CATOID` or `CURRENT_CATALOG_YEAR` set, that value "
                 "overrides the file, so clear or update it when you accept this catalog."
             ),
+            "",
+            "MSIS content remains disabled pending program confirmation.",
+            *[f"Detected MSIS program link (not fetched): {url}" for url in result.msis_program_urls],
             "",
             "## Test plan",
             (
@@ -796,7 +821,7 @@ def check_for_newer_catalog(
     *,
     today: Optional[date] = None,
 ) -> CatalogCheckResult:
-    """Refresh ISDA snapshots when the published catalog is a newer year.
+    """Refresh ISDA and linked MARA pages for a newer catalog; only detect MSIS.
 
     ``fetch`` performs the HTTP call. A result other than ``updated`` means
     no files were written.
@@ -855,12 +880,16 @@ def check_for_newer_catalog(
         )
 
     program_urls: list[str] = []
+    mara_program_urls: list[str] = []
+    msis_program_urls: list[str] = []
     course_urls: list[str] = []
     listing_budget = [MAX_LISTING_FETCHES]
     if programs_url:
         programs_page = fetch(programs_url)
         if page_is_usable(programs_page):
             program_urls.extend(program_links(programs_page.body, current.catoid))
+            mara_program_urls = program_links(programs_page.body, current.catoid, "MARA")
+            msis_program_urls = program_links(programs_page.body, current.catoid, "MSIS")
             course_urls.extend(course_links(programs_page.body, current.catoid))
         else:
             LOGGER.warning("Academic Programs page could not be read: %s", programs_url)
@@ -884,9 +913,9 @@ def check_for_newer_catalog(
             "program page was linked. No pull request.",
             identity,
         )
-    if len(program_urls) > 10:
+    if len(program_urls) + len(mara_program_urls) > 10:
         return _unavailable(
-            f"Catalog {current.year} linked {len(program_urls)} ISDA program "
+            f"Catalog {current.year} linked {len(program_urls) + len(mara_program_urls)} supported program "
             "pages, which is more than this check will refresh. No pull request.",
             identity,
         )
@@ -894,21 +923,23 @@ def check_for_newer_catalog(
     retrieved = (today or date.today()).isoformat()
     retrieved_at = datetime.now(timezone.utc).isoformat()
     records: list[dict] = []
-    for url in program_urls:
+    for url in program_urls + mara_program_urls:
+        program = "MARA" if url in mara_program_urls else "ISDA"
         result = fetch(url)
         if not page_is_usable(result):
             return _unavailable(
-                f"ISDA program page could not be read ({url}). No pull request.",
+                f"{program} program page could not be read ({url}). No pull request.",
                 identity,
             )
-        text = extract_program_snapshot(result.body, url, retrieved, current.year)
+        text = extract_program_snapshot(result.body, url, retrieved, current.year, program)
         if not text:
             return _unavailable(
-                f"ISDA program page did not match the expected shape ({url}). "
+                f"{program} program page did not match the expected shape ({url}). "
                 "No pull request.",
                 identity,
             )
-        course_urls.extend(course_links(result.body, current.catoid))
+        if program == "ISDA":
+            course_urls.extend(course_links(result.body, current.catoid))
         title = ""
         for line in text.splitlines():
             if (
@@ -918,7 +949,7 @@ def check_for_newer_catalog(
             ):
                 title = line
                 break
-        records.append(_snapshot_record(url, text, title, current.year))
+        records.append(_snapshot_record(url, text, title, current.year, [program]))
 
     course_urls = [url for url in _unique(course_urls) if "preview_course" in url]
     if len(course_urls) < MIN_ISDA_COURSES:
@@ -965,6 +996,10 @@ def check_for_newer_catalog(
         repo_root, current.catoid, current.year, editions
     )
     message = f"Refreshed ISDA snapshots for {current.year} (catoid {current.catoid})."
+    if mara_program_urls:
+        message += f" Refreshed {len(mara_program_urls)} MARA program page(s)."
+    message += (f" Detected {len(msis_program_urls)} MSIS program link(s); "
+                "MSIS content remains disabled pending confirmation.")
     LOGGER.info("%s", message)
     files = [f"data/advising_docs/txt/{record['doc_id']}.txt" for record in records]
     files.extend(
@@ -985,4 +1020,5 @@ def check_for_newer_catalog(
         previous_catoid=previous_catoid,
         previous_year=previous_year,
         files=files,
+        msis_program_urls=msis_program_urls,
     )
