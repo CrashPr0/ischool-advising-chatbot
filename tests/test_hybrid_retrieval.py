@@ -113,6 +113,32 @@ def test_course_code_lookup_extracts_only_supported_prefixes():
     ]
 
 
+@pytest.mark.parametrize('prefix', ['MARA', 'MSIS', 'INFM'])
+def test_new_program_course_tokens_preserve_spaced_and_compact_identity(prefix):
+    spaced = tokenize(f'What are the prerequisites for {prefix} 283?')
+    compact = tokenize(f'What are the prerequisites for {prefix}283?')
+    assert spaced == compact == ['prerequisite', f'{prefix.lower()}283']
+
+
+@pytest.mark.parametrize('lexical_only', [False, True])
+@pytest.mark.parametrize('course', ['MARA 283', 'MARA283'])
+def test_mara_course_lookup_outweighs_generic_program_neighbors(monkeypatch, lexical_only, course):
+    # Synthetic retrieval fixtures contain no curriculum claims.
+    records = [
+        ('generic', 'MARA archives records administration prerequisites overview.',
+         {'programs': ['MARA']}),
+        ('other-course', 'MARA 200 prerequisites: fixture only.', {'programs': ['MARA']}),
+        ('target', 'MARA 283 prerequisites: target fixture only.', {'programs': ['MARA']}),
+    ]
+    store = _VectorStore(records, ['generic', 'other-course', 'target'])
+    if lexical_only:
+        def unavailable(*args, **kwargs):
+            raise RuntimeError('Embedding unavailable')
+        monkeypatch.setattr(store, 'similarity_search', unavailable)
+    hits = hybrid_retrieve(store, f'{course} prerequisites', k=1, program='mara')
+    assert [hit.page_content for hit in hits] == [records[2][1]]
+
+
 def test_requisite_spellings_share_a_token_and_course_codes_stay_intact():
     prerequisite_forms = [
         "prerequisite",
