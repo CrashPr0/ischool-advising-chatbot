@@ -10,7 +10,7 @@ def expand_program_tokens(text: str) -> str:
     """Connect new program acronyms to the words used on official pages."""
     for acronym, name in (
         ("mara", "archives records administration"),
-        ("msis", "information science"),
+        ("msis", "informatics"),
     ):
         text = re.sub(
             rf"\b{acronym}\b",
@@ -46,7 +46,7 @@ def query_programs(query: str) -> set[str]:
     ):
         programs.add("MARA")
     if re.search(
-        r"\b(?:msis\d*[a-z]?|m\.?s\.?\s+(?:in\s+)?information\s+science|"
+        r"\b(?:msis\d*[a-z]?|infm\s*\d{3}[a-z]?|informatics|m\.?s\.?\s+(?:in\s+)?information\s+science|"
         r"master(?:['’]s)?\s+(?:of\s+science\s+in|of|in)\s+information\s+science)\b",
         query, re.I,
     ):
@@ -107,7 +107,7 @@ def program_document_priority(metadata: dict, query: str, wanted: set[str]):
         r"\b(?:graduate|graduation|candidacy|award)\b", query, re.I
     ):
         intent = r"\b(?:application|apply)\b"
-    courses = re.findall(r"\b(MARA|MSIS|INFO|ISDA)\s*(\d{2,3}[a-z]?)\b", query, re.I)
+    courses = re.findall(r"\b(MARA|MSIS|INFM|INFO|ISDA)\s*(\d{2,3}[a-z]?)\b", query, re.I)
     title_match = bool(intent and re.search(intent, title, re.I)) or any(
         re.search(rf"\b{department}\s*{number}\b", title, re.I)
         for department, number in courses

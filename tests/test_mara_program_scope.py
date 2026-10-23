@@ -39,6 +39,8 @@ def test_new_program_keys_and_ingestion(tmp_path, program):
     ('MS in Information Science requirements', {'MSIS'}),
     ('Master of Science in Information Science', {'MSIS'}),
     ('MSIS requirements', {'MSIS'}),
+    ('MS in Informatics required courses', {'MSIS'}),
+    ('INFM 211 capstone', {'MSIS'}),
     ('Compare MARA, MLIS, MSIS and ISDA', {'MARA', 'MLIS', 'MSIS', 'ISDA'}),
 ])
 def test_named_program_hints(query, expected):
@@ -47,7 +49,7 @@ def test_named_program_hints(query, expected):
 
 def test_program_tokens_and_serialized_filter():
     assert {'archive', 'record', 'administration'} <= set(tokenize('MARA'))
-    assert {'information', 'science'} <= set(tokenize('MSIS'))
+    assert 'informatic' in set(tokenize('MSIS'))
     shared = Document(page_content='shared', metadata={'programs': '["MARA", "MSIS"]'})
     other = Document(page_content='other', metadata={'programs': ['MLIS']})
     untagged = Document(page_content='untagged')
