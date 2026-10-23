@@ -409,14 +409,14 @@ def test_chat_program_allowlist(monkeypatch, ready_chat_index):
     bot = ProgramChatbot()
     monkeypatch.setattr(app_module, "get_chatbot", lambda: bot)
     client = app_module.app.test_client()
-    for program in ("isda", "mlis", "both", "invalid", "MLIS", [], {}, 42, None):
+    for program in ("isda", "mlis", "mara", "msis", "both", "invalid", "MLIS", [], {}, 42, None):
         response = client.post(
             "/api/chat", json={"message": "core courses", "program": program}
         )
         assert response.status_code == 200
         assert bot.programs[-1] == (
             program
-            if isinstance(program, str) and program in {"isda", "mlis", "both"}
+            if isinstance(program, str) and program in {"isda", "mlis", "mara", "msis", "both"}
             else None
         )
     assert client.post("/api/chat", json={"message": "core courses"}).status_code == 200

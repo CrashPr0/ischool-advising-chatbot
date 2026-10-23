@@ -26,3 +26,17 @@ def test_script_accepts_new_program_keys():
     assert "mara: { email" in script and "msis: { email" in script
     suggestions = (ROOT / "static/suggestions.js").read_text(encoding="utf-8")
     assert "mara: true" in suggestions and "msis: true" in suggestions
+
+
+def test_mara_sample_questions_are_wired():
+    script = (ROOT / "static/script.js").read_text(encoding="utf-8")
+    assert "MARA_STARTERS" in script and "applyProgramStarters(lastSelectedProgram)" in script
+    docs = (ROOT / "docs/index.html").read_text(encoding="utf-8")
+    for question in (
+        "What are the MARA required courses?",
+        "How many units does the MARA program require?",
+        "How do MARA electives work?",
+        "What is the MARA 289 e-Portfolio?",
+    ):
+        assert question in script
+        assert f'class="prompt-chip">{question}</button>' in docs
