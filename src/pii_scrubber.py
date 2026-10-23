@@ -24,13 +24,14 @@ _EMAIL_RE = re.compile(
 )
 
 # (408) 555-1234, 408-555-1234, 408.555.1234, +1 408 555 1234, and the same
-# shapes with a leading 1. Separators are required so a bare digit run is not
-# treated as a phone.
+# shapes with a leading 1. Parentheses delimit the area code even without a
+# following space. Other groups require separators so a bare digit run is
+# not treated as a phone.
 _PHONE_RE = re.compile(
     r"(?<!\d)"
     r"(?:\+?1[\s.-]+)?"
-    r"(?:\(\s*\d{3}\s*\)|\d{3})"
-    r"[\s.-]+\d{3}[\s.-]+\d{4}"
+    r"(?:\(\s*\d{3}\s*\)[\s.-]*|\d{3}[\s.-]+)"
+    r"\d{3}[\s.-]+\d{4}"
     r"(?!\d)"
 )
 
