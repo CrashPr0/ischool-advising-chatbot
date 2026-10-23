@@ -28,7 +28,7 @@
   function programLabel() {
     if (!options) return;
     const value = document.getElementById('program-select')?.value;
-    const names = { isda: 'BS ISDA', mlis: 'MLIS', mara: 'MARA', msis: 'MSIS', both: 'Choose program' };
+    const names = { isda: 'BS ISDA', mlis: 'MLIS', mara: 'MARA', msis: 'MS Informatics (MSIS)', both: 'Choose program' };
     options.summary.textContent = `${names[value] || 'Choose program'} · Chat options`;
   }
   function enter() {

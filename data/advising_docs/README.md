@@ -21,10 +21,13 @@ If you don’t use subfolders, the app will still look for `*.pdf` / `*.txt` rec
 2. Create/update the companion YAML under `meta/` (same basename as the PDF)
 3. Rebuild the index (see repo README)
 
-The corpus covers the SJSU iSchool BS ISDA and MLIS programs. Do not add MARA,
-Informatics, MSIDT, or Teacher Librarian material. University-wide policies are
-appropriate when they apply to ISDA or MLIS students; label program-specific
-requirements with companion metadata `programs: [ISDA]` or `programs: [MLIS]`.
+The corpus covers the SJSU iSchool BS ISDA, MLIS, MARA (Master of Archives and
+Records Administration), and MS Informatics programs. In this project "MSIS"
+means the MS in Informatics (https://ischool.sjsu.edu/master-science-informatics).
+Add only official ischool.sjsu.edu material. Do not add MSIDT or Teacher
+Librarian material. University-wide policies are appropriate when they apply to
+these students; label program-specific requirements with companion metadata
+`programs: [ISDA]`, `[MLIS]`, `[MARA]`, or `[MSIS]`.
 
 `sync_pages` replaces manifest entries for the current run’s programs and
 preserves entries whose programs do not overlap. Crawl each program separately

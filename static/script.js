@@ -513,7 +513,7 @@ function eligibleAdvisorQuestions(messages) {
 // Pure builder: accepts only the program and student-authored message records.
 function buildAdvisorMailto(program, messages) {
   const key = ["isda", "mlis", "mara", "msis", "both"].includes(program) ? program : "both";
-  const label = { isda: "BS Information Science & Data Analytics (ISDA)", mlis: "MLIS", mara: "Master of Archives and Records Administration (MARA)", msis: "MS in Information Science (MSIS)", both: "Not sure / both" }[key];
+  const label = { isda: "BS Information Science & Data Analytics (ISDA)", mlis: "MLIS", mara: "Master of Archives and Records Administration (MARA)", msis: "MS Informatics (MSIS)", both: "Not sure / both" }[key];
   const subject = `Advising question from the iSchool chatbot (${label})`;
   const eligibleQuestions = eligibleAdvisorQuestions(messages);
   // Screen the full selected questions before any draft truncation or removal.
