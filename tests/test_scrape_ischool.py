@@ -195,11 +195,10 @@ def test_repeated_shared_page_refresh_preserves_labels_and_topics(tmp_path):
         assert entry['topics'] == metadata['topics'] == ['admissions', 'advising']
 
 
-def test_informatics_pages_cannot_be_mislabeled_as_supported_program(tmp_path):
-    import pytest
-
+def test_informatics_pages_ingest_as_msis(tmp_path):
     for path in ('master-science-informatics', 'informatics-required-courses',
                  'infm-211-informatics-culminating-project-capstone-course'):
-        with pytest.raises(ValueError, match='Informatics ingestion is disabled'):
-            sync_pages([{'url': f'https://ischool.sjsu.edu/{path}',
-                         'text': 'Fixture', 'title': 'Fixture'}], tmp_path, programs=['MARA'])
+        sync_pages([{'url': f'https://ischool.sjsu.edu/{path}',
+                     'text': 'Fixture', 'title': 'Fixture'}], tmp_path, programs=['MSIS'])
+    manifest = json.loads((tmp_path / 'scrape/manifest.json').read_text())
+    assert {tuple(entry['programs']) for entry in manifest['documents']} == {('MSIS',)}

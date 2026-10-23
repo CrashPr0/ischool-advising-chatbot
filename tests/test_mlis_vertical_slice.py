@@ -146,11 +146,12 @@ def test_program_preference_accepts_lists_and_serialized_metadata():
 
 def test_prompt_scope_and_program_separation():
     prompt = RAGAdvisingChatbot.SYSTEM_PROMPT
-    assert "SJSU iSchool BS ISDA and MLIS programs" in prompt
-    assert "Never mix ISDA and MLIS requirements" in prompt
+    assert "SJSU iSchool BS ISDA, MLIS, MARA, and MSIS programs" in prompt
+    assert "MS in Informatics (MSIS)" in prompt
+    assert "Never mix requirements across programs" in prompt
     assert "ask which program or give both" in prompt
     assert "Refuse unrelated requests" in prompt
-    for program in ("MARA", "Informatics", "MSIDT", "Teacher Librarian"):
+    for program in ("MSIDT", "Teacher Librarian"):
         assert program in prompt
 
 

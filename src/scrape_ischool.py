@@ -353,11 +353,7 @@ def sync_pages(
     )
     if not program_list or not set(program_list) <= {"ISDA", "MLIS", "MARA", "MSIS"}:
         raise ValueError("The advising corpus supports only ISDA, MLIS, MARA, and MSIS")
-    if "MSIS" in program_list:
-        raise ValueError("MSIS ingestion is disabled pending program confirmation")
     pages = list(pages)
-    if any(re.search(r"(?:informatics|/infm-)", page["url"], re.I) for page in pages):
-        raise ValueError("Informatics ingestion is disabled pending program confirmation")
     topic_list = sorted({value.strip() for value in topics if value.strip()})
     stats = {"processed": 0, "added": 0, "updated": 0, "unchanged": 0}
     # A program-specific refresh must not erase the other program's inventory.

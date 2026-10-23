@@ -450,9 +450,9 @@ def test_other_program_request_redirects_without_model_or_retrieval():
 
     bot = _bare_bot()
     bot.knowledge_base = KnowledgeBase()
-    answer = bot.chat("What are the MARA core courses?")
+    answer = bot.chat("What are the MSIDT core courses?")
     assert answer["source"] == "knowledge_base"
-    assert "BS ISDA and MLIS" in answer["response"]
+    assert "MS Informatics (MSIS)" in answer["response"]
     assert "contact the iSchool advising team" in answer["response"]
     assert bot.doc_processor.queries == []
     assert bot.chain.payloads == []
