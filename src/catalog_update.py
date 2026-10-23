@@ -47,7 +47,7 @@ CATALOG_TOPICS = [
 ]
 
 _COURSE_TEXT = re.compile(
-    r"^(?:INFO|ISDA)\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE
+    r"^(?:INFO|ISDA|MARA|MSIS)\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE
 )
 _ISDA_COURSE_TEXT = re.compile(r"^ISDA\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE)
 _SHOW_COURSE = re.compile(
@@ -427,7 +427,7 @@ def course_listing_entries(html: str, prefix: str = "ISDA") -> list[tuple[str, s
     the order published by Acalog and duplicates are removed by course code.
     """
     normalized_prefix = str(prefix or "").strip().upper()
-    if normalized_prefix not in {"INFO", "ISDA"}:
+    if normalized_prefix not in {"INFO", "ISDA", "MARA", "MSIS"}:
         return []
     pattern = re.compile(
         rf"^({re.escape(normalized_prefix)}\s+\d{{2,3}}[A-Za-z]?)\s+-\s+(.+)$",
