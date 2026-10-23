@@ -28,7 +28,7 @@ function makeElement() {
   return {
     classes,
     classList: {
-      add(name) { classes.add(name); },
+      add(...names) { names.forEach(name => classes.add(name)); },
       remove(name) { classes.delete(name); },
       toggle(name, force) {
         if (force === undefined) {
@@ -45,7 +45,8 @@ function makeElement() {
       this.handlers[type].push(fn);
     },
     setAttribute() {},
-    appendChild() {},
+    children: [],
+    appendChild(child) { this.children.push(child); },
     remove() {},
     focus() {},
     textContent: "",
@@ -87,7 +88,7 @@ function runPage(ids, voiceConfig) {
 
 const docsIds = [
   "chat-box", "user-input", "send-button", "clear-button",
-  "status-text", "provider-text", "source-badge", "docs-badge",
+  "status-text", "provider-text", "source-badge", "docs-badge", "program-select",
 ];
 const mainIds = docsIds.concat([
   "active-topic-banner", "active-topic-label", "sample-chips-area",
@@ -101,7 +102,7 @@ const mainIds = docsIds.concat([
   const clearFns = docs["clear-button"].handlers.click || [];
   if (clearFns.length !== 1) throw new Error("clear button listener missing");
   await clearFns[0]();
-  if (!String(docs["chat-box"].innerHTML).includes("BS ISDA and MLIS advising assistant")) {
+  if (!docs["chat-box"].children.some(child => child.classes.has("program-picker"))) {
     throw new Error("clear did not reset the chat box");
   }
 
@@ -135,12 +136,12 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert "confidence: data.confidence" not in script
     assert 'id="confidence-badge"' not in template
     assert 'id="confidence-badge"' not in docs
-    assert "filename='style.css', v='20261017-dynamic-suggestions'" in template
-    assert "style.css?v=20261017-dynamic-suggestions" in docs
-    assert "filename='suggestions.js', v='20261017-dynamic-suggestions'" in template
-    assert "suggestions.js?v=20261017-dynamic-suggestions" in docs
-    assert "filename='script.js', v='20261017-dynamic-suggestions'" in template
-    assert "script.js?v=20261017-dynamic-suggestions" in docs
+    assert "filename='style.css', v='20261023-program-picker'" in template
+    assert "style.css?v=20261023-program-picker" in docs
+    assert "filename='suggestions.js', v='20261023-program-picker'" in template
+    assert "suggestions.js?v=20261023-program-picker" in docs
+    assert "filename='script.js', v='20261023-program-picker'" in template
+    assert "script.js?v=20261023-program-picker" in docs
     assert "20261014-advisor-handoff" not in template
     assert "20261014-advisor-handoff" not in docs
     assert "20261017-long-term-reports" not in template
@@ -338,7 +339,7 @@ function makeElement() {
   return {
     classes,
     classList: {
-      add(name) { classes.add(name); },
+      add(...names) { names.forEach(name => classes.add(name)); },
       remove(name) { classes.delete(name); },
       toggle(name, force) {
         if (force === undefined) {
@@ -459,7 +460,7 @@ def test_program_state_persists_per_tab_and_is_sent(tmp_path):
 def test_export_chat_download_and_print_fallback_without_network_requests(tmp_path):
     runner = _PAGE_RUNNER.split("(async () => {")[0]
     runner = runner.replace(
-        "    appendChild() {},",
+        "    children: [],\n    appendChild(child) { this.children.push(child); },",
         """    children: [],
     appendChild(child) { child.parent = this; this.children.push(child); },
     append(...children) { children.forEach(child => this.appendChild(child)); },
@@ -890,13 +891,137 @@ vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), sandbox);
 def test_evaluation_report_summary_and_filters_render_safely(tmp_path):
     template = (ROOT / "templates" / "evaluation.html").read_text(encoding="utf-8")
     for filename in ["evaluation.js", "evaluation.css"]:
-        assert f"filename='{filename}', v='20261017-dynamic-suggestions'" in template
+        assert f"filename='{filename}', v='20261023-program-picker'" in template
     assert 'role="status" aria-live="polite"' in template
     assert 'role="group" aria-label="Filter reports by reason"' in template
     runner = tmp_path / "check_evaluation_reports.js"
     runner.write_text(_EVALUATION_RUNNER, encoding="utf-8")
     completed = subprocess.run(
         ["node", str(runner), str(ROOT / "static" / "evaluation.js")],
+        capture_output=True, text=True, check=False,
+    )
+    assert completed.returncode == 0, completed.stderr + completed.stdout
+    assert completed.stdout.strip() == "ok"
+
+
+def test_program_picker_markup_uses_only_existing_programs():
+    from bs4 import BeautifulSoup
+
+    for filename in ("templates/index.html", "docs/index.html"):
+        soup = BeautifulSoup((ROOT / filename).read_text(), "html.parser")
+        select = soup.select_one("#program-select")
+        assert select.has_attr("hidden")
+        assert select.parent.has_attr("hidden")
+        assert [(option["value"], option.text) for option in select.select("option")] == [
+            ("both", "Not sure / both"),
+            ("isda", "BS Information Science & Data Analytics (ISDA)"),
+            ("mlis", "MLIS"),
+            ("mara", "Master of Archives and Records Administration (MARA)"),
+            ("msis", "MS Informatics (MSIS)"),
+        ]
+        button = soup.select_one(".chat-header #change-program-button")
+        assert button["type"] == "button"
+        assert button.text == "Change program"
+
+
+def test_program_picker_click_reopen_response_and_handoff(tmp_path):
+    runner = _PROGRAM_RUNNER.split('const assert = require("assert");')[0]
+    runner = runner.replace(
+        "    appendChild() {},",
+        """    children: [],
+    appendChild(child) { child.parent = this; this.children.push(child); },
+    append(...children) { children.forEach(child => this.appendChild(child)); },
+    querySelector() { return null; },
+    showModal() {},
+    close() {},
+    replaceChildren() { this.children = []; },""",
+    ).replace(
+        "    remove() {},",
+        """    remove() {
+      if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this);
+    },""",
+    ).replace(
+        "    setAttribute() {},",
+        "    attributes: {},\n    setAttribute(key, value) { this.attributes[key] = value; },",
+    ).replace(
+        '    elements[id] = makeElement();',
+        '''    elements[id] = makeElement();
+    if (id === "program-select") elements[id].options = [
+      { value: "both", textContent: "Not sure / both" },
+      { value: "isda", textContent: "BS Information Science & Data Analytics (ISDA)" },
+      { value: "mlis", textContent: "MLIS" },
+    ];''',
+    )
+    runner = runner.replace("      getElementById(id)", "      body: makeElement(),\n      getElementById(id)")
+    runner += r'''
+const assert = require("assert");
+(async () => {
+  for (const tabs of [false, true]) {
+    const ids = ["chat-box", "user-input", "send-button", "clear-button", "program-select",
+      "change-program-button", "advisor-handoff-button", "source-badge", "docs-badge"];
+    if (tabs) ids.push("chat-tabs", "empty-state");
+    const storage = {getItem() { return null; }, setItem() {}};
+    const {elements, sandbox} = await runPage(ids, null, storage);
+    const run = code => vm.runInContext(code, sandbox);
+    const box = elements["chat-box"];
+    const cards = () => box.children.filter(child => child.classes.has("program-picker"));
+    assert.equal(cards().length, 1);
+    assert.equal(box.children[0], cards()[0]);
+    let chips = cards()[0].children[2].children;
+    assert.deepEqual(chips.map(chip => chip.textContent), elements["program-select"].options.map(o => o.textContent));
+    assert.equal(chips[0].attributes["aria-pressed"], "true");
+    chips[2].handlers.click[0]();
+    assert.equal(elements["program-select"].value, "mlis");
+    assert.equal(run("lastSelectedProgram"), "mlis");
+    if (tabs) assert.equal(run("getActiveConversation().program"), "mlis");
+    assert.equal(chips[2].attributes["aria-pressed"], "true");
+    assert.equal(chips[0].attributes["aria-pressed"], "false");
+    assert.equal(run("tabsEnabled() ? getActiveConversation().messages.length : plainTranscript.length"), 0);
+    const oldCard = cards()[0];
+    elements["change-program-button"].handlers.click[0]();
+    assert.equal(cards().length, 1);
+    assert.notEqual(cards()[0], oldCard);
+    assert.equal(cards()[0].children[2].children[2].attributes["aria-pressed"], "true");
+    // Run actual request/metadata/delivery code; skip only the animation.
+    run('revealReply = (key, text, meta) => { replyOperations.delete(key); deliverBotReply(key === "default" ? null : key, text, meta); };');
+    const sent = [];
+    sandbox.fetch = async (url, options) => {
+      if (!url.endsWith("/api/chat")) return {ok: true, json: async () => ({})};
+      sent.push(JSON.parse(options.body));
+      return {ok: true, json: async () => ({response: "Choose your program.", ui_action: "show_program_picker"})};
+    };
+    await run('sendMessage("change my program")');
+    assert.equal(sent[0].program, "mlis");
+    assert.equal(cards().length, 1);
+    assert.equal(box.children.at(-1), cards()[0]);
+    assert.equal(run("tabsEnabled() ? getActiveConversation().messages.length : plainTranscript.length"), 2);
+    const draft = run('buildAdvisorMailto(programSelect.value, tabsEnabled() ? getActiveConversation().messages : plainTranscript)');
+    assert(new URL(draft).searchParams.get("subject").includes("MLIS"));
+    // The handoff still uses the chip selection.
+    sandbox.window.location = {href: ""};
+    elements["advisor-handoff-button"].handlers.click[0]({preventDefault() {}});
+    sandbox.document.body.children.at(-1).children[0].children[2].children[1].handlers.click[0]();
+    assert(new URL(sandbox.window.location.href).searchParams.get("subject").includes("MLIS"));
+    if (tabs) {
+      const original = run("activeConversationId");
+      run('startNewConversation()');
+      const background = run("activeConversationId");
+      run(`deliverBotReply(${JSON.stringify(original)}, "Pick again.", {uiAction: "show_program_picker"})`);
+      assert.equal(run("activeConversationId"), background);
+      run(`selectConversation(${JSON.stringify(original)})`);
+      assert.equal(box.children.at(-1), cards()[0]);
+    }
+    await elements["clear-button"].handlers.click[0]();
+    assert.equal(cards().length, 1);
+    assert.equal(run("tabsEnabled() ? getActiveConversation().messages.length : plainTranscript.length"), 0);
+  }
+  console.log("ok");
+})().catch(error => { console.error(error.stack); process.exit(1); });
+'''
+    path = tmp_path / "program_picker.js"
+    path.write_text(runner)
+    completed = subprocess.run(
+        ["node", str(path), str(ROOT / "static/script.js")],
         capture_output=True, text=True, check=False,
     )
     assert completed.returncode == 0, completed.stderr + completed.stdout

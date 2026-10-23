@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
- <link rel="stylesheet" href="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/style.css?v=20261017-dynamic-suggestions" />
+ <link rel="stylesheet" href="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/style.css?v=20261023-program-picker" />
 
 <style>
   .header-image {
@@ -138,6 +138,7 @@
               <p>Ask a general BS ISDA or MLIS advising question below.</p>
             </div>
             <div class="header-actions">
+              <button id="change-program-button" class="clear-btn" type="button">Change program</button>
               <button id="clear-button" class="clear-btn">Clear</button>
             </div>
           </div>
@@ -149,20 +150,11 @@
             <a href="https://ischool.sjsu.edu/advising-appointments">Contact an advisor</a>.
           </p>
 
-          <div id="chat-box" class="chat-box">
-            <div class="message bot-message">
-              <div class="message-label">iSchool Bot</div>
-              <div>
-                Hi! I'm the SJSU iSchool Advising Support Chatbot. I can help with general questions about BS ISDA and MLIS
-                including advising, degree requirements, course planning, and registration.
-              </div>
-            </div>
-          </div>
+          <div id="chat-box" class="chat-box"></div>
 
           <div class="composer">
-            <div class="program-control">
-              <label for="program-select">Program</label>
-              <select id="program-select" name="program">
+            <div class="program-control" hidden>
+              <select id="program-select" name="program" hidden aria-label="Program">
                 <option value="both">Not sure / both</option>
                 <option value="isda">BS Information Science &amp; Data Analytics (ISDA)</option>
                 <option value="mlis">MLIS</option>
@@ -220,8 +212,8 @@
   window.API_BASE = "https://ischooladvisingchatbot-dx4ynl.azurewebsites.net";
 </script>
 <script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/markdown.js?v=20260927-mailto"></script>
-<script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/suggestions.js?v=20261017-dynamic-suggestions"></script>
-<script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/script.js?v=20261017-dynamic-suggestions"></script>
+<script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/suggestions.js?v=20261023-program-picker"></script>
+<script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/script.js?v=20261023-program-picker"></script>
 <script src="https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/static/mobile-layout.js?v=20261022-mobile"></script>
 </body>
 </html>
