@@ -30,12 +30,15 @@ def test_all_mara_snapshots_match_verified_content_hashes():
         assert len(metadata['verified_source_sha256']) == 64
 
 
-def test_msis_is_contentless_in_manifest_and_companion_metadata():
+def test_msis_content_is_official_informatics_pages_only():
     entries = json.loads((DOCS / 'scrape/manifest.json').read_text())['documents']
     metadata = [yaml.safe_load(path.read_text()) for path in (DOCS / 'meta').glob('*.yml')]
-    for entry in entries + metadata:
-        assert 'MSIS' not in entry.get('programs', [])
-        assert 'informatics' not in entry.get('source_url', '').lower()
+    msis = [entry for entry in entries + metadata if 'MSIS' in entry.get('programs', [])]
+    assert msis
+    for entry in msis:
+        url = entry.get('source_url', '').lower()
+        assert url.startswith('https://ischool.sjsu.edu/')
+        assert 'informatics' in url or '/infm-' in url
 
 
 def test_live_audit_fails_closed_on_unavailable_source(tmp_path, monkeypatch):

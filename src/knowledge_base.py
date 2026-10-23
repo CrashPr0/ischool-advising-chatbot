@@ -20,13 +20,12 @@ class KnowledgeBase:
     COMMON_QA = {
         "other programs": {
             "answer": (
-                "I can help with advising for the SJSU iSchool BS ISDA and MLIS programs. "
+                "I can help with advising for the SJSU iSchool BS ISDA, MLIS, MARA, and MS Informatics (MSIS) programs. "
                 "For other programs, please contact the iSchool advising team: "
                 f"{ADVISING_LINK}"
             ),
             "keywords": [
-                "MARA", "Master of Archives and Records Administration",
-                "Informatics", "MSIDT", "Teacher Librarian",
+                "MSIDT", "Teacher Librarian",
             ],
             "priority": 3,
         },

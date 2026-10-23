@@ -1,0 +1,11 @@
+Informatics Program Learning Outcomes
+Upon completion of the MS in Informatics program, students will be able to:
+A. Apply technology informatics skills to solve specific industry data and information management problems, with a focus on usability and designing for users;
+B. Evaluate, manage, and develop electronic records programs and applications in a specific organizational setting;
+C. Demonstrate strong understanding of security and ethics issues related to informatics, user interface, and inter-professional application of informatics in specific fields by designing and implementing appropriate information assurance and ethics and privacy solutions;
+D. Identify user needs, ideate informatics products and services, prototype new concepts, and evaluate a prototype’s usability;
+E. Work collaboratively in teams and use project management practices effectively to solve user-centric information and data problems;
+F. Conduct informatics analysis and visualization applied to different real-world fields, such as health science and sports.
+  See Program Learning Outcomes mapped to [classes](https://ischoolapps.sjsu.edu/slo-core/informatics.php)
+  and to [University Learning
+  Goals](/infm-outcomes-mapped-ulgs).

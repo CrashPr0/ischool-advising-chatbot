@@ -715,6 +715,20 @@
       ]
     },
     {
+      "doc_id": "web-38b37a583cac2f8d",
+      "source_url": "https://ischool.sjsu.edu/infm-211-informatics-culminating-project-capstone-course",
+      "title": "INFM 211 Informatics Culminating Project Capstone Course - SJSU - School of Information",
+      "content_sha256": "f7eeecf541487236a4c8c2a7a37c25b104364c4ea71e7e1d7eb8fc4a9fc74fbb",
+      "programs": [
+        "MSIS"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
       "doc_id": "web-6de51dc28419de57",
       "source_url": "https://ischool.sjsu.edu/info-289-e-portfolio-faqs",
       "title": "INFO 289 e-Portfolio FAQs - SJSU - School of Information",
@@ -725,6 +739,104 @@
       "topics": [
         "admissions",
         "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-43c9a41bac618dca",
+      "source_url": "https://ischool.sjsu.edu/informatics-academics",
+      "title": "Informatics Academics - SJSU - School of Information",
+      "content_sha256": "65179a7de47dbbb7e1e668f873dd745a1968b1c8cccddcbd0a6775c7de11d73d",
+      "programs": [
+        "MSIS"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-ea0159c6f4772fa1",
+      "source_url": "https://ischool.sjsu.edu/informatics-advising",
+      "title": "Informatics Advising - SJSU - School of Information",
+      "content_sha256": "e5d4d3005cefb46de4846ded81fd807d7dc8bdf3c2b1c54decf248b4c52285e2",
+      "programs": [
+        "MSIS"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-521b6b0eaa375af4",
+      "source_url": "https://ischool.sjsu.edu/informatics-course-load",
+      "title": "Informatics Course Load - SJSU - School of Information",
+      "content_sha256": "def6cc1ac9ef4e6de584c6e4c3d457efe8c36f671c43a8a8f4cfd178797ed11d",
+      "programs": [
+        "MSIS"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-8beb067dbd0ab9dd",
+      "source_url": "https://ischool.sjsu.edu/informatics-course-rotations",
+      "title": "Informatics Course Rotations - SJSU - School of Information",
+      "content_sha256": "b14ad94ef25668d465457ec0a6bf928e2a726ced5bb636e7bd94c5d59ceeed23",
+      "programs": [
+        "MSIS"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-7252969dbbeed9b2",
+      "source_url": "https://ischool.sjsu.edu/informatics-faqs",
+      "title": "Informatics FAQs - SJSU - School of Information",
+      "content_sha256": "49cd7e37474c56b93715f1b27c2c40863012fe3bd432c998910d36f977f178bf",
+      "programs": [
+        "MSIS"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-7eaeee1a3bf123f3",
+      "source_url": "https://ischool.sjsu.edu/informatics-program-learning-outcomes",
+      "title": "Informatics Program Learning Outcomes - SJSU - School of Information",
+      "content_sha256": "37a4c9b78a828e760dde191f98ea2cf37be023d00dad9eedd01c02820a32ecf8",
+      "programs": [
+        "MSIS"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-a1885a9284cc3426",
+      "source_url": "https://ischool.sjsu.edu/informatics-required-courses",
+      "title": "Informatics Required Courses - SJSU - School of Information",
+      "content_sha256": "0c7ff0e1c815f1322bb3ec747d0ebbbb0274eb1cd06b1a18785f39bc4dc82d76",
+      "programs": [
+        "MSIS"
+      ],
+      "topics": [
+        "advising",
+        "courses",
         "degree-requirements"
       ]
     },
@@ -809,6 +921,20 @@
       "topics": [
         "admissions",
         "advising",
+        "degree-requirements"
+      ]
+    },
+    {
+      "doc_id": "web-126c77c41f19633d",
+      "source_url": "https://ischool.sjsu.edu/master-science-informatics",
+      "title": "Master of Science in Informatics - SJSU - School of Information",
+      "content_sha256": "c749b0dc70a5313457edefeb59d23017eab08c70f5c0f8652bc7bb0eb8747fc3",
+      "programs": [
+        "MSIS"
+      ],
+      "topics": [
+        "advising",
+        "courses",
         "degree-requirements"
       ]
     },
