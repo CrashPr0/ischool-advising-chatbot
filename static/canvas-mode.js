@@ -7,6 +7,56 @@
   document.getElementById('chat-heading').textContent = 'iSchool advising chat';
   card.querySelector('.chat-header').after(topics);
 
+  const toggle = document.getElementById('canvas-topics-toggle');
+  const list = document.getElementById('topic-list');
+  function closeTopics() {
+    list.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+  toggle.addEventListener('click', () => {
+    list.hidden = !list.hidden;
+    toggle.setAttribute('aria-expanded', String(!list.hidden));
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !list.hidden) {
+      event.preventDefault();
+      closeTopics();
+      toggle.focus();
+    }
+  });
+  list.addEventListener('click', event => {
+    if (event.target.closest('.topic-btn')) {
+      closeTopics();
+      toggle.focus();
+    }
+  });
+  document.addEventListener('click', event => {
+    if (!topics.contains(event.target)) closeTopics();
+  });
+
+  // Reuse the existing reporting flow, resolving the active answer at click time.
+  document.getElementById('canvas-report-issue-button').addEventListener('click', event => {
+    const conversation = getActiveConversation();
+    const messages = conversation?.messages || [];
+    let report = null;
+    for (let index = messages.length - 1; index >= 0 && !report; index -= 1) {
+      report = reportContext(messages, index, conversation.id);
+    }
+    openReportDialog(event.currentTarget, report || {
+      question: 'Canvas interface issue (no question and answer selected)',
+      answer: 'No chatbot answer selected.',
+      turns: []
+    });
+    if (!report) {
+      const privacy = document.getElementById('report-issue-privacy');
+      const original = privacy.textContent;
+      privacy.textContent = 'Describe the interface issue in the comment. No chatbot answer is selected. ' + REPORT_RETENTION_NOTICE;
+      document.getElementById('report-issue-dialog').addEventListener('close', () => {
+        privacy.textContent = original;
+      }, { once: true });
+    }
+  });
+
   const options = document.createElement('details');
   options.className = 'canvas-options';
   const summary = document.createElement('summary');

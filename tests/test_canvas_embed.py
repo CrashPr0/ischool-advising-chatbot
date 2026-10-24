@@ -136,8 +136,8 @@ def test_canvas_flags_render_compact_shell_and_versioned_assets():
         soup = BeautifulSoup(response.data, "html.parser")
         assert "canvas-mode" in soup.body["class"]
         assert soup.select_one(".site-header").has_attr("hidden")
-        assert soup.select_one('link[href$="canvas-mode.css?v=20261023-canvas"]')
-        assert soup.select_one('script[src$="canvas-mode.js?v=20261023-canvas"]')
+        assert soup.select_one('link[href$="canvas-mode.css?v=20261023-canvas-toolbar"]')
+        assert soup.select_one('script[src$="canvas-mode.js?v=20261023-canvas-toolbar"]')
         assert not soup.select_one('script[src*="mobile-layout.js"]')
         for control in ("program-select", "change-program-button", "clear-button",
                         "export-chat-button", "advisor-handoff-button"):
@@ -175,6 +175,15 @@ def test_flag_off_matches_original_template_bytes():
     # This fixture stays useful after the feature is committed too.
     import re
     original = re.sub(r"{% if canvas_mode %}<link.*?{% endif %}", "", original, flags=re.S)
+    original = re.sub(
+        r'{% if canvas_mode %}<button id="canvas-topics-toggle".*?{% else %}(.*?){% endif %}',
+        r"\1", original, flags=re.S,
+    )
+    original = original.replace('{% if canvas_mode %} hidden{% endif %}', '')
+    original = re.sub(
+        r'{% if canvas_mode %} *<button id="canvas-report-issue-button".*?{% endif %}',
+        '', original, flags=re.S,
+    )
     original = original.replace('{% if canvas_mode %} canvas-mode{% endif %}', '')
     original = re.sub(
         r"{% if canvas_mode %}<script.*?{% else %}(.*?){% endif %}",
@@ -184,3 +193,28 @@ def test_flag_off_matches_original_template_bytes():
         from flask import render_template_string
         baseline = render_template_string(original, embed=False)
     assert app_module.app.test_client().get("/").data == baseline.encode()
+
+
+def test_canvas_toolbar_report_and_closed_topics_are_conditional():
+    from bs4 import BeautifulSoup
+
+    for flag in ("embed=canvas", "mode=canvas"):
+        soup = BeautifulSoup(app_module.app.test_client().get(f"/?{flag}").data, "html.parser")
+        report = soup.select_one(".chat-header .header-actions #canvas-report-issue-button")
+        assert report and report.get_text(strip=True) == "Report issue"
+        assert report["type"] == "button"
+        assert not report.has_attr("hidden")
+        assert not report.has_attr("disabled")
+        toggle = soup.select_one("button#canvas-topics-toggle")
+        assert toggle["type"] == "button"
+        assert toggle["aria-expanded"] == "false"
+        topics = soup.find(id=toggle["aria-controls"])
+        assert topics["id"] == "topic-list"
+        assert topics.has_attr("hidden")
+        assert topics.select(".topic-btn[data-topic]")
+
+    for path in ("/", "/?embed=1"):
+        soup = BeautifulSoup(app_module.app.test_client().get(path).data, "html.parser")
+        assert not soup.select_one("#canvas-report-issue-button, #canvas-topics-toggle")
+        assert not soup.select_one("#topic-list").has_attr("hidden")
+        assert soup.select_one(".topics-header h2").get_text() == "Advising Topics"

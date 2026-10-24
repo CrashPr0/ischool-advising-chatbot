@@ -10,18 +10,20 @@ body.canvas-mode { height: 100vh; height: 100dvh; overflow: hidden; }
 .canvas-mode .chat-header h2 { font-size: 18px; margin: 0; }
 .canvas-mode .chat-header p { display: none; }
 .canvas-mode .header-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.canvas-mode .header-actions .clear-btn { flex: 1; min-height: 44px; padding: 6px 10px; font-size: 13px; }
-.canvas-mode .topics-card { order: 0; flex: none; border: 0; border-radius: 0; box-shadow: none; padding: 0; }
-.canvas-mode .topics-header { padding: 6px 0 0; }
-.canvas-mode .topics-header h2 { font-size: 12px; margin: 0; }
-.canvas-mode .topics-header p, .canvas-mode .topic-sub, .canvas-mode .active-topic-banner { display: none; }
-.canvas-mode .topic-list { display: flex; gap: 6px; max-height: none; overflow-x: auto; padding: 6px 0; margin: 0; }
-.canvas-mode .topic-list li { flex: none; }
-.canvas-mode .topic-btn { width: auto; min-height: 44px; padding: 8px 12px; border-radius: 24px; }
-.canvas-mode .topic-name { white-space: nowrap; font-size: 13px; }
-.canvas-mode .conversations-label { flex: none; margin: 4px 0; font-size: 11px; }
-.canvas-mode .chat-tabs { flex: none; margin: 0; padding: 2px 0 8px; }
-.canvas-mode .chat-tab { min-height: 44px; }
+.canvas-mode .header-actions .clear-btn { flex: 1; min-height: 36px; padding: 6px 8px; font-size: 12px; white-space: nowrap; }
+/* The topic picker overlays the conversation instead of pushing it down. */
+.canvas-mode .topics-card { position: relative; z-index: 2; order: 0; flex: none; overflow: visible; border: 0; border-radius: 0; box-shadow: none; padding: 0; }
+.canvas-mode .topics-header { padding: 0; }
+.canvas-mode #canvas-topics-toggle { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+.canvas-mode .topics-header p, .canvas-mode .topic-sub, .canvas-mode .active-topic-banner, .canvas-mode .conversations-label { display: none; }
+.canvas-mode .topic-list { position: absolute; top: 100%; left: 0; right: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 4px; max-height: min(45dvh, 340px); overflow-y: auto; padding: 8px; margin: 4px 0 0; border: 1px solid #c5d2e2; border-radius: 8px; background: white; box-shadow: 0 6px 18px #1d355733; }
+.canvas-mode .topic-list[hidden] { display: none; }
+.canvas-mode .topic-btn { width: 100%; min-height: 36px; padding: 6px 10px; border-radius: 6px; }
+.canvas-mode .topic-btn::after { display: none; }
+.canvas-mode .topic-name { white-space: normal; overflow-wrap: anywhere; font-size: 13px; }
+.canvas-mode .chat-tabs { flex: none; margin: 0; padding: 4px 0; gap: 6px; }
+.canvas-mode .chat-tab { min-height: 32px; min-width: 100px; max-width: 190px; padding: 2px 3px 2px 9px; border-radius: 6px; }
+.canvas-mode .chat-tab-close { min-height: 28px; min-width: 28px; width: 28px; height: 28px; flex-basis: 28px; }
 .canvas-mode .conversation-stage { flex: 1; min-height: 0; overflow: hidden; }
 .canvas-mode .conversation-stage .chat-box { flex: 1; min-height: 0; height: auto; overflow-y: auto; padding: 12px 0; scroll-padding-bottom: 12px; }
 .canvas-mode .conversation-stage:has(.program-picker) .empty-state { display: none; }
