@@ -275,10 +275,21 @@ def _chat_page_may_be_framed() -> bool:
     return request.path == "/" and _embed_frame_ancestors() is not None
 
 
+def _request_is_canvas_mode() -> bool:
+    """Explicit compact layout, retained across page loads and API calls."""
+    return (
+        request.args.get("embed") == "canvas"
+        or request.args.get("mode") == "canvas"
+        or session.get("canvas_mode") is True
+    )
+
+
 def _request_is_canvas_embed() -> bool:
     """True when this browser opened the compact Canvas embed."""
     try:
-        if request.path == "/" and request.args.get("embed") == "1":
+        if request.path == "/" and (
+            request.args.get("embed") == "1" or _request_is_canvas_mode()
+        ):
             return True
         return session.get("canvas_embed") is True
     except RuntimeError:
@@ -814,13 +825,16 @@ def _normalize_reviewer(value: object) -> str:
 @app.route("/")
 def index():
     """Serve main page."""
-    embed = request.args.get("embed") == "1"
+    canvas_mode = _request_is_canvas_mode()
+    if canvas_mode:
+        session["canvas_mode"] = True
+    embed = request.args.get("embed") == "1" or canvas_mode
     if embed:
         # Later API calls in this browser keep the cross-site cookie settings.
         session["canvas_embed"] = True
     try:
         # Prefer Jinja rendering so `url_for('static', ...)` resolves correctly.
-        return render_template("index.html", embed=embed)
+        return render_template("index.html", embed=embed, canvas_mode=canvas_mode)
     except Exception as e:
         logger.warning(
             "Failed to render templates/index.html, falling back to docs HTML: %s", e
