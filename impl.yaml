@@ -1,0 +1,41 @@
+project_name: "SJSU iSchool Advising Chatbot"
+project_type: "hybrid"            # web | mobile | api | ml | hardware | iot | embedded | hybrid
+
+impl_claim: "This chatbot takes questions and answers them according to restrictions and data from the ISDA and MLIS programs."
+
+languages: ["python", "css", "javascript", "html"]
+hardware_required: false         # true if the full system needs physical hardware
+
+setup:
+  - "python3 -m venv .venv"
+  - "source .venv/bin/activate"
+  # Windows PowerShell activation: .venv\Scripts\Activate.ps1
+  - "python -m pip install -r requirements.txt"
+build:
+  - "cp .env.example .env"
+  - "python app.py"
+  #In another terminal:
+  - "curl --request POST http://localhost:5000/api/load-docs \
+    --header 'X-Admin-Token: <your-local-DOCS_LOAD_TOKEN>'""
+  # Windows Powershell: curl.exe --request POST http://localhost:5000/api/load-docs \
+  #  --header 'X-Admin-Token: <your-local-DOCS_LOAD_TOKEN>'
+  - "curl http://localhost:5000/readyz"
+  # Windows Powershell: curl.exe http://localhost:5000/readyz
+  - "python -m src.build_index --docs ./data/advising_docs"
+test:
+  - "python -m pytest tests/ -q"
+  - "python -m black --check scripts/eval_report.py tests/test_eval_report.py"
+  - "python -m flake8 scripts/eval_report.py tests/test_eval_report.py --max-line-length=88"
+run:
+  -  "python -m src.main"
+
+mock_mode:                      # how a grader runs it WITHOUT your hardware
+  available: false              #Can not run in default state without a valid API Key, instead use the link in demo below
+
+demo:
+  tests: "https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/evaluation"
+  chatbot: "https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/"
+  video: "https://drive.google.com/file/d/1-gSFG6awRieQEQF1olQu8MsKjWODNFDG/view?usp=sharing"
+  screenshots: ["docs/dashboard.png"]
+
+notes: "The chatbot can be run locally, however it is best to run off the website since it uses our API key there. For the evaluation site, you must use an authorized email in order to fully access the page."

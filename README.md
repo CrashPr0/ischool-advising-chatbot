@@ -1,16 +1,24 @@
 # SJSU iSchool Advising Chatbot
 
-An advising assistant for San José State University's BS in Information Science and Data Analytics (ISDA), Master of Library and Information Science (MLIS), Master of Archives and Records Administration (MARA), and MS in Informatics (MSIS) programs. Students can ask about published requirements, registration, and advising resources, follow source links, and prepare an advisor email draft.
+## Team
 
-The saved source corpus and program filters cover ISDA, MLIS, MARA (Master of Archives and Records Administration), and MSIS. In this project MSIS means the [MS in Informatics](https://ischool.sjsu.edu/master-science-informatics); its sources are official ischool.sjsu.edu Informatics pages.
+- Christopher Velez ([CrashPr0](https://github.com/CrashPr0))
+- Marios Tawdros ([mariostawdros](https://github.com/mariostawdros))
+- Joshua Rieta ([cho-sua](https://github.com/cho-sua))
 
-Built with Python, Flask, LangChain, and Chroma, the project combines curated answers with retrieval-augmented generation (RAG). The engineering focus is inspectable answers: hybrid retrieval over saved official sources, catalog-year context, reviewable feedback, and an offline retrieval benchmark that runs without credentials or paid model calls.
+## Project Description
+
+An advising assistant for San José State University's BS in Information Science and Data Analytics (ISDA) and Master of Library and Information Science (MLIS) programs. Students can ask about published requirements, registration, and advising resources, follow source links, and prepare an advisor email draft. All of this is to help students get information that they need faster, and to alleviate the workload of ISDA and MLIS advisors.
 
 [Hosted demo](https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/) · [Offline evaluation report](docs/eval/latest.md) · [Canvas integration](docs/canvas-embed.md)
 
 Start with the [measured baseline](#measured-retrieval-baseline), [local setup](#run-locally), or [test commands](#test-and-review).
 
-## Features
+## Prototype Scope
+
+Currently we have a working website hosted on Azure that runs based off the current GitHub repository (repo), and can take in inputs from both keyboard and microphone. The chatbot comes from preset questons to be asked, however the chatbot still thinks for these questions and answers may vary, especially with the three different settings on where to advise from (currently, for ISDA, MLIS, or neither/both if one is confused). Other features include, the ability to copy the chatlog as a PDF, report any problems found while using the chatbot, option to send an email to an advisor for the questions asked in the chatbot, and links to other helpful sources.
+
+#### Technical Features
 
 - **Hybrid RAG:** vector search and local BM25 fused with reciprocal rank fusion; course-code normalization, program-aware ranking, and lexical fallback when query embeddings fail.
 - **Citations and link verification:** source metadata supplies document titles and URLs; an allowlist removes unsupported answer links and records gaps for review. Verification checks source membership, not live HTTP availability.
@@ -24,7 +32,7 @@ Start with the [measured baseline](#measured-retrieval-baseline), [local setup](
 
 The assistant provides published information and directs personal decisions to advisors. It cannot access student records, clear prerequisites, or make enrollment decisions. Pattern-based PII scrubbing does not guarantee removal of all personal information.
 
-## Architecture
+## System Architecture
 
 ```mermaid
 flowchart TD
@@ -54,23 +62,7 @@ The request path starts in [app.py](app.py). [RAGAdvisingChatbot](src/rag_chatbo
 
 Documents are ingested before chat requests. The web API checks an index receipt before answering, so an absent or mismatched index cannot silently serve a new release. The offline harness uses the same loader, splitter, hashing embedder, and hybrid ranking function in an isolated temporary index. It evaluates retrieval directly, bypassing curated-answer lookup and answer generation.
 
-## In-chat program picker
-
-New chats greet students with program chips using the existing labels: **Not sure / both**,
-**BS Information Science & Data Analytics (ISDA)**, **MLIS**, **Master of Archives and Records Administration (MARA)**, and **MS Informatics (MSIS)**. A chip updates the hidden
-`#program-select` through `onProgramChange`, preserving program-scoped questions,
-browser conversation state, and advisor email drafts. **Change program** in the chat
-header reopens the same card without clearing the conversation.
-
-Direct requests such as “change my program” or “actually I'm in a different major”
-add `"ui_action": "show_program_picker"` to `/api/chat` JSON. The frontend displays
-the card after the reply, including replies received in a background conversation.
-The conservative detector uses only the user message; no model text markers are
-introduced. General advising questions such as “How do I change my major?” keep
-the ordinary response. Both the Flask page and `docs/index.html` use this flow;
-there is currently no streaming chat endpoint.
-
-## Measured retrieval baseline
+### Measured retrieval baseline
 
 The [generated report](docs/eval/latest.md) records the full method, input hashes, per-question expected/retrieved pages, exclusions, and timing evidence.
 
@@ -93,9 +85,43 @@ python -m scripts.eval_report --k 4
 
 The default writes `docs/eval/latest.md`. Use `--help` for custom inputs, retrieval depth, and output paths; reports preserve custom input paths in their reproduction command. Expected pages and explicit exclusions live in [evals/retrieval_expectations.json](evals/retrieval_expectations.json), keyed to the unchanged [curated questions](evals/advising_questions.json). The harness forces hashing embeddings for its own run even when hosted embeddings are configured, disables Chroma telemetry, and deletes its temporary collection. It does not open the app's saved index. No credentials are needed for evaluation.
 
-## Run locally
+### Data and implementation
 
-CI uses **Python 3.11**; this local evaluation and test run used **Python 3.13.5**, as recorded in the report. Check your interpreter with `python --version`. Run commands from the repository root and keep the virtual environment active for the commands below.
+| Area | Location / technology |
+| --- | --- |
+| Web server and endpoints | [app.py](app.py), Flask, Gunicorn |
+| Retrieval and answer pipeline | [src/](src/), LangChain, Chroma, BM25, reciprocal rank fusion |
+| Source snapshots | [data/advising_docs/](data/advising_docs/README.md), text/PDF + YAML metadata |
+| Ingestion | [src/scrape_ischool.py](src/scrape_ischool.py), bounded offline crawl; Beautiful Soup, trafilatura, pypdf |
+| Browser interface | [templates/](templates/), [static/](static/), HTML/CSS/JavaScript, jsPDF, Web Speech API |
+| Review and feedback | SQLite, reviewer access controls, PII scrubber |
+| Evaluation | [scripts/eval_report.py](scripts/eval_report.py), [evals/](evals/), pytest |
+| Hosting and operations | Azure App Service; [deployment runbook](AZURE_DEPLOYMENT.md), [operations log](docs/ops-log.md) |
+
+Add source text or PDFs under `data/advising_docs/txt/` or `pdfs/`, with matching YAML under `meta/`. Metadata carries stable IDs, titles, source URLs, topics, and program tags. The crawler saves snapshots before indexing and does not run at query time. Review source changes and rebuild the index before using them in chat. Relevant university-wide sources remain available alongside program-specific ISDA and MLIS pages.
+
+The committed current catalog is identified by `CURRENT_CATALOG_CATOID` (23) and `CURRENT_CATALOG_YEAR` (2026-2027). Reproduce these catalog values with `cat data/catalog_identity.json`. The catalog update tool maintains these README values alongside the catalog identity file; older snapshots remain available for earlier catalog rights.
+
+See [Canvas embedding](docs/canvas-embed.md) and [curated suggestion ranking](docs/dynamic-suggestions.md) for integration details. Deployment settings, durable paths, health probes, and rollback procedures are documented in the runbook.
+
+## Prequisites
+
+Since it can be run from our Azue site, a working browser and internet is the minimum required. However for running it on your own system, you must have the following:
+- Terminal Admin Access (for installing Git, Python, and running commands)
+- Git (For downloading the repo)
+- Python (For running the program)
+- API Key (For the chatbot to run. preferably from OpenAI as that is what is currently used)
+- Browser
+- Internet
+
+## Installation
+
+Due to how it is currently set up, there is no official way to install it since it requires API keys and a host site. An easy way to run it is to run through the provided Azure link. However, to download and run locally, clone the repo and follow the steps below for running it.
+
+## Running the Prototype
+
+### Run Locally
+CI uses **Python 3.11**; this local evaluation and test run used **Python 3.13.5**. Check your interpreter with `python --version`. Run commands from the repository root and keep the virtual environment active for the commands below.
 
 ```bash
 python3 -m venv .venv
@@ -137,7 +163,12 @@ The CLI build creates the index but does not write the web readiness receipt; us
 
 Provider selection supports OpenAI, Azure OpenAI, Anthropic, Hugging Face, and OpenAI-compatible endpoints. For optional local Sentence Transformers embeddings, install `requirements-local.txt` and set `EMBEDDING_PROVIDER=local`; the model may need an initial download. Rebuild the app index whenever the embedding identity or document corpus changes. The offline report always uses hashing embeddings for a consistent baseline.
 
-## Test and review
+### Running Online
+
+An online version of the chatbot exists in the link below. Here it is hosted on Azure and updates automatically when the repo is updated.
+
+Online Chatbot: https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/
+## Testing
 
 ```bash
 python -m pytest tests/ -q
@@ -145,40 +176,34 @@ python -m black --check scripts/eval_report.py tests/test_eval_report.py
 python -m flake8 scripts/eval_report.py tests/test_eval_report.py --max-line-length=88
 ```
 
-Recorded local result from the commands above: **756 passed**, with a dependency deprecation warning. The Black/Flake8 commands above cover the offline harness files listed in those commands. The [pull request workflow](.github/workflows/pr-tests.yml) runs the full suite and a dependency audit; it does not currently enforce repository-wide lint.
+Recorded local result from the commands above: **573 passed**, with a dependency deprecation warning; both lint checks passed. Black/Flake8 cover the offline harness files listed in those commands. The [pull request workflow](.github/workflows/pr-tests.yml) runs the full suite and a dependency audit; it does not currently enforce repository-wide lint.
 
 Tests cover retrieval, catalog metadata, source-link handling, API behavior, reviewer storage/access, PII scrubbing, browser features, and ingestion. Harness tests verify metric denominators, duplicate-page handling, missing/invalid links, complete labels, protected curated question text, custom-input reproduction commands, and a real temporary-index run with network connections blocked and hosted embedding settings present.
 
-For human answer review, visit `/evaluation`. Localhost can use the reviewer workspace without a shared secret; public deployments require configured reviewer access. [src/model_benchmark.py](src/model_benchmark.py) provides a separate provider-backed A/B benchmark and `--help` documents its options. That benchmark can incur model charges; it is separate from the offline retrieval report.
+### Review Tests
+For human answer review, visit `/evaluation`. Localhost can use the reviewer workspace without a shared secret; public deployments require configured reviewer access. [src/model_benchmark.py](src/model_benchmark.py) provides a separate provider-backed A/B benchmark and `--help` documents its options. That benchmark can incur model charges; it is separate from the offline retrieval report. In summary, these tests are preset questions using two different chatbots (in this test, GPT-4o-Mini and GPT-5.6-Luna), which have a spread of eight questions to see if responses are adequate. Here, they can be scored and compared to see which one has given a preferred answer.
 
-## Data and implementation
+### Tests Online
+Tests could be accessed online too similar to the chatbot site (both hosted on Azure). However, you must have a whitelisted email in order to have access.
+Test Link: https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/evaluation
 
-| Area | Location / technology |
-| --- | --- |
-| Web server and endpoints | [app.py](app.py), Flask, Gunicorn |
-| Retrieval and answer pipeline | [src/](src/), LangChain, Chroma, BM25, reciprocal rank fusion |
-| Source snapshots | [data/advising_docs/](data/advising_docs/README.md), text/PDF + YAML metadata |
-| Ingestion | [src/scrape_ischool.py](src/scrape_ischool.py), bounded offline crawl; Beautiful Soup, trafilatura, pypdf |
-| Browser interface | [templates/](templates/), [static/](static/), HTML/CSS/JavaScript, jsPDF, Web Speech API |
-| Review and feedback | SQLite, reviewer access controls, PII scrubber |
-| Evaluation | [scripts/eval_report.py](scripts/eval_report.py), [evals/](evals/), pytest |
-| Hosting and operations | Azure App Service; [deployment runbook](AZURE_DEPLOYMENT.md), [operations log](docs/ops-log.md) |
+## Demo
+Video: https://drive.google.com/file/d/1-gSFG6awRieQEQF1olQu8MsKjWODNFDG/view?usp=sharing
+Online Chatbot: https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/
+Evaluation/Tests: https://ischooladvisingchatbot-dx4ynl.azurewebsites.net/evaluation
 
-Add source text or PDFs under `data/advising_docs/txt/` or `pdfs/`, with matching YAML under `meta/`. Metadata carries stable IDs, titles, source URLs, topics, and program tags. The crawler saves snapshots before indexing and does not run at query time. Review source changes and rebuild the index before using them in chat. Relevant university-wide sources remain available alongside program-specific ISDA, MLIS, MARA, and MSIS pages.
+## Technical Stack
+Built with Python, Flask, LangChain, and Chroma, the project combines curated answers with retrieval-augmented generation (RAG). The engineering focus is inspectable answers: hybrid retrieval over saved official sources, catalog-year context, reviewable feedback, and an offline retrieval benchmark that runs without credentials or paid model calls. Along with these, it is ran online using Azure, handling APIs, and to run this we are using OpenAi GPT-5.6-Luna to handle questions.
 
-The committed current catalog is identified by `CURRENT_CATALOG_CATOID` (23) and `CURRENT_CATALOG_YEAR` (2026-2027). Reproduce these catalog values with `cat data/catalog_identity.json`. The catalog update tool maintains these README values alongside the catalog identity file; older snapshots remain available for earlier catalog rights.
 
-See [Canvas embedding](docs/canvas-embed.md) and [curated suggestion ranking](docs/dynamic-suggestions.md) for integration details. Deployment settings, durable paths, health probes, and rollback procedures are documented in the runbook.
-
-**Follow-up suggestion chips.** `/api/chat` may return an optional `suggestions` array of 2-3 short replies. The model adds them with a final `SUGGESTIONS: [...]` line only when a follow-up helps, such as narrowing a broad question. `src/reply_suggestions.py` removes that line from the answer, caps the list at 3 items of 80 characters, and drops empties, duplicates, links, and personal information. The field is omitted when empty. Both pages render the replies as chips under the answer, and tapping one sends it as the next message.
+## What's Next
+For the upcoming Project Expo, we will be continuing testing in order to find bugs, link if the chatbot makes up any information or links. We will also improve the using experience to make it easy and comfortable to use for anyone. Another thing we will take in mind is how it responds back in certain situations, like if someone asks it how to take their own life, we want it to respond in a way that it will help them find the help they need, but not in a way that startles them. Besides that, we will continue to optimize the project overall.
 
 ## Hosting reference
 
 The existing Azure startup command is `gunicorn --config gunicorn.conf.py app:app`. Leave `VECTOR_STORE_PATH` unset to use the platform-aware defaults: `/home/data/chroma` for the Azure index and `/home/data/evaluation/reviews.sqlite3` for review data. `/tmp/chroma` is not durable across restarts. `/healthz` remains the liveness probe; `/readyz` validates the index receipt. HTTPS Only is enabled on the hosted app. See the [deployment runbook](AZURE_DEPLOYMENT.md) and [operations log](docs/ops-log.md) for the existing configuration.
 
-## Team and project references
-
-Built by Christopher Velez ([CrashPr0](https://github.com/CrashPr0)), Marios Tawdros ([mariostawdros](https://github.com/mariostawdros)), and Joshua Rieta ([cho-sua](https://github.com/cho-sua)).
+## Project References
 
 - [Advising chatbot rubric](https://docs.google.com/spreadsheets/d/1kXhvObOL_13er0D4eyMBNfHel7tIFF4seUtL0yQtMk8/edit?usp=sharing)
 - [Smoke test question set](https://docs.google.com/document/d/1KON-OufGsHjJpwY_hQp5m_doXAMw-rn98g4Oz9YvCQY/edit?usp=sharing)
