@@ -1,0 +1,57 @@
+/* Loaded only for an explicit or session-persisted Canvas launch. */
+body.canvas-mode { height: 100vh; height: 100dvh; overflow: hidden; }
+.canvas-mode .page-shell { height: var(--canvas-height, 100dvh); overflow: hidden; display: flex; flex-direction: column; }
+.canvas-mode .site-header, .canvas-mode .left-panel { display: none; }
+.canvas-mode .main-layout { display: flex; flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; gap: 0; }
+.canvas-mode .chat-panel { display: flex; flex: 1; min-width: 0; min-height: 0; order: 0; }
+.canvas-mode .chat-card { flex: 1; min-width: 0; min-height: 0; padding: 0 16px; overflow: hidden; border: 0; border-radius: 0; box-shadow: none; }
+.canvas-mode .chat-header { flex: none; flex-direction: column; gap: 6px; padding: 10px 0 8px; }
+.canvas-mode .chat-header > div { width: 100%; min-width: 0; }
+.canvas-mode .chat-header h2 { font-size: 18px; margin: 0; }
+.canvas-mode .chat-header p { display: none; }
+.canvas-mode .header-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.canvas-mode .header-actions .clear-btn { flex: 1; min-height: 36px; padding: 6px 8px; font-size: 12px; white-space: nowrap; }
+/* The topic picker overlays the conversation instead of pushing it down. */
+.canvas-mode .topics-card { position: relative; z-index: 2; order: 0; flex: none; overflow: visible; border: 0; border-radius: 0; box-shadow: none; padding: 0; }
+.canvas-mode .topics-header { padding: 0; }
+.canvas-mode #canvas-topics-toggle { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+.canvas-mode .topics-header p, .canvas-mode .topic-sub, .canvas-mode .active-topic-banner, .canvas-mode .conversations-label { display: none; }
+.canvas-mode .topic-list { position: absolute; top: 100%; left: 0; right: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 4px; max-height: min(45dvh, 340px); overflow-y: auto; padding: 8px; margin: 4px 0 0; border: 1px solid #c5d2e2; border-radius: 8px; background: white; box-shadow: 0 6px 18px #1d355733; }
+.canvas-mode .topic-list[hidden] { display: none; }
+.canvas-mode .topic-btn { width: 100%; min-height: 36px; padding: 6px 10px; border-radius: 6px; }
+.canvas-mode .topic-btn::after { display: none; }
+.canvas-mode .topic-name { white-space: normal; overflow-wrap: anywhere; font-size: 13px; }
+.canvas-mode .chat-tabs { flex: none; margin: 0; padding: 4px 0; gap: 6px; }
+.canvas-mode .chat-tab { min-height: 32px; min-width: 100px; max-width: 190px; padding: 2px 3px 2px 9px; border-radius: 6px; }
+.canvas-mode .chat-tab-close { min-height: 28px; min-width: 28px; width: 28px; height: 28px; flex-basis: 28px; }
+.canvas-mode .conversation-stage { flex: 1; min-height: 0; overflow: hidden; }
+.canvas-mode .conversation-stage .chat-box { flex: 1; min-height: 0; height: auto; overflow-y: auto; padding: 12px 0; scroll-padding-bottom: 12px; }
+.canvas-mode .conversation-stage:has(.program-picker) .empty-state { display: none; }
+.canvas-mode .empty-state { min-height: 0; overflow-y: auto; padding: 12px 0; }
+.canvas-mode .message { max-width: 96%; font-size: 15px; padding: 12px; }
+.canvas-mode .program-chips { gap: 6px; }
+.canvas-mode .program-chip { font-size: 14px; padding: 8px 12px; }
+.canvas-mode .composer { position: relative; bottom: auto; flex: none; margin: 0; padding: 6px 0 0; border-top: 1px solid #e8edf3; box-shadow: none; background: white; }
+.canvas-mode .composer > .advisor-handoff { margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
+.canvas-mode .advisor-handoff-button { flex: none; font-size: 13px; padding: 6px 10px; min-height: 44px; }
+.canvas-mode .advisor-handoff-note { font-size: 11px; line-height: 1.35; margin: 0; }
+.canvas-mode .input-container { min-height: 54px; box-shadow: none; padding: 4px 4px 4px 12px; }
+.canvas-mode #user-input { min-width: 0; min-height: 44px; font-size: 16px; }
+.canvas-mode #send-button, .canvas-mode #voice-listen-button { width: 44px; height: 44px; flex: 0 0 44px; }
+.canvas-mode .composer-footer { flex: none; margin: 0; padding: 4px 0 max(6px, env(safe-area-inset-bottom)); gap: 2px; }
+.canvas-mode .voice-status { margin: 0; font-size: 11px; }
+.canvas-mode .reply-progress { margin: 0; }
+.canvas-mode .reply-progress:has(#reply-status:empty):has(#reply-action[hidden]),
+.canvas-mode .meta-row:not(:has(.meta-pill:not(.hidden))) { display: none; }
+.canvas-mode .canvas-options { font-size: 12px; }
+.canvas-mode .canvas-options > summary { cursor: pointer; min-height: 30px; padding: 6px 0; color: #27557c; }
+.canvas-mode .canvas-options[open] { max-height: 25dvh; overflow-y: auto; }
+.canvas-mode .canvas-options .panel-card { padding: 8px 0; border: 0; box-shadow: none; }
+.canvas-mode .canvas-options .resource-list { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.canvas-mode .canvas-options .chat-disclaimer { font-size: 12px; }
+.canvas-mode #question-suggestions { max-height: min(34dvh, 220px); overflow-y: auto; }
+.canvas-mode .report-dialog { max-width: calc(100vw - 24px); }
+@media (max-height: 600px) {
+  .canvas-mode .conversations-label, .canvas-mode .voice-status { display: none; }
+  .canvas-mode .chat-header { padding-top: 4px; }
+}

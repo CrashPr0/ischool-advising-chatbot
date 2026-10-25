@@ -10,9 +10,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261023-reply-suggestions') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='mobile-layout.css', v='20261022-mobile') }}" />
-</head>
+{% if canvas_mode %}<link rel="stylesheet" href="{{ url_for('static', filename='canvas-mode.css', v='20261023-canvas-toolbar') }}" />
+{% endif %}</head>
 
-<body{% if embed %} class="is-embed"{% endif %}>
+<body{% if embed %} class="is-embed{% if canvas_mode %} canvas-mode{% endif %}"{% endif %}>
   <a class="skip-link" href="#user-input">Skip to chat</a>
 
   <div class="page-shell">
@@ -46,11 +47,11 @@
       <aside class="left-panel" aria-label="Advising topics and resources">
         <div class="panel-card topics-card">
           <div class="topics-header">
-            <h2>Advising Topics</h2>
+            {% if canvas_mode %}<button id="canvas-topics-toggle" class="clear-btn" type="button" aria-expanded="false" aria-controls="topic-list">Topics <span aria-hidden="true">▾</span></button>{% else %}<h2>Advising Topics</h2>{% endif %}
             <p>Select a topic to focus the chatbot on your specific need.</p>
           </div>
 
-          <ul class="topic-list" id="topic-list">
+          <ul class="topic-list" id="topic-list"{% if canvas_mode %} hidden{% endif %}>
             <li>
               <button class="topic-btn" data-topic="General Advising"
                 data-hint="I have a general advising question. Please help me with general advising."
@@ -220,7 +221,8 @@
               <button id="clear-button" class="clear-btn" type="button">
                 New chat
               </button>
-            </div>
+{% if canvas_mode %}              <button id="canvas-report-issue-button" class="clear-btn" type="button">Report issue</button>
+{% endif %}            </div>
           </div>
 
           <p id="export-chat-status" class="export-chat-status" role="status" aria-live="polite"></p>
@@ -415,6 +417,6 @@
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
   <script src="{{ url_for('static', filename='suggestions.js', v='20261023-reply-suggestions') }}"></script>
   <script src="{{ url_for('static', filename='script.js', v='20261023-reply-suggestions') }}"></script>
-<script src="{{ url_for('static', filename='mobile-layout.js', v='20261022-mobile') }}"></script>
+{% if canvas_mode %}<script src="{{ url_for('static', filename='canvas-mode.js', v='20261023-canvas-toolbar') }}"></script>{% else %}<script src="{{ url_for('static', filename='mobile-layout.js', v='20261022-mobile') }}"></script>{% endif %}
 </body>
 </html>

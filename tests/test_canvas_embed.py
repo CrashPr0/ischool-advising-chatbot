@@ -126,3 +126,95 @@ def test_embed_session_cookie_is_cross_site_only_on_https(monkeypatch, ready_cha
     assert "samesite=lax" in plain_cookie
     assert "samesite=none" not in plain_cookie
     assert "partitioned" not in plain_cookie
+
+
+def test_canvas_flags_render_compact_shell_and_versioned_assets():
+    from bs4 import BeautifulSoup
+
+    for flag in ("embed=canvas", "mode=canvas"):
+        response = app_module.app.test_client().get(f"/?{flag}")
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "canvas-mode" in soup.body["class"]
+        assert soup.select_one(".site-header").has_attr("hidden")
+        assert soup.select_one('link[href$="canvas-mode.css?v=20261023-canvas-toolbar"]')
+        assert soup.select_one('script[src$="canvas-mode.js?v=20261023-canvas-toolbar"]')
+        assert not soup.select_one('script[src*="mobile-layout.js"]')
+        for control in ("program-select", "change-program-button", "clear-button",
+                        "export-chat-button", "advisor-handoff-button"):
+            assert soup.select_one(f"#{control}")
+
+
+def test_canvas_mode_persists_on_navigation_reload_and_new_chat():
+    client = app_module.app.test_client()
+    client.get("/?embed=canvas")
+    assert client.post("/api/clear-history").status_code == 200
+    for path in ("/", "/?unrelated=1"):
+        page = client.get(path)
+        assert b'class="is-embed canvas-mode"' in page.data
+        assert b'<header class="site-header" hidden>' in page.data
+    # A separate browser session keeps the standalone page.
+    assert b"canvas-mode" not in app_module.app.test_client().get("/").data
+
+
+def test_canvas_https_cookie_retains_existing_cross_site_policy():
+    client = app_module.app.test_client()
+    for path in ("/?mode=canvas", "/"):
+        response = client.get(path, base_url="https://chat.example")
+        cookie = _set_cookie(response).lower()
+        assert "samesite=none" in cookie
+        assert "secure" in cookie
+        assert "partitioned" in cookie
+
+
+def test_flag_off_matches_original_template_bytes():
+    """Keep Canvas hooks conditional, including whitespace and mobile assets."""
+    from pathlib import Path
+
+    original = (Path(__file__).resolve().parents[1] / "templates/index.html").read_text()
+    # Remove only our conditional hooks to reconstruct the original template.
+    # This fixture stays useful after the feature is committed too.
+    import re
+    original = re.sub(r"{% if canvas_mode %}<link.*?{% endif %}", "", original, flags=re.S)
+    original = re.sub(
+        r'{% if canvas_mode %}<button id="canvas-topics-toggle".*?{% else %}(.*?){% endif %}',
+        r"\1", original, flags=re.S,
+    )
+    original = original.replace('{% if canvas_mode %} hidden{% endif %}', '')
+    original = re.sub(
+        r'{% if canvas_mode %} *<button id="canvas-report-issue-button".*?{% endif %}',
+        '', original, flags=re.S,
+    )
+    original = original.replace('{% if canvas_mode %} canvas-mode{% endif %}', '')
+    original = re.sub(
+        r"{% if canvas_mode %}<script.*?{% else %}(.*?){% endif %}",
+        r"\1", original, flags=re.S,
+    )
+    with app_module.app.test_request_context("/"):
+        from flask import render_template_string
+        baseline = render_template_string(original, embed=False)
+    assert app_module.app.test_client().get("/").data == baseline.encode()
+
+
+def test_canvas_toolbar_report_and_closed_topics_are_conditional():
+    from bs4 import BeautifulSoup
+
+    for flag in ("embed=canvas", "mode=canvas"):
+        soup = BeautifulSoup(app_module.app.test_client().get(f"/?{flag}").data, "html.parser")
+        report = soup.select_one(".chat-header .header-actions #canvas-report-issue-button")
+        assert report and report.get_text(strip=True) == "Report issue"
+        assert report["type"] == "button"
+        assert not report.has_attr("hidden")
+        assert not report.has_attr("disabled")
+        toggle = soup.select_one("button#canvas-topics-toggle")
+        assert toggle["type"] == "button"
+        assert toggle["aria-expanded"] == "false"
+        topics = soup.find(id=toggle["aria-controls"])
+        assert topics["id"] == "topic-list"
+        assert topics.has_attr("hidden")
+        assert topics.select(".topic-btn[data-topic]")
+
+    for path in ("/", "/?embed=1"):
+        soup = BeautifulSoup(app_module.app.test_client().get(path).data, "html.parser")
+        assert not soup.select_one("#canvas-report-issue-button, #canvas-topics-toggle")
+        assert not soup.select_one("#topic-list").has_attr("hidden")
+        assert soup.select_one(".topics-header h2").get_text() == "Advising Topics"
