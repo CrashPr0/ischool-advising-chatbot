@@ -1128,22 +1128,24 @@ document.querySelectorAll("[data-section]").forEach((button) => {
   });
 });
 
-document.addEventListener("click", (event) => {
-  if (
-    workspaceMenu &&
-    workspaceMenuButton &&
-    !workspaceMenu.contains(event.target) &&
-    !workspaceMenuButton.contains(event.target)
-  ) {
-    workspaceMenu.classList.add("hidden");
-    workspaceMenuButton.setAttribute("aria-expanded", "false");
-  }
-});
+if (typeof document.addEventListener === "function") {
+  document.addEventListener("click", (event) => {
+    if (
+      workspaceMenu &&
+      workspaceMenuButton &&
+      !workspaceMenu.contains(event.target) &&
+      !workspaceMenuButton.contains(event.target)
+    ) {
+      workspaceMenu.classList.add("hidden");
+      workspaceMenuButton.setAttribute("aria-expanded", "false");
+    }
+  });
 
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
-    workspaceMenu?.classList.add("hidden");
-    workspaceMenuButton?.setAttribute("aria-expanded", "false");
-  }
-});
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      workspaceMenu?.classList.add("hidden");
+      workspaceMenuButton?.setAttribute("aria-expanded", "false");
+    }
+  });
+}
 //End of different sections
