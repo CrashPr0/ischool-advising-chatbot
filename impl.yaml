@@ -16,7 +16,7 @@ build:
   - "python app.py"
   #In another terminal:
   - "curl --request POST http://localhost:5000/api/load-docs \
-    --header 'X-Admin-Token: <your-local-DOCS_LOAD_TOKEN>'""
+    --header 'X-Admin-Token: <your-local-DOCS_LOAD_TOKEN>'"
   # Windows Powershell: curl.exe --request POST http://localhost:5000/api/load-docs \
   #  --header 'X-Admin-Token: <your-local-DOCS_LOAD_TOKEN>'
   - "curl http://localhost:5000/readyz"
@@ -38,4 +38,4 @@ demo:
   video: "https://drive.google.com/file/d/1-gSFG6awRieQEQF1olQu8MsKjWODNFDG/view?usp=sharing"
   screenshots: ["docs/dashboard.png"]
 
-notes: "The chatbot can be run locally, however it is best to run off the website since it uses our API key there. For the evaluation site, you must use an authorized email in order to fully access the page."
+notes: "The chatbot can be run locally, however it is best to run off the website since it uses our API key there. python -m src.main runs the chatbot through console, but the site is ran in the build in: python app.py. For the evaluation site, you must use an authorized email in order to fully access the page."

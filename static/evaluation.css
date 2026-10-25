@@ -670,3 +670,46 @@ button { cursor: pointer; }
   border-top: 1px solid #e6edf4;
   overflow-wrap: anywhere;
 }
+
+.review-menu {
+  position: relative;
+}
+
+.review-menu__dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 20;
+  min-width: 220px;
+  padding: 0.4rem;
+  border: 1px solid #c3ccd8;
+  border-radius: 0.6rem;
+  background: #e8edf3;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 15%);
+}
+
+.review-menu__dropdown button {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: #1f2937;
+  text-align: left;
+  cursor: pointer;
+}
+
+.review-menu__dropdown button:hover,
+.review-menu__dropdown button:focus-visible {
+  background: #cbd5e1;
+}
+
+.review-menu__dropdown button:hover,
+.review-menu__dropdown button:focus-visible {
+  background: #eef3f8;
+}
+
+.hidden {
+  display: none !important;
+}

@@ -16,7 +16,7 @@ Start with the [measured baseline](#measured-retrieval-baseline), [local setup](
 
 ## Prototype Scope
 
-Currently we have a working website hosted on Azure that runs based off the current GitHub repository (repo), and can take in inputs from both keyboard and microphone. The chatbot comes from preset questons to be asked, however the chatbot still thinks for these questions and answers may vary, especially with the three different settings on where to advise from (currently, for ISDA, MLIS, or neither/both if one is confused). Other features include, the ability to copy the chatlog as a PDF, report any problems found while using the chatbot, option to send an email to an advisor for the questions asked in the chatbot, and links to other helpful sources.
+Currently we have a working website hosted on Azure that runs based off the current GitHub repository (repo), and can take in inputs from both keyboard and microphone. The chatbot comes from preset questons to be asked, however the chatbot still thinks for these questions and answers may vary, especially with the three different settings on where to advise from (currently, for ISDA, MLIS, or neither/both if one is confused). Other features include, the ability to copy the chatlog as a PDF, report any problems found while using the chatbot, option to send an email to an advisor for the questions asked in the chatbot, and links to other helpful sources. As for what is left, we will update the user interface of the website and evaluation site so that it is easy to read. We will also keep testing for bugfixes and how to integrate this project to things such as Canavs, along with adding other helpful features.
 
 #### Technical Features
 

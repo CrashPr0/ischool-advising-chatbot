@@ -1089,3 +1089,61 @@ function createDimensionDistributionChart(model, definitions, canvas, titleEleme
     }
   }));
 }
+
+//Code for evaluation different sections
+const workspaceMenuButton = document.getElementById("workspace-menu-button");
+const workspaceMenu = document.getElementById("workspace-menu");
+
+const workspaceSections = [
+  "review-app",
+  "issue-reports",
+  "popular-questions",
+  "suggestion-ranking"
+];
+
+workspaceMenuButton?.addEventListener("click", () => {
+  const isOpen = !workspaceMenu.classList.contains("hidden");
+
+  workspaceMenu.classList.toggle("hidden", isOpen);
+  workspaceMenuButton.setAttribute("aria-expanded", String(!isOpen));
+});
+
+document.querySelectorAll("[data-section]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const selectedSection = button.dataset.section;
+
+    workspaceSections.forEach((sectionId) => {
+      const section = document.getElementById(sectionId);
+
+      if (section) {
+        section.classList.toggle(
+          "hidden",
+          sectionId !== selectedSection
+        );
+      }
+    });
+
+    workspaceMenu.classList.add("hidden");
+    workspaceMenuButton.setAttribute("aria-expanded", "false");
+  });
+});
+
+document.addEventListener("click", (event) => {
+  if (
+    workspaceMenu &&
+    workspaceMenuButton &&
+    !workspaceMenu.contains(event.target) &&
+    !workspaceMenuButton.contains(event.target)
+  ) {
+    workspaceMenu.classList.add("hidden");
+    workspaceMenuButton.setAttribute("aria-expanded", "false");
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    workspaceMenu?.classList.add("hidden");
+    workspaceMenuButton?.setAttribute("aria-expanded", "false");
+  }
+});
+//End of different sections

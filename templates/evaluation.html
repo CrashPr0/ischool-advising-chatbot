@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light" />
   <title>Model Review Workspace · SJSU iSchool</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css', v='20261023-reply-suggestions') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='evaluation.css', v='20261017-dynamic-suggestions') }}" />
 </head>
 <body>
   <header class="review-header">
@@ -20,6 +20,32 @@
       <div class="review-header__actions">
         <span class="environment-badge">Blind A/B review</span>
         <span id="reviewer-chip" class="reviewer-chip">Not signed in</span>
+        <div class="review-menu">
+          <button
+            id="workspace-menu-button"
+            class="button button--secondary review-menu__button"
+            type="button"
+            aria-expanded="false"
+            aria-controls="workspace-menu"
+          >
+            Workspace ▾
+          </button>
+
+          <div id="workspace-menu" class="review-menu__dropdown hidden">
+            <button type="button" data-section="review-app">
+              Evaluations
+            </button>
+            <button type="button" data-section="issue-reports">
+              Student reports
+            </button>
+            <button type="button" data-section="popular-questions">
+              Anonymized questions
+            </button>
+            <button type="button" data-section="suggestion-ranking">
+              Curated suggestion picks
+            </button>
+          </div>
+        </div>
         <button id="export-button" class="button button--secondary" type="button" disabled>
           Export CSV
         </button>
@@ -341,6 +367,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="{{ url_for('static', filename='evaluation.js', v='20261023-reply-suggestions') }}"></script>
+  <script src="{{ url_for('static', filename='evaluation.js', v='20261017-dynamic-suggestions') }}"></script>
 </body>
 </html>
