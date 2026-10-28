@@ -479,7 +479,7 @@
     {
       "doc_id": "web-2fc4c82a38a1e267",
       "source_url": "https://ischool.sjsu.edu/bachelor-science-information-science-and-data-analytics",
-      "title": "BS in Information Science & Data Analytics - San José State University",
+      "title": "BS in Information Science & Data Analytics - San Jos\u00e9 State University",
       "content_sha256": "61445d69761c042737cccd64a9393cd64b581286d6d8ff92c4f3dba8aa0d4cb1",
       "programs": [
         "ISDA"
@@ -1054,7 +1054,7 @@
       "doc_id": "web-2d19d3e666267452",
       "source_url": "https://ischool.sjsu.edu/mlis-required-courses",
       "title": "MLIS Required Courses - SJSU - School of Information",
-      "content_sha256": "eb7ad1af43f997dabb8fe2f08ccc23c8fad4c5d8ce997d94a7dc46b2110085ec",
+      "content_sha256": "2c2507719657cc601adb1fbb6f1577b6f867a81902b40d7c4954bb27ba00e094",
       "programs": [
         "MLIS"
       ],

@@ -4,7 +4,7 @@ owner: SJSU
 source_type: webpage
 source_url: https://ischool.sjsu.edu/mlis-required-courses
 retrieved_at: '2026-10-09T18:06:59.727851+00:00'
-content_sha256: eb7ad1af43f997dabb8fe2f08ccc23c8fad4c5d8ce997d94a7dc46b2110085ec
+content_sha256: 2c2507719657cc601adb1fbb6f1577b6f867a81902b40d7c4954bb27ba00e094
 programs:
 - MLIS
 topics:
@@ -12,5 +12,7 @@ topics:
 - advising
 - degree-requirements
 verified_at: '2026-10-23T08:08:27.678752+00:00'
-verified_content_sha256: eb7ad1af43f997dabb8fe2f08ccc23c8fad4c5d8ce997d94a7dc46b2110085ec
+verified_content_sha256: 2c2507719657cc601adb1fbb6f1577b6f867a81902b40d7c4954bb27ba00e094
 verified_source_sha256: bdb0f086a4f5b247b194373928cd669fcb1e5b07a075904d7516ac9f27a69497
+atomic_section: MLIS Required Courses
+retrieval_header: MLIS core courses INFO 200 INFO 202 INFO 203 INFO 204 - what are the required core classes for the MLIS Master of Library and Information Science degree
