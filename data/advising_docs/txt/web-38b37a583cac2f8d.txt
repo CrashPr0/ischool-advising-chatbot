@@ -1,11 +1,13 @@
 INFM 211 Informatics Culminating Project Capstone Course
 Description
 All Informatics students are required to complete a culminating project for the MS in Informatics degree program. The culminating project demonstrates mastery through the application of knowledge and skills developed in the Informatics program. Students select from two options: (1) an Organizational Consulting Project with a real-world partner to address a specific Informatics-related problem; or, (2) a personal e-Portfolio that presents a program-based assessment of all program learning outcomes (core competencies) learned during the MS in Informatics degree program.
+
 Qualifying for the Informatics Culminating Project
 To qualify for the Informatics Culminating Project, you must:
 - Be matriculated in the MS in Informatics degree program;
 - Remain in good academic standing (3.0 CUM GPA or above);
 - Meet the following Prerequisites: Successful completion of 9 required courses: INFM 200, INFM 201, INFM 202, INFM 203, INFM 204, INFM 205, INFM 206, INFM 207 and INFM 208.
+
 e-Portfolio
 The e-Portfolio fulfills the culminating project (capstone) requirement for the MS in Informatics degree program. The e-Portfolio presents a program-based assessment which ensures that each student demonstrates mastery of all program learning outcomes (core competencies) before graduation.
 The INFM 211 e-Portfolio provides an opportunity for students to demonstrate competence in each of the Program Learning Outcomes (core competency areas) for Informatics professionals.
