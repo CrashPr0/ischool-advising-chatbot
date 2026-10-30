@@ -172,7 +172,6 @@ def test_mara_admissions_shared_sources_keep_existing_program_labels(corpus_proc
     for path in ('admissions', 'graduate-application'):
         doc = documents[f'https://ischool.sjsu.edu/{path}']
         assert {'MARA', 'MLIS'} <= set(doc.metadata['programs'])
-        assert 'MSIS' not in doc.metadata['programs']
         assert sha256(Path(doc.metadata['source']).read_bytes()).hexdigest() == doc.metadata['content_sha256']
     admissions = documents['https://ischool.sjsu.edu/admissions'].page_content
     assert '3.0' in admissions and 'GMAT or GRE' in admissions

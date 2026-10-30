@@ -427,7 +427,8 @@
       "content_sha256": "0c5013b723fcd81971f67921b08ac663959bac051f10b1997eb108aa763bda4b",
       "programs": [
         "MARA",
-        "MLIS"
+        "MLIS",
+        "MSIS"
       ],
       "topics": [
         "admissions",
@@ -706,7 +707,8 @@
       "content_sha256": "7b08dc210d2a7923f49adb5862bca784347cc53a335e4520b4a242efb450a606",
       "programs": [
         "MARA",
-        "MLIS"
+        "MLIS",
+        "MSIS"
       ],
       "topics": [
         "admissions",

@@ -38,7 +38,12 @@ def test_msis_content_is_official_informatics_pages_only():
     for entry in msis:
         url = entry.get('source_url', '').lower()
         assert url.startswith('https://ischool.sjsu.edu/')
-        assert 'informatics' in url or '/infm-' in url
+        if 'informatics' in url or '/infm-' in url:
+            continue
+        # A shared iSchool page carries MSIS only when its snapshot names the program.
+        doc_id = entry.get('doc_id') or next(
+            m['doc_id'] for m in metadata if m.get('source_url', '').lower() == url)
+        assert 'MS in Informatics' in (DOCS / 'txt' / f'{doc_id}.txt').read_text(), url
 
 
 def test_live_audit_fails_closed_on_unavailable_source(tmp_path, monkeypatch):
