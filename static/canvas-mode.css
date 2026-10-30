@@ -1,6 +1,7 @@
 /* Loaded only for an explicit or session-persisted Canvas launch. */
 body.canvas-mode { height: 100vh; height: 100dvh; overflow: hidden; }
-.canvas-mode .page-shell { height: var(--canvas-height, 100dvh); overflow: hidden; display: flex; flex-direction: column; }
+/* Let visualViewport shrink the shell when an on-screen keyboard opens. */
+.canvas-mode .page-shell { min-height: 0; height: var(--canvas-height, 100dvh); overflow: hidden; display: flex; flex-direction: column; }
 .canvas-mode .site-header, .canvas-mode .left-panel { display: none; }
 .canvas-mode .main-layout { display: flex; flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; gap: 0; }
 .canvas-mode .chat-panel { display: flex; flex: 1; min-width: 0; min-height: 0; order: 0; }
