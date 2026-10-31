@@ -33,6 +33,11 @@
   document.addEventListener('click', event => {
     if (!topics.contains(event.target)) closeTopics();
   });
+  // Tab and Shift+Tab should dismiss the overlay just like an outside click.
+  // Keep focus on its new control so keyboard navigation can continue.
+  document.addEventListener('focusin', event => {
+    if (!topics.contains(event.target)) closeTopics();
+  });
 
   // Reuse the existing reporting flow, resolving the active answer at click time.
   document.getElementById('canvas-report-issue-button').addEventListener('click', event => {
