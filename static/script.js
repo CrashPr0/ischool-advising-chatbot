@@ -639,6 +639,13 @@ function openAdvisorHandoff(event) {
   title.focus(); // Neither Yes nor No is preselected or the default action.
 }
 
+// Inside the Canvas iframe a same-frame link would replace the chat with a page
+// that refuses framing, so advising links always open a new tab.
+function openInNewTab(link) {
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+}
+
 function updateAdvisorHandoffNotes() {
   const key = normalizeProgram(programSelect?.value || lastSelectedProgram);
   const contact = ADVISOR_HANDOFF_CONTACTS[key];
@@ -650,6 +657,7 @@ function updateAdvisorHandoffNotes() {
       const link = document.createElement("a");
       link.href = contact.source;
       link.textContent = "Advising page";
+      openInNewTab(link);
       note.appendChild(link);
     }
     if (key === "isda") {
@@ -659,6 +667,7 @@ function updateAdvisorHandoffNotes() {
       const link = document.createElement("a");
       link.href = ADVISOR_HANDOFF_ONLINE_ISDA_SOURCE;
       link.textContent = "BSISDA advising";
+      openInNewTab(link);
       online.appendChild(link);
       note.appendChild(online);
     }
