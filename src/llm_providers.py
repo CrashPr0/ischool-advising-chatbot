@@ -243,7 +243,7 @@ class LLMFactory:
         if not Config.AZURE_OPENAI_ENDPOINT:
             raise ValueError("AZURE_OPENAI_ENDPOINT not configured")
         if not Config.AZURE_OPENAI_DEPLOYMENT:
-            raise ValueError("AZURE_OPENAI_DEPLOYMENT not configured")
+            raise ValueError("AZURE_OPENAI_CHAT_DEPLOYMENT (or legacy AZURE_OPENAI_DEPLOYMENT) not configured")
         if AzureChatOpenAI is None:
             raise ImportError(
                 "langchain-openai not installed. Run: pip install langchain-openai"

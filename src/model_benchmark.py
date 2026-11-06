@@ -727,7 +727,7 @@ def _provider_error(provider: str) -> str:
     if provider == "azure_openai":
         return (
             "Set AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, and "
-            "AZURE_OPENAI_DEPLOYMENT in .env."
+            "AZURE_OPENAI_CHAT_DEPLOYMENT (or legacy AZURE_OPENAI_DEPLOYMENT) in .env."
         )
     return f"Complete the .env settings for provider '{provider}'."
 
