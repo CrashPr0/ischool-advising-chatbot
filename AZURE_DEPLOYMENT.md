@@ -325,7 +325,7 @@ Portal: the app → **Settings → Configuration**, and **Settings → Authentic
 | `DOCS_LOAD_TOKEN` | A long random value. The same value must be the GitHub Actions secret `DOCS_LOAD_TOKEN`. Placeholder values disable index rebuilds. |
 | `EVAL_ACCESS_TOKEN` | Read by the app for `/evaluation`. Not set in production today. With it unset, sign-in uses `EVAL_ALLOWED_REVIEWERS` or Easy Auth. A public deploy with none of those three returns 503. |
 | `SCM_DO_BUILD_DURING_DEPLOYMENT` | `true`, or Oryx never installs `requirements.txt` and Gunicorn fails with `No module named 'flask_cors'`. |
-| Azure OpenAI (or the chosen provider) | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, and `DEFAULT_LLM_PROVIDER`. `EMBEDDING_PROVIDER` stays `hashing` unless you intentionally pay for hosted embeddings. |
+| Azure OpenAI (or the chosen provider) | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_CHAT_DEPLOYMENT` (legacy alias `AZURE_OPENAI_DEPLOYMENT`), and `DEFAULT_LLM_PROVIDER`. `EMBEDDING_PROVIDER` stays `hashing` unless you intentionally pay for hosted embeddings. |
 
 Leave `VECTOR_STORE_PATH` unset so `/home/data/chroma` applies. Do not set
 `VECTOR_STORE_PATH=/tmp/chroma` or `/home/site/wwwroot/data/chroma`.
@@ -582,3 +582,17 @@ The 15 ingested official MLIS/iSchool pages are:
 - https://ischool.sjsu.edu/advising-appointments
 - https://ischool.sjsu.edu/info-289-e-portfolio-faqs
 - https://www.sjsu.edu/online/programs/library-and-information-science-masters-degree.php
+
+
+## Chat model migration off gpt-4o-mini
+
+`gpt-4o-mini` is being retired: OpenAI API shutdown **2027-01-14**, Azure OpenAI retirement **2027-04-14**. Recommended replacement: **`gpt-5.6-luna`** (Azure GA 2026-07-09, retires 2028-01-11): low cost, sufficient quality for advising answers, and the same model the OpenAI path already defaults to.
+
+The app never defaults an Azure deployment name; you must set it to the exact deployment name in your Azure OpenAI resource.
+
+1. Inspect deployments: `az cognitiveservices account deployment list -g <rg> -n <aoai-resource> -o table` (or Azure AI Foundry → Deployments). Note which deployment the App Setting currently points to and its model.
+2. If no `gpt-5.6-luna` deployment exists, create one (Foundry → Deploy model → gpt-5.6-luna, Standard/Global Standard) and record its deployment name.
+3. Set App Setting `AZURE_OPENAI_CHAT_DEPLOYMENT=<exact deployment name>` on Web App `ischooladvisingchatbot-dx4ynl`. Leave `AZURE_OPENAI_DEPLOYMENT` in place until verified (it is only used when the new setting is unset).
+4. Restart the Web App.
+5. Smoke test: `/healthz`, `/readyz`, an ISDA question, an MLIS question, a safety/crisis prompt, and an advisor-handoff prompt.
+6. Once verified, remove `AZURE_OPENAI_DEPLOYMENT` and retire the old gpt-4o-mini deployment.
