@@ -220,6 +220,89 @@ def test_canvas_toolbar_report_and_closed_topics_are_conditional():
         assert soup.select_one(".topics-header h2").get_text() == "Advising Topics"
 
 
+def _http_anchors(html):
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    return [a for a in soup.select("a[href]") if a["href"].startswith("http")]
+
+
+def _assert_new_tab(links):
+    assert links
+    for link in links:
+        assert link.get("target") == "_blank", link
+        assert {"noopener", "noreferrer"} <= set(link.get("rel") or []), link
+
+
+def test_canvas_page_links_leave_the_iframe_in_a_new_tab():
+    """Same-frame navigation would replace the Canvas chat with a site that refuses framing."""
+    from pathlib import Path
+
+    client = app_module.app.test_client()
+    for path in ("/?embed=canvas", "/?embed=1", "/"):
+        links = _http_anchors(client.get(path).data)
+        assert any("advising-appointments" in a["href"] for a in links), path
+        _assert_new_tab(links)
+
+    # Template rendering falls back to this static copy.
+    fallback = (Path(__file__).resolve().parents[1] / "docs" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    fallback_links = _http_anchors(fallback)
+    assert any("advising-appointments" in a["href"] for a in fallback_links)
+    _assert_new_tab(fallback_links)
+
+
+def test_script_built_advisor_links_open_in_a_new_tab():
+    import json
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    node = shutil.which("node")
+    if node is None:
+        import pytest
+        pytest.skip("Advisor link checks need Node")
+    script = (Path(__file__).resolve().parents[1] / "static/script.js").read_text()
+    handoff = "// ── ADVISOR HANDOFF" + script.split("// ── ADVISOR HANDOFF", 1)[1].split(
+        "// ── END ADVISOR HANDOFF ──", 1
+    )[0]
+    runner = r'''
+const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+class Element {
+  constructor(tag) { this.tag = tag; this.children = []; }
+  appendChild(child) { this.children.push(child); return child; }
+  set textContent(value) { this.children = []; this._text = value; }
+}
+const note = new Element('p');
+const document = {
+  createElement: tag => new Element(tag),
+  querySelectorAll: () => [note],
+};
+const window = {location: {href: ''}};
+const programSelect = {value: input.program};
+const lastSelectedProgram = input.program;
+const normalizeProgram = program => program;
+eval(input.handoff + '\nupdateAdvisorHandoffNotes();');
+const all = element => [element, ...element.children.flatMap(all)];
+process.stdout.write(JSON.stringify(all(note).filter(el => el.tag === 'a')
+  .map(a => ({href: a.href, target: a.target, rel: a.rel}))));
+'''
+    checked = 0
+    for program in ("isda", "mlis", "msis", "mara"):
+        completed = subprocess.run(
+            [node, "-e", runner],
+            input=json.dumps({"handoff": handoff, "program": program}),
+            capture_output=True, text=True, check=False,
+        )
+        assert completed.returncode == 0, completed.stderr + completed.stdout
+        for link in json.loads(completed.stdout):
+            checked += 1
+            assert link["target"] == "_blank", (program, link)
+            assert link["rel"] == "noopener noreferrer", (program, link)
+    assert checked, "expected at least one script-built advisor link"
+
+
 def test_canvas_composer_tracks_keyboard_viewport_offline(tmp_path):
     """Exercise real CSS layout without a server, external assets, or model calls."""
     import json
