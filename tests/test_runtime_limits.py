@@ -229,7 +229,7 @@ def test_page_load_does_not_spend_a_chat_or_build_the_index():
     assert 'apiUrl("/api/status")' not in source
     assert "sendMessage(hint" not in source
     assert "silent" not in source
-    assert "sendMessage(q)" in source
+    assert "sendMessage(q, { text: q })" in source
     assert 'apiUrl("/api/chat")' in source
     assert 'apiUrl("/api/voice-config")' in source
     assert "Got it! I'm now focused on" in source

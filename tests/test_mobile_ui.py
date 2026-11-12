@@ -10,7 +10,7 @@ HTML_FILES = ("templates/index.html", "docs/index.html")
 ASSET_PINS = {
     "style.css": "20261023-reply-suggestions",
     "suggestions.js": "20261023-reply-suggestions",
-    "script.js": "20261023-reply-suggestions",
+    "script.js": "20261112-popular-question-ack",
 }
 
 

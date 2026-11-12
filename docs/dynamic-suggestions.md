@@ -87,3 +87,29 @@ reviewer's name and a timestamp.
 
 `GET /api/evaluation/suggestion-events.csv` downloads the pick events:
 timestamp, suggestion id, event type, and program.
+
+## Popular-question acknowledgement
+
+A click on a starter chip, a topic sample, a static prompt chip, a reply
+chip, or an autocomplete row can ask the server to acknowledge the
+question. The browser sends `suggestion_click` with the question text and,
+when it has one, the curated suggestion id. That object is not shown in
+the transcript and is not saved.
+
+The server ignores any rank or count the browser sends. It rebuilds the
+current top five from `suggestion_pick_events`: a positive all-time count,
+highest first, with the same alphabetical tie-break as the reviewer list,
+hidden suggestions removed, and no seeded counts. The click counts only
+when that question is in the five and the text matches the catalog entry
+exactly. The retrieval query and the model input stay the student's
+question. A match prefixes the answer with one fixed sentence. Crisis and
+distress replies, and any other reply that carries a safety tier, are not
+prefixed.
+
+This does not read `anonymized_student_questions`. Those rows can still
+hold scrubbed free text, so they are not used to decide the
+acknowledgement. The click itself adds no database row. Pick rows are
+still written only by `POST /api/question-suggestion-events`, and only
+while dynamic ranking is on. Counts already stored keep working if that
+flag is later turned off. `QUESTION_SUGGESTIONS_ENABLED=off` or a
+ranking mode other than `all_time` turns the acknowledgement off.

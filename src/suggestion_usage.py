@@ -435,6 +435,57 @@ class SuggestionUsageStore:
         return [row["name"] for row in rows]
 
 
+# Fixed line. It is not built from a student message, a suggestion id, or a count.
+POPULAR_QUESTION_ACKNOWLEDGEMENT = (
+    "Glad you asked — a lot of students have questions about this topic."
+)
+_POPULAR_ACK_LIMIT = 5
+
+
+def verified_popular_click(
+    store: SuggestionUsageStore, click: object, message: str
+) -> bool:
+    """Match click metadata to the message and the current five most picked ids.
+
+    Ranking uses the existing all-time pick counts: positive count descending,
+    then the catalog text, then the suggestion id. Zero-count and
+    moderated-hidden questions cannot earn an acknowledgement. Client fields
+    such as rank or a popularity number are ignored. This does not read the
+    anonymized student-question log and does not write anything.
+    """
+    if (
+        not isinstance(click, dict)
+        or not isinstance(message, str)
+        or not message
+        or not suggestions_enabled()
+        or not ranking_uses_popularity()
+    ):
+        return False
+    click_text = click.get("text")
+    if not isinstance(click_text, str) or click_text != message:
+        return False
+    # A present id must be the catalog id. A missing id is allowed so a
+    # starter or topic chip can be checked by its staff-written text alone.
+    # Any other shape, including a non-string id, is not a verified click.
+    if "id" in click and (not isinstance(click.get("id"), str) or not click.get("id")):
+        return False
+    questions = load_suggestion_catalog()["questions"]
+    counts = store.counts()
+    hidden = set(store.hidden_rows())
+    ranked = sorted(
+        (
+            item
+            for item in questions
+            if item["id"] not in hidden and counts.get(item["id"], 0) > 0
+        ),
+        key=lambda item: (-counts[item["id"]], item["text"].casefold(), item["id"]),
+    )[:_POPULAR_ACK_LIMIT]
+    return any(
+        item["text"] == message and ("id" not in click or click["id"] == item["id"])
+        for item in ranked
+    )
+
+
 def student_suggestion_payload(store: SuggestionUsageStore | None = None) -> dict:
     """Curated list, plus starters and all-time counts when the dynamic flag is on.
 
