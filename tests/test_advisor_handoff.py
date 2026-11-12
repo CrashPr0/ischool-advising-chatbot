@@ -167,7 +167,7 @@ def test_button_reply_hooks_and_asset_pins():
             r'[^>]*aria-label="Email an advisor[^>]*>Email an advisor</button>', html
         )
         assert 'class="advisor-handoff-note"' in html
-        assert re.search(r"script\.js[^\n<>]*20261023-reply-suggestions", html)
+        assert re.search(r"script\.js[^\n<>]*20261112-new-tab-links", html)
         assert re.search(r"suggestions\.js[^\n<>]*20261023-reply-suggestions", html)
         assert re.search(r"style\.css[^\n<>]*20261023-reply-suggestions", html)
     assert 'if (className === "bot-message") attachAdvisorHandoff(wrapper, text);' in SCRIPT
