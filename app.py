@@ -60,11 +60,13 @@ from issue_reports import (
     build_issue_report,
 )
 from suggestion_usage import (
+    POPULAR_QUESTION_ACKNOWLEDGEMENT,
     SuggestionUsageError,
     SuggestionUsageStore,
     dynamic_suggestions_enabled,
     reviewer_ranking,
     student_suggestion_payload,
+    verified_popular_click,
 )
 from voice_config import get_voice_config
 from program_scope import normalize_program
@@ -1061,6 +1063,18 @@ def _index_readiness_report() -> dict:
     )
 
 
+def _popular_ack_allowed(result: dict) -> bool:
+    """Keep every safety-tier reply verbatim.
+
+    Crisis replies are the vetted support template and are not stored.
+    Distress replies are stored, and a cheerful popularity line would sit
+    on top of that support text. Any other safety tier is left alone for
+    the same reason. Ranking claims from the client never override this.
+    """
+    tier = result.get("safety_tier")
+    return not (isinstance(tier, str) and tier.strip())
+
+
 def _chat_debug_timings_enabled() -> bool:
     """Include a timings object on /api/chat only when explicitly enabled."""
     return os.getenv("CHAT_DEBUG_TIMINGS", "").strip().lower() in {
@@ -1154,6 +1168,11 @@ def chat():
     returns 503 and does not load the model. ``/healthz`` does not use
     this check: the deploy workflow waits for liveness, then rebuilds the
     index through the admin load-docs route rather than through this one.
+
+    Optional ``suggestion_click`` metadata is checked after the model
+    returns. It is not part of the retrieval query, the model input, or
+    the stored turn. A verified top-five catalog click adds a fixed
+    acknowledgement unless the reply carries a safety tier.
     """
     allowed, retry_after = _rate_limiter.allow(
         f"chat:{_client_key()}",
@@ -1212,6 +1231,26 @@ def chat():
             # fault, not a bad request. Don't echo its text to the student.
             logger.exception("Chatbot raised ValueError while answering")
             return jsonify({"error": "Unable to process chat request"}), 500
+        # Metadata stays out of the retrieval query, model input, and stored
+        # turn. Only text and an optional catalog id are read. Extra client
+        # fields are ignored and never logged.
+        popular_click = False
+        suggestion_click = data.get("suggestion_click")
+        if isinstance(suggestion_click, dict):
+            try:
+                popular_click = verified_popular_click(
+                    get_suggestion_usage_store(), suggestion_click, user_message
+                )
+            except Exception:
+                logger.exception("Could not verify suggestion popularity")
+        if (
+            popular_click
+            and _popular_ack_allowed(result)
+            and isinstance(result.get("response"), str)
+        ):
+            result["response"] = (
+                POPULAR_QUESTION_ACKNOWLEDGEMENT + "\n\n" + result["response"]
+            )
         provider, model = _stamp_chat_model(result)
         if result.get("safety_tier") != "crisis":
             _history_store.append(session_id, result)
