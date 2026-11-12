@@ -5,10 +5,12 @@ owner: SJSU
 source_type: webpage
 source_url: https://ischool.sjsu.edu/infm-211-informatics-culminating-project-capstone-course
 retrieved_at: '2026-10-23T06:01:05.462869+00:00'
-content_sha256: f7eeecf541487236a4c8c2a7a37c25b104364c4ea71e7e1d7eb8fc4a9fc74fbb
+content_sha256: 49af5b76b741638584af718ba5b5b671a46e1dd8ead00c01c7456785ae215925
 programs:
 - MSIS
 topics:
 - advising
 - courses
 - degree-requirements
+atomic_section: Qualifying for the Informatics Culminating Project
+retrieval_header: MS in Informatics (MSIS) capstone eligibility and prerequisites for INFM 211 - what do I need before I can enroll or start the culminating project

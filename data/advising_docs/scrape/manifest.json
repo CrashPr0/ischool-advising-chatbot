@@ -427,7 +427,8 @@
       "content_sha256": "0c5013b723fcd81971f67921b08ac663959bac051f10b1997eb108aa763bda4b",
       "programs": [
         "MARA",
-        "MLIS"
+        "MLIS",
+        "MSIS"
       ],
       "topics": [
         "admissions",
@@ -706,7 +707,8 @@
       "content_sha256": "7b08dc210d2a7923f49adb5862bca784347cc53a335e4520b4a242efb450a606",
       "programs": [
         "MARA",
-        "MLIS"
+        "MLIS",
+        "MSIS"
       ],
       "topics": [
         "admissions",
@@ -718,7 +720,7 @@
       "doc_id": "web-38b37a583cac2f8d",
       "source_url": "https://ischool.sjsu.edu/infm-211-informatics-culminating-project-capstone-course",
       "title": "INFM 211 Informatics Culminating Project Capstone Course - SJSU - School of Information",
-      "content_sha256": "f7eeecf541487236a4c8c2a7a37c25b104364c4ea71e7e1d7eb8fc4a9fc74fbb",
+      "content_sha256": "49af5b76b741638584af718ba5b5b671a46e1dd8ead00c01c7456785ae215925",
       "programs": [
         "MSIS"
       ],
@@ -788,7 +790,7 @@
       "doc_id": "web-8beb067dbd0ab9dd",
       "source_url": "https://ischool.sjsu.edu/informatics-course-rotations",
       "title": "Informatics Course Rotations - SJSU - School of Information",
-      "content_sha256": "b14ad94ef25668d465457ec0a6bf928e2a726ced5bb636e7bd94c5d59ceeed23",
+      "content_sha256": "da30434985a93e449af66effbb792a9088aa1fd8c936073fcbc4d9a33f44aa43",
       "programs": [
         "MSIS"
       ],

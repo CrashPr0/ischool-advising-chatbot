@@ -11,6 +11,9 @@ Informatics Course Rotations
 | INFM 207 – DAM (2 units) |  |  | x |  | x | 
 | INFM 208 – Inf. Sec: Two (1 unit) |  |  | x |  | x | 
 | INFM 211 Capstone (3 units) | x |  | x |  | x | 
+
+|  | Fall Session 1 | Fall Session 2 | Spring Session 1 | Spring Session 2 | Summer Session | 
+|---|---|---|---|---|---|
 | Career Pathway (6 units) |  | Cybersecurity: INFM 216 (3 units) INFM 217 (3 units) |  | Health: INFM 210 (3 units) INFM 213 (3 units) | Health: INFM 214 (3 units) Cybersecurity: INFM 215 (3 units) | 
 * Career Pathway frequencies may increase and be adjusted depending on the needs of students.
 * INFM 284 special topics classes may be periodically offered as alternatives to the regular career pathway courses.

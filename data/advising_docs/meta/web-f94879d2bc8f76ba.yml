@@ -8,6 +8,7 @@ content_sha256: 0c5013b723fcd81971f67921b08ac663959bac051f10b1997eb108aa763bda4b
 programs:
 - MARA
 - MLIS
+- MSIS
 topics:
 - admissions
 - advising

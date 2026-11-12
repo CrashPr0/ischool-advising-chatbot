@@ -136,7 +136,7 @@ def test_canvas_flags_render_compact_shell_and_versioned_assets():
         soup = BeautifulSoup(response.data, "html.parser")
         assert "canvas-mode" in soup.body["class"]
         assert soup.select_one(".site-header").has_attr("hidden")
-        assert soup.select_one('link[href$="canvas-mode.css?v=20261023-canvas-toolbar"]')
+        assert soup.select_one('link[href$="canvas-mode.css?v=20261030-canvas-viewport"]')
         assert soup.select_one('script[src$="canvas-mode.js?v=20261023-canvas-toolbar"]')
         assert not soup.select_one('script[src*="mobile-layout.js"]')
         for control in ("program-select", "change-program-button", "clear-button",
@@ -220,16 +220,37 @@ def test_canvas_toolbar_report_and_closed_topics_are_conditional():
         assert soup.select_one(".topics-header h2").get_text() == "Advising Topics"
 
 
-def test_canvas_page_links_leave_the_iframe_in_a_new_tab():
-    """Same-frame navigation would replace the Canvas chat with a site that refuses framing."""
+def _http_anchors(html):
     from bs4 import BeautifulSoup
 
-    soup = BeautifulSoup(app_module.app.test_client().get("/?embed=canvas").data, "html.parser")
-    external = [a for a in soup.select("a[href]") if a["href"].startswith("http")]
-    assert any("advising-appointments" in a["href"] for a in external)
-    for link in external:
+    soup = BeautifulSoup(html, "html.parser")
+    return [a for a in soup.select("a[href]") if a["href"].startswith("http")]
+
+
+def _assert_new_tab(links):
+    assert links
+    for link in links:
         assert link.get("target") == "_blank", link
         assert {"noopener", "noreferrer"} <= set(link.get("rel") or []), link
+
+
+def test_canvas_page_links_leave_the_iframe_in_a_new_tab():
+    """Same-frame navigation would replace the Canvas chat with a site that refuses framing."""
+    from pathlib import Path
+
+    client = app_module.app.test_client()
+    for path in ("/?embed=canvas", "/?embed=1", "/"):
+        links = _http_anchors(client.get(path).data)
+        assert any("advising-appointments" in a["href"] for a in links), path
+        _assert_new_tab(links)
+
+    # Template rendering falls back to this static copy.
+    fallback = (Path(__file__).resolve().parents[1] / "docs" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    fallback_links = _http_anchors(fallback)
+    assert any("advising-appointments" in a["href"] for a in fallback_links)
+    _assert_new_tab(fallback_links)
 
 
 def test_script_built_advisor_links_open_in_a_new_tab():
@@ -280,3 +301,95 @@ process.stdout.write(JSON.stringify(all(note).filter(el => el.tag === 'a')
             assert link["target"] == "_blank", (program, link)
             assert link["rel"] == "noopener noreferrer", (program, link)
     assert checked, "expected at least one script-built advisor link"
+
+
+def test_canvas_composer_tracks_keyboard_viewport_offline(tmp_path):
+    """Exercise real CSS layout without a server, external assets, or model calls."""
+    import json
+    import os
+    import subprocess
+    from pathlib import Path
+
+    import pytest
+    from bs4 import BeautifulSoup
+
+    if not os.environ.get("CANVAS_TEST_CHROME"):
+        pytest.skip("Set CANVAS_TEST_CHROME and make playwright-core available to Node")
+
+    root = Path(__file__).resolve().parents[1]
+    soup = BeautifulSoup(
+        app_module.app.test_client().get("/?embed=canvas").data, "html.parser"
+    )
+    # Inline only local layout assets. No application startup, API, font, or CDN requests.
+    for node in soup.select("script, link"):
+        node.decompose()
+    for filename in ("style.css", "mobile-layout.css", "canvas-mode.css"):
+        style = soup.new_tag("style")
+        style.string = (root / "static" / filename).read_text()
+        soup.head.append(style)
+    setup = soup.new_tag("script")
+    setup.string = """
+      const keyboardViewport = new EventTarget();
+      keyboardViewport.height = 600;
+      Object.defineProperty(window, 'visualViewport', {value: keyboardViewport});
+    """
+    soup.body.append(setup)
+    script = soup.new_tag("script")
+    script.string = (root / "static/canvas-mode.js").read_text()
+    soup.body.append(script)
+    probe = soup.new_tag("script")
+    probe.string = """
+      const results = [];
+      for (const width of [320, 360, 400]) {
+        document.body.style.width = `${width}px`;
+        for (const height of [600, 400, 600]) {
+          keyboardViewport.height = height;
+          keyboardViewport.dispatchEvent(new Event('resize'));
+          document.getElementById('user-input').focus();
+          const rect = selector => document.querySelector(selector).getBoundingClientRect();
+          results.push({width, height,
+            shellHeight: rect('.page-shell').height,
+            inputBottom: rect('#user-input').bottom,
+            sendRight: rect('#send-button').right,
+            footerBottom: rect('.composer-footer').bottom,
+            conversationHeight: rect('.conversation-stage').height});
+        }
+      }
+      const output = document.createElement('pre');
+      output.id = 'layout-results';
+      output.textContent = JSON.stringify(results);
+      document.body.append(output);
+    """
+    soup.body.append(probe)
+    page = tmp_path / "canvas-layout.html"
+    page.write_text(str(soup))
+    runner = tmp_path / "layout.cjs"
+    runner.write_text("""
+      const {chromium} = require('playwright-core');
+      (async () => {
+        const browser = await chromium.launch({
+          executablePath: process.env.CANVAS_TEST_CHROME,
+          headless: true, args: ['--no-sandbox']
+        });
+        try {
+          const page = await browser.newPage({viewport: {width: 800, height: 800}});
+          await page.route('**/*', route => route.abort());
+          await page.setContent(require('fs').readFileSync(process.argv[2], 'utf8'));
+          console.log(await page.content());
+        } finally { await browser.close(); }
+      })().catch(error => { console.error(error); process.exit(1); });
+    """)
+    completed = subprocess.run(
+        ["node", str(runner), str(page)],
+        capture_output=True, text=True, timeout=30, check=True,
+    )
+    output = BeautifulSoup(completed.stdout, "html.parser").select_one("#layout-results")
+    assert output is not None, completed.stderr
+    results = json.loads(output.get_text())
+    assert len(results) == 9
+    for layout in results:
+        assert abs(layout["shellHeight"] - layout["height"]) <= 1, layout
+        assert layout["inputBottom"] <= layout["height"], layout
+        assert layout["footerBottom"] <= layout["height"], layout
+        assert layout["sendRight"] <= layout["width"], layout
+        assert layout["conversationHeight"] > 0, layout
