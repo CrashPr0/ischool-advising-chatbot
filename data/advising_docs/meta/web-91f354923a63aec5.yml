@@ -4,7 +4,7 @@ owner: SJSU
 source_type: webpage
 source_url: https://ischool.sjsu.edu/mara-required-courses
 retrieved_at: '2026-10-23T01:04:26.497900+00:00'
-content_sha256: 9909f896e909d3ec6949557d8b83516188027f0408d8fa71fabfde4b068c01d8
+content_sha256: 18456c050299bd9cd742ea93d32d76b57a71167f4544b0f0fa60ca12021eed23
 programs:
 - MARA
 topics:
@@ -12,5 +12,7 @@ topics:
 - courses
 - degree-requirements
 verified_at: '2026-10-23T08:08:27.678752+00:00'
-verified_content_sha256: 9909f896e909d3ec6949557d8b83516188027f0408d8fa71fabfde4b068c01d8
+verified_content_sha256: 18456c050299bd9cd742ea93d32d76b57a71167f4544b0f0fa60ca12021eed23
 verified_source_sha256: 8ec8fe3cf8b7ef967883d7832a0f21e3773dd203e6bafe362c436644927c9708
+atomic_section: MARA Required Courses
+retrieval_header: MARA core courses MARA 200 MARA 204 MARA 210 MARA 211 MARA 249 MARA 283 MARA 285 MARA 286 MARA 287 MARA 289 - what are the required courses for MARA / Master of Archives and Records Administration
