@@ -4,10 +4,12 @@ owner: SJSU
 source_type: webpage
 source_url: https://ischool.sjsu.edu/informatics-course-rotations
 retrieved_at: '2026-10-23T06:01:05.462869+00:00'
-content_sha256: b14ad94ef25668d465457ec0a6bf928e2a726ced5bb636e7bd94c5d59ceeed23
+content_sha256: da30434985a93e449af66effbb792a9088aa1fd8c936073fcbc4d9a33f44aa43
 programs:
 - MSIS
 topics:
 - advising
 - courses
 - degree-requirements
+atomic_section: '* Career Pathway frequencies may increase and be adjusted depending on the needs of students.'
+retrieval_header: 'MSIS career pathway courses offered in the MS in Informatics - Health: INFM 210, INFM 213, INFM 214; Cybersecurity: INFM 215, INFM 216, INFM 217 - which health or cybersecurity career pathway courses can I take'

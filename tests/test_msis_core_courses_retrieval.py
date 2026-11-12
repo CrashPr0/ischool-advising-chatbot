@@ -1,7 +1,8 @@
 """MSIS core-course retrieval covers every course the official page lists.
 
 Offline: chunks the stored official snapshot with the production splitter and
-ranks the MSIS chunks with the production BM25 index. No network or embeddings.
+retrieves through the production MSIS-scoped path (BM25 fused with hashing
+embeddings, then program/title preference). No network or paid embeddings.
 """
 
 import re
@@ -10,8 +11,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from src.config import Config
 from src.document_processor import DocumentProcessor
-from src.hybrid_retrieval import BM25Index, tokenize
 from src.rag_chatbot import DEFAULT_RAG_TOP_K
 
 DOCS = Path(__file__).resolve().parent.parent / "data" / "advising_docs"
@@ -23,6 +24,18 @@ QUESTIONS = [
     "What are the required courses for the MS in Informatics?",
     "Which classes are required for the Informatics master's degree?",
 ]
+
+
+@pytest.fixture(scope="module")
+def corpus_processor(tmp_path_factory):
+    patch = pytest.MonkeyPatch()
+    patch.setattr(Config, "EMBEDDING_PROVIDER", "hashing")
+    patch.setattr(Config, "VECTOR_STORE_PATH", str(tmp_path_factory.mktemp("msis-core")))
+    patch.setenv("HYBRID_RETRIEVAL", "true")
+    processor = DocumentProcessor(str(DOCS))
+    processor.process_and_index()
+    yield processor
+    patch.undo()
 
 
 @pytest.fixture(scope="module")
@@ -55,9 +68,11 @@ def test_core_list_is_not_split_across_chunks(msis_chunks):
 
 
 @pytest.mark.parametrize("question", QUESTIONS)
-def test_top_k_retrieval_covers_all_core_courses(msis_chunks, question):
-    index = BM25Index([tokenize(c.page_content) for c in msis_chunks])
-    hits = [msis_chunks[i] for i in index.top_indices(tokenize(question), DEFAULT_RAG_TOP_K)]
+def test_top_k_retrieval_covers_all_core_courses(corpus_processor, question):
+    hits = corpus_processor.retrieve_relevant_docs(
+        question, k=DEFAULT_RAG_TOP_K, program="msis"
+    )
+    assert hits[0].metadata["source_url"] == REQUIRED_URL
     retrieved = " ".join(c.page_content for c in hits)
     missing = [code for code in OFFICIAL_CORE if code not in retrieved]
     assert not missing, f"top-{DEFAULT_RAG_TOP_K} misses {missing}"

@@ -63,3 +63,13 @@ keep `SESSION_COOKIE_SAMESITE` (Lax unless that setting is changed).
 Browsers reject `SameSite=None` without `Secure`. A plain HTTP request,
 including local `http://localhost:5000/?embed=1`, therefore keeps the normal
 SameSite setting. Canvas itself is HTTPS, and the hosted app is HTTPS.
+
+## Offline keyboard layout regression
+
+The optional browser test in `tests/test_canvas_embed.py` uses local HTML,
+CSS, and Canvas JavaScript, with browser requests blocked. It simulates the
+visual viewport shrinking and recovering at 320, 360, and 400px widths.
+With Chrome/Chromium and the Node `playwright-core` package already installed,
+set `CANVAS_TEST_CHROME` to the browser executable and make `playwright-core`
+resolvable by Node (for example, through `NODE_PATH`). Then run pytest as
+usual. Without `CANVAS_TEST_CHROME`, only this browser test is skipped.

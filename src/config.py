@@ -28,6 +28,20 @@ class LLMProvider(str, Enum):
     ZHIPU = "zhipu"
 
 
+def resolve_azure_chat_deployment(env=None):
+    """Return the operator-configured Azure chat deployment name, or None.
+
+    Prefers AZURE_OPENAI_CHAT_DEPLOYMENT; falls back to the legacy
+    AZURE_OPENAI_DEPLOYMENT. Never invents a default deployment name.
+    """
+    env = os.environ if env is None else env
+    for key in ("AZURE_OPENAI_CHAT_DEPLOYMENT", "AZURE_OPENAI_DEPLOYMENT"):
+        value = str(env.get(key) or "").strip()
+        if value:
+            return value
+    return None
+
+
 class Config:
     """Application configuration."""
 
@@ -41,7 +55,11 @@ class Config:
     # Azure OpenAI
     AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
     AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
-    AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    # Chat deployment name is always operator-configured (never defaulted).
+    # AZURE_OPENAI_CHAT_DEPLOYMENT is preferred; AZURE_OPENAI_DEPLOYMENT is the
+    # backward-compatible alias used by existing App Service settings.
+    AZURE_OPENAI_CHAT_DEPLOYMENT = resolve_azure_chat_deployment()
+    AZURE_OPENAI_DEPLOYMENT = AZURE_OPENAI_CHAT_DEPLOYMENT
     AZURE_OPENAI_API_VERSION = os.getenv(
         "AZURE_OPENAI_API_VERSION", "2024-02-15-preview"
     )
@@ -49,8 +67,8 @@ class Config:
         "AZURE_OPENAI_EMBEDDING_DEPLOYMENT", ""
     )
     AZURE_BENCHMARK_LEFT_DEPLOYMENT = os.getenv(
-        "AZURE_BENCHMARK_LEFT_DEPLOYMENT", "gpt-4o-mini"
-    )
+        "AZURE_BENCHMARK_LEFT_DEPLOYMENT", ""
+    ) or None  # empty -> benchmark the configured chat deployment
     AZURE_BENCHMARK_RIGHT_DEPLOYMENT = os.getenv(
         "AZURE_BENCHMARK_RIGHT_DEPLOYMENT", "gpt-5.6-luna"
     )
@@ -75,7 +93,7 @@ class Config:
     # easy to configure while keeping credentials in environment variables.
     OPENAI_COMPATIBLE_API_KEY = os.getenv("OPENAI_COMPATIBLE_API_KEY")
     OPENAI_COMPATIBLE_BASE_URL = os.getenv("OPENAI_COMPATIBLE_BASE_URL")
-    OPENAI_COMPATIBLE_MODEL = os.getenv("OPENAI_COMPATIBLE_MODEL", "gpt-4o-mini")
+    OPENAI_COMPATIBLE_MODEL = os.getenv("OPENAI_COMPATIBLE_MODEL", "gpt-5.6-luna")
 
     # DeepSeek (official OpenAI-compatible endpoint; do not append /v1).
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")

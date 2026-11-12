@@ -548,7 +548,7 @@ def _configured_chat_model() -> tuple[str, str]:
     except Exception:
         return "", ""
     model_attr = {
-        "azure_openai": "AZURE_OPENAI_DEPLOYMENT",
+        "azure_openai": "AZURE_OPENAI_CHAT_DEPLOYMENT",
         "openai": "OPENAI_MODEL",
         "anthropic": "ANTHROPIC_MODEL",
         "huggingface": "HUGGINGFACE_MODEL",
