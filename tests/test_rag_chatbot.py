@@ -550,3 +550,19 @@ def test_primary_retries_without_temperature_when_the_model_rejects_it(monkeypat
     again = bot.chat("What are the required courses?")
     assert again["response"] == "reasoned primary answer"
     assert len(temperatures) == 1
+
+
+def test_empty_model_reply_shows_the_retry_message(caplog):
+    """A reasoning model that spends its whole cap returns ""; never show a blank bubble."""
+
+    class Empty:
+        def invoke(self, payload):
+            return type("Reply", (), {"content": ""})()
+
+    bot = _bare_bot()
+    bot.chain = Empty()
+    with caplog.at_level(logging.INFO):
+        result = bot.chat("What are the required courses?")
+    assert result["source"] == "error"
+    assert "couldn’t generate a response" in result["response"]
+    assert "empty reply" in _chat_lines(caplog)[0]

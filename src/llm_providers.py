@@ -16,6 +16,11 @@ _DEFAULT_REQUEST_TIMEOUT_SECONDS = 45.0
 # LLM_MAX_RETRIES only if that wait is acceptable.
 _DEFAULT_MAX_RETRIES = 0
 _DEFAULT_MAX_TOKENS = 512
+# A reasoning deployment spends hidden reasoning tokens from the same
+# max_completion_tokens budget before it writes the answer. 512 left long
+# answers (for example graduation steps) empty, so the reasoning path gets its
+# own cap. ``LLM_REASONING_MAX_TOKENS`` overrides it.
+_DEFAULT_REASONING_MAX_TOKENS = 4096
 # Fallback retry for a reasoning deployment that rejects temperature and
 # wants max_completion_tokens. Not the benchmark path: the timeout and the
 # token cap still apply.
@@ -93,7 +98,8 @@ def _apply_chat_controls(kwargs: dict, temperature: Any) -> dict:
     ``REASONING_RETRY`` is the student-chat fallback for a deployment that
     rejects ``temperature`` or ``max_tokens``. The timeout and token cap
     stay; temperature is omitted and the cap is sent as
-    ``max_completion_tokens``.
+    ``max_completion_tokens`` (``LLM_REASONING_MAX_TOKENS``, default 4096,
+    because reasoning tokens count against it).
     """
     if temperature is None:
         return kwargs
@@ -101,7 +107,9 @@ def _apply_chat_controls(kwargs: dict, temperature: Any) -> dict:
         limits = chat_limit_kwargs()
         kwargs["timeout"] = limits["timeout"]
         kwargs["max_retries"] = limits["max_retries"]
-        kwargs["max_completion_tokens"] = limits["max_tokens"]
+        kwargs["max_completion_tokens"] = _env_int(
+            "LLM_REASONING_MAX_TOKENS", _DEFAULT_REASONING_MAX_TOKENS, 256, 16384
+        )
         return kwargs
     kwargs["temperature"] = _resolve_temperature(temperature)
     kwargs.update(chat_limit_kwargs())

@@ -1202,6 +1202,10 @@ Assistant Response:""",
             llm_started = time.perf_counter()
             try:
                 response_text = self._generate(payload, metrics)
+                if not str(response_text or "").strip():
+                    # A reasoning model can spend its whole token cap on
+                    # hidden reasoning. Show the retry message, not a blank bubble.
+                    raise RuntimeError("model returned an empty reply")
                 response_text, suggestions = split_reply_suggestions(
                     str(response_text)
                 )
