@@ -996,6 +996,7 @@ instead of answering, and never hold back an answer to wait for a reply."""
             docs_path: Path to advising documents directory
         """
         # Initialize components
+        self.llm_provider = llm_provider
         self.llm = LLMFactory.create_llm(llm_provider)
         self.knowledge_base = get_knowledge_base()
         self.doc_processor = DocumentProcessor(docs_path)
@@ -1311,8 +1312,37 @@ Assistant Response:""",
     def _generate(self, payload: dict, metrics: dict) -> str:
         """Call the primary model, then an optional Azure fallback deployment."""
         metrics["llm_attempts"] = int(metrics.get("llm_attempts", 0)) + 1
+        chain = getattr(self, "_primary_reasoning_chain", None) or self.chain
         try:
-            return _message_text(self.chain.invoke(payload))
+            return _message_text(chain.invoke(payload))
+        except Exception as exc:
+            _note_llm_rate_limit(exc, metrics)
+            if _is_content_filter(exc):
+                raise _Filtered(_filter_category(exc)) from exc
+            if (
+                getattr(self, "_primary_reasoning_chain", None) is None
+                and _needs_reasoning_retry(exc)
+            ):
+                # A reasoning primary deployment (for example a gpt-5 model)
+                # rejects temperature. Retry once without it and keep that
+                # client for later turns so each question costs one call.
+                return self._generate_reasoning_primary(payload, metrics)
+            if not _is_transient_llm_failure(exc):
+                raise
+            fallback = _fallback_deployment()
+            primary = str(metrics.get("deployment") or "")
+            if not fallback or fallback == primary:
+                raise _Busy() from exc
+            return self._generate_fallback(payload, fallback, metrics)
+
+    def _generate_reasoning_primary(self, payload: dict, metrics: dict) -> str:
+        """Retry the primary deployment without temperature (max_completion_tokens)."""
+        chain = self.prompt_template | LLMFactory.create_llm(
+            getattr(self, "llm_provider", None), temperature=REASONING_RETRY
+        )
+        metrics["llm_attempts"] = int(metrics.get("llm_attempts", 0)) + 1
+        try:
+            text = _message_text(chain.invoke(payload))
         except Exception as exc:
             _note_llm_rate_limit(exc, metrics)
             if _is_content_filter(exc):
@@ -1324,6 +1354,8 @@ Assistant Response:""",
             if not fallback or fallback == primary:
                 raise _Busy() from exc
             return self._generate_fallback(payload, fallback, metrics)
+        self._primary_reasoning_chain = chain
+        return text
 
     def _generate_fallback(self, payload: dict, deployment: str, metrics: dict) -> str:
         metrics["deployment"] = deployment
