@@ -517,3 +517,36 @@ def test_both_program_apply_to_graduate_adds_dual_program_guidance():
     assert "Never silently answer as ISDA-only" in payload["context"]
     note = payload["graduation_note"]
     assert "Do not present application deadlines that are before today as upcoming" in note
+
+
+def test_primary_retries_without_temperature_when_the_model_rejects_it(monkeypatch):
+    """A gpt-5 primary deployment rejects temperature=0.2; answer instead of erroring."""
+    monkeypatch.delenv("AZURE_OPENAI_FALLBACK_DEPLOYMENT", raising=False)
+    temperatures = []
+
+    class Reasoner:
+        def invoke(self, payload):
+            return type("Reply", (), {"content": "reasoned primary answer"})()
+
+    def create_llm(provider=None, model=None, temperature=None):
+        temperatures.append((provider, model, temperature))
+        return Reasoner()
+
+    monkeypatch.setattr("rag_chatbot.LLMFactory.create_llm", create_llm)
+    bot = _bare_bot()
+    bot.prompt_template = _Pipe()
+    bot.chain = _RaisingChain(
+        RuntimeError(
+            "Error code: 400 - Unsupported value: 'temperature' does not support 0.2 "
+            "with this model. Only the default (1) value is supported."
+        )
+    )
+    result = bot.chat("What are the required courses?")
+    assert result["source"] == "rag"
+    assert result["response"] == "reasoned primary answer"
+    assert temperatures == [(None, None, REASONING_RETRY)]
+
+    # Later turns reuse the reasoning client and skip the failing call.
+    again = bot.chat("What are the required courses?")
+    assert again["response"] == "reasoned primary answer"
+    assert len(temperatures) == 1
