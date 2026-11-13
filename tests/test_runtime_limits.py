@@ -30,6 +30,7 @@ def _clear_llm_env(monkeypatch):
         "LLM_REQUEST_TIMEOUT",
         "LLM_MAX_RETRIES",
         "LLM_MAX_TOKENS",
+        "LLM_REASONING_MAX_TOKENS",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -333,7 +334,7 @@ def test_reasoning_retry_omits_temperature_and_sends_completion_tokens(monkeypat
     assert llm.kwargs["azure_deployment"] == "o3-mini"
     assert "temperature" not in llm.kwargs
     assert "max_tokens" not in llm.kwargs
-    assert llm.kwargs["max_completion_tokens"] == 512
+    assert llm.kwargs["max_completion_tokens"] == 4096
     assert llm.kwargs["max_retries"] == 0
     assert llm.kwargs["timeout"] == 45.0
 
@@ -358,7 +359,7 @@ def test_real_azure_client_reasoning_retry_payload_drops_temperature(monkeypatch
 
     params = llm._default_params
     assert "temperature" not in params
-    assert params.get("max_completion_tokens") == 512
+    assert params.get("max_completion_tokens") == 4096
     assert "max_tokens" not in params
 
 
