@@ -85,6 +85,26 @@ python -m scripts.eval_report --k 4
 
 The default writes `docs/eval/latest.md`. Use `--help` for custom inputs, retrieval depth, and output paths; reports preserve custom input paths in their reproduction command. Expected pages and explicit exclusions live in [evals/retrieval_expectations.json](evals/retrieval_expectations.json), keyed to the unchanged [curated questions](evals/advising_questions.json). The harness forces hashing embeddings for its own run even when hosted embeddings are configured, disables Chroma telemetry, and deletes its temporary collection. It does not open the app's saved index. No credentials are needed for evaluation.
 
+#### Broad questions: summary chunks and topic spread (off by default)
+
+A broad question such as "what should I know before applying to the MLIS program?" can fill all `RAG_TOP_K` (8) slots with chunks from one topic. Two optional settings, documented beside `HYBRID_RETRIEVAL` in [.env.example](.env.example), address that. Both default to `false`, and with both off retrieval is unchanged.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `TOPIC_SPREAD` | `false` | On broad questions (an overview cue such as "what should I know", or three or more topics named), one topic takes at most `TOPIC_SPREAD_MAX_PER_TOPIC` slots and one source page at most 2; other topics backfill. Questions naming a course code and pure apply-to-graduate questions keep the fused order. Topics come from each page's URL path and title ([src/topic_clusters.py](src/topic_clusters.py)), so no rebuild is needed. |
+| `TOPIC_SPREAD_MAX_PER_TOPIC` | `3` | The per-topic cap (1–20). |
+| `SUMMARY_CHUNKS` | `false` | At index build, the configured chat provider writes a short summary of each long page and one overview per topic and program ([src/summary_chunks.py](src/summary_chunks.py)). They are stored as extra chunks that carry the real source URLs and are labeled as generated summaries in the prompt. At query time the flag admits them; off hides any already in the index. Pinned pages never use a summary. |
+| `SUMMARY_CACHE_PATH` | beside the vector store | JSON cache keyed by prompt hash, so a rebuild only re-summarizes changed pages. |
+
+To build summaries, set `SUMMARY_CHUNKS=true` with chat-provider credentials, then run `python -m src.build_index` (or `POST /api/load-docs`). Without credentials, or after three summary failures in a row, the build logs the failure and publishes the ordinary chunks. Compare settings offline with:
+
+```bash
+python -m scripts.eval_topic_spread              # extractive stand-in summaries, no model
+python -m scripts.eval_topic_spread --summarizer llm   # real summaries; needs credentials
+```
+
+The report ([docs/eval/topic-spread.md](docs/eval/topic-spread.md)) checks flags-off parity and lists any exact-answer question whose recall drops.
+
 ### Data and implementation
 
 | Area | Location / technology |

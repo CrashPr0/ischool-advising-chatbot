@@ -22,6 +22,11 @@ from urllib.parse import urlparse
 
 from langchain_core.documents import Document
 
+try:
+    from .summary_chunks import is_summary_metadata
+except ImportError:  # pragma: no cover - src/ on sys.path
+    from summary_chunks import is_summary_metadata
+
 LOGGER = logging.getLogger(__name__)
 
 # Last resort when data/catalog_identity.json is missing or unreadable.
@@ -497,6 +502,13 @@ def document_heading(index: int, metadata: Optional[dict]) -> str:
     """Context label. Catalog hits name their year; other hits name the source type."""
     metadata = metadata or {}
     source = metadata.get("source", "unknown")
+    if is_summary_metadata(metadata):
+        # Checked before the catalog year: a summary of a catalog page is
+        # still generated text, not the catalog.
+        return (
+            f"[Document {index} — {source} | Source type: generated summary of "
+            "official pages (cite the source URLs, not this summary)]"
+        )
     year = metadata.get("catalog_year")
     if isinstance(year, str) and year.strip():
         return f"[Document {index} — {source} | Catalog year: {year.strip()}]"

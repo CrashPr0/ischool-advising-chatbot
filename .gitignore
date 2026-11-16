@@ -68,6 +68,7 @@ out/
 .nuxt/
 .output/
 data/chroma/
+data/summary_cache.json
 evals/results/*
 !evals/results/latest.json
 evals/vector_store/

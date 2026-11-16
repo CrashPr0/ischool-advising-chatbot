@@ -36,6 +36,7 @@ try:
         OUTCOME_FALLBACK,
         record_stripped_links,
     )
+    from .summary_chunks import is_summary_metadata, summary_source_urls
 except ImportError:  # pragma: no cover
     # Support running with `src/` on sys.path (legacy/tests).
     from catalog_recency import (
@@ -55,6 +56,7 @@ except ImportError:  # pragma: no cover
         chat_request_metrics,
     )
     from stripped_link_log import OUTCOME_EDITED, OUTCOME_FALLBACK, record_stripped_links
+    from summary_chunks import is_summary_metadata, summary_source_urls
 
 
 logger = logging.getLogger(__name__)
@@ -770,6 +772,12 @@ def _allowed_url_keys(documents: Optional[List]) -> set:
             key = _url_key(raw)
             if key:
                 keys.add(key)
+        # A topic summary speaks for several official pages; each may be cited.
+        if is_summary_metadata(metadata):
+            for url in summary_source_urls(metadata):
+                key = _url_key(url)
+                if key:
+                    keys.add(key)
     return keys
 
 
@@ -1504,6 +1512,12 @@ Assistant Response:""",
             raw_source_url = doc.metadata.get("source_url")
             source_url = raw_source_url.strip() if isinstance(raw_source_url, str) else ""
             source_line = f"Source URL: {source_url}\n" if source_url else ""
+            if is_summary_metadata(doc.metadata):
+                # Generated text: point the model at the pages it summarizes.
+                urls = summary_source_urls(doc.metadata)
+                source_line = (
+                    f"Summarizes source URLs: {', '.join(urls)}\n" if urls else ""
+                )
             context_parts.append(
                 f"{document_heading(i, doc.metadata)}\nPrograms: {programs}\n"
                 f"{source_line}{content}\n"

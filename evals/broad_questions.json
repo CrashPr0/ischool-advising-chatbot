@@ -1,0 +1,84 @@
+{
+  "specific": [
+    {
+      "id": "isda-150-prerequisites",
+      "question": "What are the prerequisites for ISDA 150?",
+      "expected_sources": [
+        "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=203201"
+      ]
+    },
+    {
+      "id": "bsisda-core-courses",
+      "question": "What are the BS ISDA core courses?",
+      "expected_sources": [
+        "https://ischool.sjsu.edu/bsisda-required-courses"
+      ]
+    },
+    {
+      "id": "graduation-steps",
+      "question": "What are the steps to apply for graduation?",
+      "expected_sources": [
+        "https://www.sjsu.edu/registrar/graduation/application-central.php",
+        "https://www.sjsu.edu/registrar/graduation/graduation-checklist.php"
+      ]
+    }
+  ],
+  "broad": [
+    {
+      "id": "broad-bsisda-before-applying",
+      "question": "What should I know before applying to the BS ISDA program?",
+      "expected_topics": ["admissions", "advising", "requirements", "costs"],
+      "expected_sources": [
+        "https://ischool.sjsu.edu/bachelor-science-information-science-and-data-analytics",
+        "https://ischool.sjsu.edu/bsisda-transfer-students",
+        "https://ischool.sjsu.edu/bsisda-advising",
+        "https://ischool.sjsu.edu/bsisda-fees-and-scholarships"
+      ]
+    },
+    {
+      "id": "broad-mlis-before-applying",
+      "question": "What should I know before applying to the MLIS program?",
+      "expected_topics": ["admissions", "deadlines", "costs", "requirements"],
+      "expected_sources": [
+        "https://ischool.sjsu.edu/admissions",
+        "https://ischool.sjsu.edu/application-deadlines",
+        "https://ischool.sjsu.edu/mlis-fees-chart",
+        "https://ischool.sjsu.edu/mlis-required-courses"
+      ]
+    },
+    {
+      "id": "broad-new-mlis-student",
+      "question": "I am a new MLIS student. What should I know about advising, registering for classes, paying fees, and graduating?",
+      "expected_topics": ["advising", "registration", "costs", "graduation"],
+      "expected_sources": [
+        "https://ischool.sjsu.edu/advising-appointments",
+        "https://www.sjsu.edu/registrar/registration/registration-basics/index.php",
+        "https://ischool.sjsu.edu/mlis-fees-chart",
+        "https://ischool.sjsu.edu/application-award-graduate-degree"
+      ]
+    },
+    {
+      "id": "broad-finishing-bsisda",
+      "question": "What should I know about finishing my BS ISDA degree: remaining requirements, deadlines, applying to graduate, and career options?",
+      "expected_topics": ["requirements", "deadlines", "graduation", "overview"],
+      "expected_sources": [
+        "https://ischool.sjsu.edu/bsisda-required-courses",
+        "https://www.sjsu.edu/registrar/calendar/fall-2026.php",
+        "https://www.sjsu.edu/registrar/graduation/application-central.php",
+        "https://www.sjsu.edu/online/programs/information-science-and-data-analytics-bachelors-degree.php"
+      ]
+    },
+    {
+      "id": "broad-mara-overview",
+      "question": "What do MARA students need to know about required courses, electives, the e-portfolio, professional experience, and applying?",
+      "expected_topics": ["requirements", "careers", "admissions"],
+      "expected_sources": [
+        "https://ischool.sjsu.edu/mara-required-courses",
+        "https://ischool.sjsu.edu/mara-electives",
+        "https://ischool.sjsu.edu/mara-289-e-portfolio-handbook",
+        "https://ischool.sjsu.edu/mara-professional-experience",
+        "https://ischool.sjsu.edu/graduate-application"
+      ]
+    }
+  ]
+}
