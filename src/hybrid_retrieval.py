@@ -1,6 +1,9 @@
 """BM25 + vector retrieval fused with reciprocal rank fusion.
 
 ``HYBRID_RETRIEVAL`` defaults to on. Set it to false for vector search only.
+``SUMMARY_CHUNKS`` (off by default) admits generated summary chunks; off
+hides any that an index contains. ``TOPIC_SPREAD`` (off by default) caps how
+many top-k slots one topic cluster can take (``topic_clusters``).
 The lexical side is local Okapi BM25 (no extra package, no API calls). Course
 codes are rewritten so ``ISDA 150`` and ``ISDA150`` share one token. Requisite
 labels share one token too, so ``Prerequisite(s)`` matches ``prerequisites``.
@@ -53,6 +56,25 @@ except ImportError:  # pragma: no cover
         prefer_program_documents,
         program_document_priority,
         selected_programs,
+    )
+
+try:
+    from .summary_chunks import is_summary_metadata, summary_chunks_enabled
+    from .topic_clusters import (
+        chunk_bucket,
+        chunk_page,
+        is_broad_query,
+        spread_by_topic,
+        topic_spread_enabled,
+    )
+except ImportError:  # pragma: no cover
+    from summary_chunks import is_summary_metadata, summary_chunks_enabled
+    from topic_clusters import (
+        chunk_bucket,
+        chunk_page,
+        is_broad_query,
+        spread_by_topic,
+        topic_spread_enabled,
     )
 
 
@@ -533,8 +555,15 @@ def _vector_ids(
     query: str,
     pool: int,
     by_content: dict[str, list[str]],
+    hidden_summaries: int = 0,
 ) -> list[str]:
-    vector_docs = vector_store.similarity_search(expand_course_codes(query), k=pool)
+    vector_docs = vector_store.similarity_search(
+        expand_course_codes(query), k=pool + hidden_summaries
+    )
+    if hidden_summaries:
+        # Fetch past the hidden summaries so the pool holds the same page
+        # chunks an index without summaries would return.
+        vector_docs = _drop_summaries(vector_docs)[:pool]
     chosen: list[str] = []
     for document in vector_docs:
         content = getattr(document, "page_content", "")
@@ -560,6 +589,55 @@ def _prefer_program_ids(
     return sorted(ids, key=priority)
 
 
+def without_hidden_summaries(
+    records: Sequence[tuple[str, str, dict]],
+) -> tuple[list[tuple[str, str, dict]], int]:
+    """Drop summary chunks unless ``SUMMARY_CHUNKS`` is on; return the count dropped."""
+    if summary_chunks_enabled():
+        return list(records), 0
+    kept = [record for record in records if not is_summary_metadata(record[2])]
+    return kept, len(records) - len(kept)
+
+
+def _page_records(
+    records: Sequence[tuple[str, str, dict]],
+) -> Sequence[tuple[str, str, dict]]:
+    """Source-page chunks only. A summary is never pulled in as a course page."""
+    if not any(is_summary_metadata(record[2]) for record in records):
+        return records
+    return [record for record in records if not is_summary_metadata(record[2])]
+
+
+# Department prefixes whose course codes mark a question as exact.
+_SPREAD_EXEMPT_DEPARTMENTS = ("ISDA", "INFO", "INFM", "MARA", "LIBR")
+
+
+def topic_spread_applies(query: str) -> bool:
+    """Spread only broad questions.
+
+    A narrow question ("fee payment deadline") is answered by one topic's
+    pages and keeps the fused order. So does any question naming a course
+    code (``ISDA 150 prerequisites``) and a pure apply-to-graduate question.
+    Off unless ``TOPIC_SPREAD`` is on.
+    """
+    if not topic_spread_enabled() or not is_broad_query(query):
+        return False
+    if course_codes_in_query(query, _SPREAD_EXEMPT_DEPARTMENTS):
+        return False
+    return not is_apply_to_graduate_query(query)
+
+
+def _spread_ids(
+    ids: list[str], by_id: dict[str, tuple[str, dict]], k: int
+) -> list[str]:
+    return spread_by_topic(
+        ids,
+        k,
+        lambda doc_id: chunk_bucket(by_id[doc_id][1]),
+        page_of=lambda doc_id: chunk_page(by_id[doc_id][1]),
+    )
+
+
 def hybrid_retrieve(
     vector_store,
     query: str,
@@ -578,9 +656,12 @@ def hybrid_retrieve(
     k = _clamp_k(k)
     if vector_store is None or not isinstance(query, str) or not query.strip():
         return []
+    spread = topic_spread_applies(query)
     query = expand_graduation_application_query(query)
     try:
-        records = _collection_records(vector_store, collection_id)
+        records, hidden_summaries = without_hidden_summaries(
+            _collection_records(vector_store, collection_id)
+        )
         if program in PROGRAM_KEYS and records:
             records = [
                 record for record in records
@@ -589,7 +670,7 @@ def hybrid_retrieve(
             if not records:
                 return []
         if not records:
-            return _program_vector_search(vector_store, query, k, program)
+            return _program_vector_search(vector_store, query, k, program, spread)
         pool = min(len(records), max(k, CANDIDATE_POOL))
         index = _bm25_for(vector_store, records)
         bm25_positions = index.top_indices(tokenize(query), len(records))
@@ -603,19 +684,22 @@ def hybrid_retrieve(
         # otherwise short shared application pages can never reach fusion.
         bm25_ids = _prefer_program_ids(bm25_ids, by_id, query, program)[:pool]
         try:
-            vector_ids = _vector_ids(vector_store, query, pool, by_content)
+            vector_ids = _vector_ids(
+                vector_store, query, pool, by_content, hidden_summaries
+            )
         except Exception as error:
             print(f"Query embedding failed; using BM25 only: {error}")
             # The lexical list is already the candidate pool. Prefer the
             # current catalog inside that pool, then cut to k.
-            lexical = _documents_for_ids(
-                _prefer_program_ids(
-                    reorder_ids(bm25_ids, by_id), by_id, query, program
-                ),
-                by_id,
-                k,
+            lexical_ids = _prefer_program_ids(
+                reorder_ids(bm25_ids, by_id), by_id, query, program
             )
-            return include_authoritative_course_pages(lexical, records, k)
+            if spread:
+                lexical_ids = _spread_ids(lexical_ids, by_id, k)
+            lexical = _documents_for_ids(lexical_ids, by_id, k)
+            return include_authoritative_course_pages(
+                lexical, _page_records(records), k
+            )
         # Fuse the whole candidate pool, then let the current catalog take
         # the better slots of an older catalog for the same course or program.
         # Slicing after that swap is what brings a lower-ranked current chunk
@@ -629,24 +713,75 @@ def hybrid_retrieve(
         if catalog_recency_rerank_enabled():
             fused = reorder_ids(fused, by_id)
         fused = _prefer_program_ids(fused, by_id, query, program)
+        if spread:
+            # After recency and program preference, so the cap picks among
+            # chunks already in their final order.
+            fused = _spread_ids(fused, by_id, k)
         fused_hits = _documents_for_ids(fused, by_id, k)
-        return include_authoritative_course_pages(fused_hits, records, k)
+        return include_authoritative_course_pages(
+            fused_hits, _page_records(records), k
+        )
     except Exception as error:
         print(f"Hybrid retrieval failed; using vector search: {error}")
         try:
-            return _program_vector_search(vector_store, query, k, program)
+            return _program_vector_search(vector_store, query, k, program, spread)
         except Exception as inner:
             print(f"Error retrieving documents: {inner}")
             return []
 
 
-def _program_vector_search(
-    vector_store, query: str, k: int, program: Optional[str] = None
-) -> list[Document]:
-    documents = reorder_documents(
-        vector_store.similarity_search(
-            expand_course_codes(query),
-            k=max(k, 40) if program in PROGRAM_KEYS else k,
-        )
+def _drop_summaries(documents: Sequence[Document]) -> list[Document]:
+    return [
+        doc
+        for doc in documents
+        if not is_summary_metadata(getattr(doc, "metadata", None))
+    ]
+
+
+def vector_search_documents(vector_store, query: str, fetch_k: int) -> list[Document]:
+    """``similarity_search`` with summaries hidden unless ``SUMMARY_CHUNKS`` is on.
+
+    When hidden summaries take result slots, search again deeper so the
+    caller still gets ``fetch_k`` page chunks when the index has them.
+    """
+    documents = list(vector_store.similarity_search(query, k=fetch_k))
+    if summary_chunks_enabled():
+        return documents
+    kept = _drop_summaries(documents)
+    depth = fetch_k
+    while len(kept) < fetch_k and len(documents) >= depth and depth < fetch_k * 8:
+        depth += (len(documents) - len(kept)) + fetch_k
+        documents = list(vector_store.similarity_search(query, k=depth))
+        kept = _drop_summaries(documents)
+    return kept[:fetch_k]
+
+
+def spread_documents(documents: Sequence[Document], k: int) -> list[Document]:
+    """Topic spread over already ordered documents (vector-only paths)."""
+    return spread_by_topic(
+        documents,
+        k,
+        lambda doc: chunk_bucket(doc.metadata),
+        page_of=lambda doc: chunk_page(doc.metadata),
     )
-    return prefer_program_documents(filter_program_documents(documents, program), query, program)[:k]
+
+
+def _program_vector_search(
+    vector_store,
+    query: str,
+    k: int,
+    program: Optional[str] = None,
+    spread: bool = False,
+) -> list[Document]:
+    fetch_k = max(k, 40) if program in PROGRAM_KEYS else k
+    if spread:
+        fetch_k = max(fetch_k, CANDIDATE_POOL)
+    documents = reorder_documents(
+        vector_search_documents(vector_store, expand_course_codes(query), fetch_k)
+    )
+    ranked = prefer_program_documents(
+        filter_program_documents(documents, program), query, program
+    )
+    if spread:
+        ranked = spread_documents(ranked, k)
+    return ranked[:k]

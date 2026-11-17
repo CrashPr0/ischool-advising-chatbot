@@ -343,6 +343,17 @@ platform switches the Python code does not read, so they are not in
 `PORT` (default 8000 in `gunicorn.conf.py`). `WEBSITES_PORT` has to be that
 same port. `SCM_DO_BUILD_DURING_DEPLOYMENT` must stay `true`.
 
+Optional broad-question retrieval settings are not set in production and
+default to off: `TOPIC_SPREAD`, `TOPIC_SPREAD_MAX_PER_TOPIC`,
+`SUMMARY_CHUNKS`, and `SUMMARY_CACHE_PATH` (see the README section "Broad
+questions"). Unset, retrieval is unchanged. `TOPIC_SPREAD` takes effect on
+restart with no rebuild. `SUMMARY_CHUNKS=true` needs an index rebuild
+(`/api/load-docs`), which then makes about 70 chat-model calls for the
+current corpus on the first build (cached afterwards in
+`/home/data/summary_cache.json`). Summaries add chunks, so the receipt's
+chunk count rises. Turning `SUMMARY_CHUNKS` back off hides the summaries
+without a rebuild.
+
 GitHub repository secrets used by the workflow:
 
 - `AZURE_WEBAPP_PUBLISH_PROFILE` for `ischooladvisingchatbot-dx4ynl`

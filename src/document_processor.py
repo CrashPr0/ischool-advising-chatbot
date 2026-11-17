@@ -39,6 +39,7 @@ try:
         normalize_program,
         prefer_program_documents,
     )
+    from .summary_chunks import is_summary_metadata, optional_summary_documents
 except ImportError:  # pragma: no cover
     from catalog_recency import apply_catalog_metadata, reorder_documents
     from config import Config
@@ -49,6 +50,7 @@ except ImportError:  # pragma: no cover
         normalize_program,
         prefer_program_documents,
     )
+    from summary_chunks import is_summary_metadata, optional_summary_documents
 
 
 class HashingEmbeddings(Embeddings):
@@ -1179,11 +1181,17 @@ class DocumentProcessor:
             if hybrid_hits is not None:
                 return hybrid_hits
             # Rank a wider pool before slicing so the selection can affect top-k.
-            results = store.similarity_search(
-                query, k=max(k, 40) if program in PROGRAM_KEYS else k
-            )
+            vector_search, spread_applies, spread_documents = _vector_only_helpers()
+            fetch_k = max(k, 40) if program in PROGRAM_KEYS else k
+            spread = spread_applies(query)
+            if spread:
+                fetch_k = max(fetch_k, 20)
+            results = vector_search(store, query, fetch_k)
             results = filter_program_documents(reorder_documents(results), program)
-            return prefer_program_documents(results, query, program)[:k]
+            results = prefer_program_documents(results, query, program)
+            if spread:
+                results = spread_documents(results, k)
+            return results[:k]
         except Exception as e:
             print(f"Error retrieving documents: {e}")
             return []
@@ -1211,6 +1219,9 @@ class DocumentProcessor:
             print(f"Could not read indexed chunks: {error}")
             return []
         for _doc_id, content, metadata in records:
+            # A pinned page must be the published text, never a summary.
+            if is_summary_metadata(metadata):
+                continue
             url = str((metadata or {}).get("source_url") or "").casefold()
             if needle in url:
                 found.append(
@@ -1227,6 +1238,9 @@ class DocumentProcessor:
                 print("No documents found. Proceeding without document retrieval.")
                 return None
             split_docs = self.split_documents(documents)
+            # SUMMARY_CHUNKS=true adds page and topic summaries. Off, or any
+            # summary failure, adds nothing and the build continues.
+            split_docs.extend(optional_summary_documents(documents))
             return self.create_vector_store(split_docs)
 
 
@@ -1381,3 +1395,21 @@ def _optional_hybrid_retrieve(
     return hybrid_retrieve(
         vector_store, query, k, collection_id=collection_id, program=program
     )
+
+
+
+def _vector_only_helpers():
+    """Summary filtering and topic spread for the vector-only path."""
+    try:
+        from .hybrid_retrieval import (
+            spread_documents,
+            topic_spread_applies,
+            vector_search_documents,
+        )
+    except ImportError:  # pragma: no cover - src/ on sys.path
+        from hybrid_retrieval import (
+            spread_documents,
+            topic_spread_applies,
+            vector_search_documents,
+        )
+    return vector_search_documents, topic_spread_applies, spread_documents
