@@ -69,6 +69,13 @@ jobs:
         if: steps.open.outputs.count == '0'
         run: python scripts/check_sjsu_catalog.py --result "${RUNNER_TEMP}/catalog-check.json" --pr-body "${RUNNER_TEMP}/pr-body.md"
 
+      # The refresh already refuses to write when a requirement page names
+      # a course with no catalog course page (the step above then fails).
+      # This re-checks the written tree before any pull request is opened.
+      - name: Check the catalog prerequisite table
+        if: steps.open.outputs.count == '0' && steps.catalog.outputs.changed == 'true'
+        run: python scripts/build_prerequisite_table.py --check
+
       - name: Run tests
         if: steps.open.outputs.count == '0' && steps.catalog.outputs.changed == 'true'
         env:

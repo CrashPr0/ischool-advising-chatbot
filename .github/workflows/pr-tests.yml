@@ -46,6 +46,13 @@ jobs:
           DOCS_LOAD_TOKEN: test-docs-token
         run: python -m pytest tests/ -q
 
+      # pytest already runs this (tests/test_catalog_prerequisites.py). The
+      # separate step prints the missing course list on its own line in the
+      # job log: every iSchool course a requirement page or roadmap names
+      # needs a catalog course page in data/catalog_prerequisites.json.
+      - name: Check the catalog prerequisite table
+        run: python scripts/build_prerequisite_table.py --check
+
       # Report every advisory. Fail only when a patched release exists.
       # chromadb 1.5.9 has no fix yet; those ids are printed and ignored.
       - name: Audit Python dependencies
