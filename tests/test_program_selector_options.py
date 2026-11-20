@@ -46,7 +46,10 @@ def test_msis_sample_questions_are_wired():
     script = (ROOT / "static/script.js").read_text(encoding="utf-8")
     assert "MSIS_STARTERS" in script
     docs = (ROOT / "docs/index.html").read_text(encoding="utf-8")
-    assert "PROGRAM_STARTERS = { mara: MARA_STARTERS, msis: MSIS_STARTERS }" in script
+    assert (
+        "PROGRAM_STARTERS = { isda: ISDA_STARTERS, mlis: MLIS_STARTERS, "
+        "mara: MARA_STARTERS, msis: MSIS_STARTERS }" in script
+    )
     for question in (
         "What are the MS Informatics required courses?",
         "What is the MS Informatics course load?",

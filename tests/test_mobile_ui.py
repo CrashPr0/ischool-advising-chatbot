@@ -9,8 +9,8 @@ CSS = (ROOT / "static/style.css").read_text()
 HTML_FILES = ("templates/index.html", "docs/index.html")
 ASSET_PINS = {
     "style.css": "20261023-reply-suggestions",
-    "suggestions.js": "20261023-reply-suggestions",
-    "script.js": "20261112-new-tab-links",
+    "suggestions.js": "20261120-program-scoped-suggestions",
+    "script.js": "20261120-program-scoped-suggestions",
 }
 
 

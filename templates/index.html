@@ -252,9 +252,14 @@
                 <p class="starter-label" id="starter-label">Suggested questions</p>
                 <div class="starter-grid" role="group" aria-labelledby="starter-label">
                   <button type="button" class="starter-chip"
-                          data-question="Who is my assigned ISDA advisor?">
+                          data-question="How do I schedule an advising appointment?">
                     <span class="starter-topic">General Advising</span>
-                    <span class="starter-question">Who is my assigned ISDA advisor?</span>
+                    <span class="starter-question">How do I schedule an advising appointment?</span>
+                  </button>
+                  <button type="button" class="starter-chip"
+                          data-question="How do I add or drop a course?">
+                    <span class="starter-topic">Registration</span>
+                    <span class="starter-question">How do I add or drop a course?</span>
                   </button>
                   <button type="button" class="starter-chip"
                           data-question="What are the ISDA core courses?">
@@ -265,11 +270,6 @@
                           data-question="What are the MLIS core courses?">
                     <span class="starter-topic">MLIS core courses</span>
                     <span class="starter-question">What are the MLIS core courses?</span>
-                  </button>
-                  <button type="button" class="starter-chip"
-                          data-question="How do I add or drop a course?">
-                    <span class="starter-topic">Registration</span>
-                    <span class="starter-question">How do I add or drop a course?</span>
                   </button>
                 </div>
               </div>
@@ -415,8 +415,8 @@
   </div>
 
   <script src="{{ url_for('static', filename='markdown.js', v='20260927-mailto') }}"></script>
-  <script src="{{ url_for('static', filename='suggestions.js', v='20261023-reply-suggestions') }}"></script>
-  <script src="{{ url_for('static', filename='script.js', v='20261112-new-tab-links') }}"></script>
+  <script src="{{ url_for('static', filename='suggestions.js', v='20261120-program-scoped-suggestions') }}"></script>
+  <script src="{{ url_for('static', filename='script.js', v='20261120-program-scoped-suggestions') }}"></script>
 {% if canvas_mode %}<script src="{{ url_for('static', filename='canvas-mode.js', v='20261023-canvas-toolbar') }}"></script>{% else %}<script src="{{ url_for('static', filename='mobile-layout.js', v='20261022-mobile') }}"></script>{% endif %}
 </body>
 </html>

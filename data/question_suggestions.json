@@ -1,10 +1,36 @@
 {
   "fallback_starter_ids": [
-    "who-is-my-assigned-isda-advisor",
+    "schedule-an-advising-appointment",
+    "add-or-drop-a-course",
     "what-are-the-isda-core-courses",
-    "what-are-the-mlis-core-courses",
-    "add-or-drop-a-course"
+    "what-are-the-mlis-core-courses"
   ],
+  "fallback_starter_ids_by_program": {
+    "isda": [
+      "who-is-my-assigned-isda-advisor",
+      "what-are-the-isda-core-courses",
+      "total-units-are-required-for-isda",
+      "apply-to-graduate-from-isda"
+    ],
+    "mlis": [
+      "what-are-the-mlis-core-courses",
+      "apply-to-the-mlis-program",
+      "the-mlis-e-portfolio",
+      "schedule-an-mlis-advising-appointment"
+    ],
+    "mara": [
+      "mara-program-units",
+      "mara-required-courses",
+      "mara-electives",
+      "mara-289-e-portfolio"
+    ],
+    "msis": [
+      "msis-required-courses",
+      "msis-course-load",
+      "infm-211-informatics-capstone",
+      "msis-advising"
+    ]
+  },
   "questions": [
     {
       "id": "who-is-my-assigned-isda-advisor",
@@ -131,7 +157,7 @@
       "text": "Can I transfer community college credits?",
       "topic": "Transfer Credits",
       "programs": [
-        "both"
+        "isda"
       ]
     },
     {
@@ -420,6 +446,70 @@
       "topic": "Courses",
       "programs": [
         "isda"
+      ]
+    },
+    {
+      "id": "mara-program-units",
+      "text": "How many units does the MARA program require?",
+      "topic": "Program overview",
+      "programs": [
+        "mara"
+      ]
+    },
+    {
+      "id": "mara-required-courses",
+      "text": "What are the MARA required courses?",
+      "topic": "Required courses",
+      "programs": [
+        "mara"
+      ]
+    },
+    {
+      "id": "mara-electives",
+      "text": "How do MARA electives work?",
+      "topic": "Electives",
+      "programs": [
+        "mara"
+      ]
+    },
+    {
+      "id": "mara-289-e-portfolio",
+      "text": "What is the MARA 289 e-Portfolio?",
+      "topic": "e-Portfolio",
+      "programs": [
+        "mara"
+      ]
+    },
+    {
+      "id": "msis-required-courses",
+      "text": "What are the MS Informatics required courses?",
+      "topic": "Required courses",
+      "programs": [
+        "msis"
+      ]
+    },
+    {
+      "id": "msis-course-load",
+      "text": "What is the MS Informatics course load?",
+      "topic": "Course load",
+      "programs": [
+        "msis"
+      ]
+    },
+    {
+      "id": "infm-211-informatics-capstone",
+      "text": "What is the INFM 211 Informatics capstone course?",
+      "topic": "Capstone",
+      "programs": [
+        "msis"
+      ]
+    },
+    {
+      "id": "msis-advising",
+      "text": "How does MS Informatics advising work?",
+      "topic": "Advising",
+      "programs": [
+        "msis"
       ]
     }
   ]

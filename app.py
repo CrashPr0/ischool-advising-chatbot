@@ -71,7 +71,7 @@ from suggestion_usage import (
 from voice_config import get_voice_config
 from program_scope import normalize_program
 from program_picker import wants_program_picker
-from reply_suggestions import clean_suggestions
+from reply_suggestions import clean_suggestions, scope_suggestions
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -1239,7 +1239,10 @@ def chat():
         if isinstance(suggestion_click, dict):
             try:
                 popular_click = verified_popular_click(
-                    get_suggestion_usage_store(), suggestion_click, user_message
+                    get_suggestion_usage_store(),
+                    suggestion_click,
+                    user_message,
+                    program,
                 )
             except Exception:
                 logger.exception("Could not verify suggestion popularity")
@@ -1262,7 +1265,10 @@ def chat():
             "retrieved_docs": len(result["retrieved_docs"]),
         }
         # Optional follow-up chips. Omitted when empty or invalid.
-        suggestions = clean_suggestions(result.get("suggestions"))
+        # Chips naming a different program than the selected one are dropped.
+        suggestions = scope_suggestions(
+            clean_suggestions(result.get("suggestions")), program
+        )
         if suggestions:
             payload["suggestions"] = suggestions
         if provider:

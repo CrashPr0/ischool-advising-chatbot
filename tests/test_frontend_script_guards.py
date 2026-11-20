@@ -138,10 +138,10 @@ def test_confidence_display_is_gone_and_link_rendering_is_unchanged():
     assert 'id="confidence-badge"' not in docs
     assert "filename='style.css', v='20261023-reply-suggestions'" in template
     assert "style.css?v=20261023-reply-suggestions" in docs
-    assert "filename='suggestions.js', v='20261023-reply-suggestions'" in template
-    assert "suggestions.js?v=20261023-reply-suggestions" in docs
-    assert "filename='script.js', v='20261112-new-tab-links'" in template
-    assert "script.js?v=20261112-new-tab-links" in docs
+    assert "filename='suggestions.js', v='20261120-program-scoped-suggestions'" in template
+    assert "suggestions.js?v=20261120-program-scoped-suggestions" in docs
+    assert "filename='script.js', v='20261120-program-scoped-suggestions'" in template
+    assert "script.js?v=20261120-program-scoped-suggestions" in docs
     assert "20261014-advisor-handoff" not in template
     assert "20261014-advisor-handoff" not in docs
     assert "20261017-long-term-reports" not in template
