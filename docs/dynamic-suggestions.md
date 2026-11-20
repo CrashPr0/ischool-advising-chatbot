@@ -60,6 +60,12 @@ Starter slots, up to four:
    in that order.
 4. The rest of the catalog, if a slot is still empty.
 
+Starters are also chosen per program (`starters_by_program` in the payload)
+from only the questions that program can see, with
+`fallback_starter_ids_by_program` as each program's backup. A popular ISDA
+question never becomes an MLIS, MARA, or MSIS chip. "Not sure / both" uses
+the shared `starters` list.
+
 Hidden suggestions never occupy a starter slot and never receive a boost.
 They can still appear in the dropdown as an ordinary curated match.
 
@@ -71,11 +77,20 @@ Edit `data/question_suggestions.json`.
   Use lowercase letters, numbers, and single hyphens, 2 to 64 characters.
 - `text` is the question the student sees.
 - `topic` is the small label.
-- `programs` is `isda`, `mlis`, or `both`.
+- `programs` is `isda`, `mlis`, `mara`, `msis`, or `both`. `both` means
+  program-neutral: the question applies to every program. Tag a question
+  for a program whenever its text names that program or only applies to it.
+  With a program selected, autocomplete and starters offer only that
+  program's questions and the neutral ones. With no program selected,
+  neutral questions rank first and one program fills at most a third of
+  the dropdown unless nothing else matches.
 - `pinned: true` forces a starter.
 - `fallback_starter_ids` is the ordered backup when there are not enough
   picks. A starter chip's question should stay in this file and in a topic
   button's `data-samples`.
+- `fallback_starter_ids_by_program` lists four backup starters for each of
+  `isda`, `mlis`, `mara`, and `msis`. Keep it in step with the
+  `*_STARTERS` lists in `static/script.js`.
 
 ## Reviewer moderation
 
@@ -99,7 +114,9 @@ the transcript and is not saved.
 The server ignores any rank or count the browser sends. It rebuilds the
 current top five from `suggestion_pick_events`: a positive all-time count,
 highest first, with the same alphabetical tie-break as the reviewer list,
-hidden suggestions removed, and no seeded counts. The click counts only
+hidden suggestions removed, and no seeded counts. When the chat request
+names a program, the five are ranked among only the questions that program
+is offered (its own and the neutral ones). The click counts only
 when that question is in the five and the text matches the catalog entry
 exactly. The retrieval query and the model input stay the student's
 question. A match prefixes the answer with one fixed sentence. Crisis and

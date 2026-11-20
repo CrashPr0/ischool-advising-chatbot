@@ -33,15 +33,27 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .question_suggestions import load_suggestion_catalog, suggestions_enabled
+    from .question_suggestions import (
+        filter_for_program,
+        load_suggestion_catalog,
+        normalize_selected_program,
+        suggestions_enabled,
+    )
 except ImportError:  # pragma: no cover - app.py loads src as a top-level path
-    from question_suggestions import load_suggestion_catalog, suggestions_enabled
+    from question_suggestions import (
+        filter_for_program,
+        load_suggestion_catalog,
+        normalize_selected_program,
+        suggestions_enabled,
+    )
 
 logger = logging.getLogger(__name__)
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 _EVENT_TYPES = {"chip", "dropdown"}
 _PROGRAMS = {"isda", "mlis", "both"}
+# Programs that get their own starter chips. "both" uses the shared list.
+_STARTER_PROGRAMS = ("isda", "mlis", "mara", "msis")
 _ACTIONS = {"hide", "restore", "reset"}
 _RANKING_MODE = "all_time"
 _STARTER_LIMIT = 4
@@ -207,6 +219,30 @@ def choose_starters(
             seen.add(item["id"])
             if len(chosen) >= limit:
                 return chosen
+    return chosen
+
+
+def starters_by_program(
+    catalog: dict, counts: dict[str, int], hidden: set[str], *, min_count: int
+) -> dict[str, list[str]]:
+    """Starter ids per selected program, chosen only from questions it can see.
+
+    Popular questions from another program never become a program's chips.
+    """
+    by_program = catalog.get("fallback_starter_ids_by_program") or {}
+    chosen: dict[str, list[str]] = {}
+    for program in _STARTER_PROGRAMS:
+        visible = filter_for_program(catalog["questions"], program)
+        chosen[program] = [
+            item["id"]
+            for item in choose_starters(
+                visible,
+                by_program.get(program, []),
+                counts,
+                hidden,
+                min_count=min_count,
+            )
+        ]
     return chosen
 
 
@@ -443,7 +479,7 @@ _POPULAR_ACK_LIMIT = 5
 
 
 def verified_popular_click(
-    store: SuggestionUsageStore, click: object, message: str
+    store: SuggestionUsageStore, click: object, message: str, program: object = None
 ) -> bool:
     """Match click metadata to the message and the current five most picked ids.
 
@@ -452,6 +488,10 @@ def verified_popular_click(
     moderated-hidden questions cannot earn an acknowledgement. Client fields
     such as rank or a popularity number are ignored. This does not read the
     anonymized student-question log and does not write anything.
+
+    A selected program ranks only the questions that program is offered
+    (its own and program-neutral ones), so another program's picks neither
+    crowd out nor stand in for its top five. No selection ranks them all.
     """
     if (
         not isinstance(click, dict)
@@ -469,7 +509,9 @@ def verified_popular_click(
     # Any other shape, including a non-string id, is not a verified click.
     if "id" in click and (not isinstance(click.get("id"), str) or not click.get("id")):
         return False
-    questions = load_suggestion_catalog()["questions"]
+    questions = filter_for_program(
+        load_suggestion_catalog()["questions"], normalize_selected_program(program)
+    )
     counts = store.counts()
     hidden = set(store.hidden_rows())
     ranked = sorted(
@@ -524,6 +566,9 @@ def student_suggestion_payload(store: SuggestionUsageStore | None = None) -> dic
     payload["ranking_mode"] = _RANKING_MODE
     payload["min_count"] = minimum
     payload["starters"] = [item["id"] for item in starters]
+    payload["starters_by_program"] = starters_by_program(
+        catalog, counts, hidden, min_count=minimum
+    )
     payload["popularity"] = popularity_counts(
         catalog["questions"], counts, hidden, min_count=minimum
     )

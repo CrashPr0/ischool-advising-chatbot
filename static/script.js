@@ -1732,26 +1732,68 @@ function normalizeProgram(value) {
   return ["isda", "mlis", "mara", "msis", "both"].includes(value) ? value : "both";
 }
 
-// Welcome chips for MARA. Each question matches a MARA page in the knowledge
-// base (overview, required courses, electives, MARA 289 e-Portfolio).
+// Welcome chips per selected program. Each one is a curated catalog question
+// (data/question_suggestions.json) tagged for that program, so a chip click
+// carries its catalog id. "Not sure / both" keeps the page's neutral-first chips.
+const ISDA_STARTERS = [
+  { id: "who-is-my-assigned-isda-advisor", topic: "General Advising", text: "Who is my assigned ISDA advisor?" },
+  { id: "what-are-the-isda-core-courses", topic: "Degree Requirements", text: "What are the ISDA core courses?" },
+  { id: "total-units-are-required-for-isda", topic: "Degree Requirements", text: "How many total units are required for ISDA?" },
+  { id: "apply-to-graduate-from-isda", topic: "Graduation", text: "How do I apply to graduate from ISDA?" }
+];
+const MLIS_STARTERS = [
+  { id: "what-are-the-mlis-core-courses", topic: "MLIS core courses", text: "What are the MLIS core courses?" },
+  { id: "apply-to-the-mlis-program", topic: "Apply to the MLIS program", text: "How do I apply to the MLIS program?" },
+  { id: "the-mlis-e-portfolio", topic: "MLIS e-portfolio / culminating experience", text: "What is the MLIS e-portfolio?" },
+  { id: "schedule-an-mlis-advising-appointment", topic: "MLIS advising", text: "How do I schedule an MLIS advising appointment?" }
+];
+// Each MARA question matches a MARA page in the knowledge base (overview,
+// required courses, electives, MARA 289 e-Portfolio).
 const MARA_STARTERS = [
-  { topic: "Program overview", text: "How many units does the MARA program require?" },
-  { topic: "Required courses", text: "What are the MARA required courses?" },
-  { topic: "Electives", text: "How do MARA electives work?" },
-  { topic: "e-Portfolio", text: "What is the MARA 289 e-Portfolio?" }
+  { id: "mara-program-units", topic: "Program overview", text: "How many units does the MARA program require?" },
+  { id: "mara-required-courses", topic: "Required courses", text: "What are the MARA required courses?" },
+  { id: "mara-electives", topic: "Electives", text: "How do MARA electives work?" },
+  { id: "mara-289-e-portfolio", topic: "e-Portfolio", text: "What is the MARA 289 e-Portfolio?" }
 ];
-// Welcome chips for MS Informatics (MSIS), matching the official iSchool
-// Informatics required courses, course load, capstone and advising pages.
+// MS Informatics (MSIS), matching the official iSchool Informatics required
+// courses, course load, capstone and advising pages.
 const MSIS_STARTERS = [
-  { topic: "Required courses", text: "What are the MS Informatics required courses?" },
-  { topic: "Course load", text: "What is the MS Informatics course load?" },
-  { topic: "Capstone", text: "What is the INFM 211 Informatics capstone course?" },
-  { topic: "Advising", text: "How does MS Informatics advising work?" }
+  { id: "msis-required-courses", topic: "Required courses", text: "What are the MS Informatics required courses?" },
+  { id: "msis-course-load", topic: "Course load", text: "What is the MS Informatics course load?" },
+  { id: "infm-211-informatics-capstone", topic: "Capstone", text: "What is the INFM 211 Informatics capstone course?" },
+  { id: "msis-advising", topic: "Advising", text: "How does MS Informatics advising work?" }
 ];
-const PROGRAM_STARTERS = { mara: MARA_STARTERS, msis: MSIS_STARTERS };
+const PROGRAM_STARTERS = { isda: ISDA_STARTERS, mlis: MLIS_STARTERS, mara: MARA_STARTERS, msis: MSIS_STARTERS };
 let defaultStarters = null;
+// Server-chosen starter ids per program (dynamic suggestions only).
+let dynamicProgramStarters = {};
+
+function programStarterItems(program) {
+  const ids = dynamicProgramStarters[program];
+  if (Array.isArray(ids) && ids.length) {
+    const byId = new Map();
+    suggestionCatalog.forEach((item) => {
+      if (item && item.id) byId.set(item.id, item);
+    });
+    const items = ids.map((id) => byId.get(id)).filter((item) => (
+      item && item.text && (typeof suggestionVisibleForProgram !== "function" || suggestionVisibleForProgram(item, program))
+    ));
+    if (items.length >= (PROGRAM_STARTERS[program] || []).length) return items;
+  }
+  return PROGRAM_STARTERS[program] || null;
+}
+
+// Sample-question chips tagged with data-programs (docs page) are hidden for
+// other programs. Untagged chips are program-neutral and always shown.
+function applyProgramPromptChips(program) {
+  document.querySelectorAll(".prompt-chip[data-programs]").forEach((chip) => {
+    const programs = String(chip.getAttribute("data-programs") || "").split(/\s+/);
+    chip.hidden = program !== "both" && !programs.includes(program);
+  });
+}
 
 function applyProgramStarters(program) {
+  applyProgramPromptChips(program);
   const chips = Array.from(document.querySelectorAll(".starter-chip"));
   if (!chips.length) return;
   if (!defaultStarters) {
@@ -1761,17 +1803,19 @@ function applyProgramStarters(program) {
       topic: chip.querySelector(".starter-topic")?.textContent || "",
     }));
   }
+  const programItems = program === "both" ? null : programStarterItems(program);
   chips.forEach((chip, index) => {
-    const mara = (PROGRAM_STARTERS[program] || [])[index];
+    const item = (programItems || [])[index];
     const base = defaultStarters[index];
-    const text = mara ? mara.text : base?.question;
+    const text = item ? item.text : base?.question;
     if (!text) return;
+    const id = item ? item.id : base?.id;
     chip.setAttribute("data-question", text);
-    if (mara || !base.id) chip.removeAttribute("data-suggestion-id");
-    else chip.setAttribute("data-suggestion-id", base.id);
+    if (id) chip.setAttribute("data-suggestion-id", id);
+    else chip.removeAttribute("data-suggestion-id");
     const topic = chip.querySelector(".starter-topic");
     const question = chip.querySelector(".starter-question");
-    if (topic) topic.textContent = mara ? mara.topic : base.topic;
+    if (topic) topic.textContent = item ? item.topic || "" : base.topic;
     if (question) question.textContent = text;
   });
 }
@@ -1827,7 +1871,7 @@ function onProgramChange() {
   lastSelectedProgram = normalizeProgram(programSelect.value);
   applyProgramStarters(lastSelectedProgram);
   updateAdvisorHandoffNotes();
-  scheduleQuestionSuggestions();
+  refreshSuggestionsForProgram();
   const convo = tabsEnabled() ? getActiveConversation() : null;
   if (convo) {
     convo.program = lastSelectedProgram;
@@ -1994,6 +2038,7 @@ function paintConversation(convo) {
   if (!convo || !chatBox) return;
 
   if (programSelect) programSelect.value = normalizeProgram(convo.program);
+  applyProgramStarters(normalizeProgram(convo.program));
   updateAdvisorHandoffNotes();
   userInput.value = conversationDrafts.get(convo.id) || "";
   scheduleQuestionSuggestions();
@@ -2634,6 +2679,14 @@ function refreshQuestionSuggestions() {
   announceSuggestionCount(matches.length);
 }
 
+// A program switch must not leave the previous program's matches on screen:
+// an open list is re-ranked at once for the new program. Otherwise a refresh
+// is scheduled, and it reads the selected program when it runs.
+function refreshSuggestionsForProgram() {
+  if (suggestionsOpen) refreshQuestionSuggestions();
+  else scheduleQuestionSuggestions();
+}
+
 function scheduleQuestionSuggestions() {
   if (suggestionTimer) {
     clearTimeout(suggestionTimer);
@@ -2789,7 +2842,14 @@ async function loadQuestionSuggestions() {
     suggestionPopularity = dynamicSuggestions && data.popularity && typeof data.popularity === "object"
       ? data.popularity
       : {};
+    dynamicProgramStarters = dynamicSuggestions && data.starters_by_program
+      && typeof data.starters_by_program === "object"
+      ? data.starters_by_program
+      : {};
     if (dynamicSuggestions) {
+      // Restore the page's shared chips before replacing them, so a program's
+      // chips are never snapshotted as the shared defaults.
+      if (defaultStarters) applyProgramStarters("both");
       applyDynamicStarters(data.starters);
       defaultStarters = null;
       applyProgramStarters(lastSelectedProgram);

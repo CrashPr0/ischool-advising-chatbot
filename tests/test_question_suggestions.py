@@ -113,13 +113,16 @@ def test_prefix_course_code_and_program_order():
     questions = _catalog()
     core = _texts(rank_question_suggestions("core courses", questions, program="mlis"))
     assert "What are the MLIS core courses?" in core
-    assert "What are the ISDA core courses?" in core
-    assert core.index("What are the MLIS core courses?") < core.index(
-        "What are the ISDA core courses?"
-    )
+    # A selected program never sees another program's questions.
+    assert "What are the ISDA core courses?" not in core
 
-    info = _texts(rank_question_suggestions("INFO289", questions, program="isda"))
+    both = _texts(rank_question_suggestions("core courses", questions))
+    assert "What are the MLIS core courses?" in both
+    assert "What are the ISDA core courses?" in both
+
+    info = _texts(rank_question_suggestions("INFO289", questions, program="mlis"))
     assert info[0] == "What is INFO 289: e-Portfolio?"
+    assert rank_question_suggestions("INFO289", questions, program="isda") == []
 
     big_data = _texts(rank_question_suggestions("big data", questions))
     assert big_data[0] == "What is ISDA 140: Big Data Analytics and Management?"
@@ -242,8 +245,8 @@ def test_combobox_markup_is_on_both_pages_and_client_does_not_send_partials():
         assert 'id="question-suggestions" class="suggest-list" role="listbox"' in html
         assert 'id="question-suggestions-status"' in html
         assert 'aria-live="polite"' in html
-        assert "suggestions.js?v=20261023-reply-suggestions" in html or (
-            "filename='suggestions.js', v='20261023-reply-suggestions'" in html
+        assert "suggestions.js?v=20261120-program-scoped-suggestions" in html or (
+            "filename='suggestions.js', v='20261120-program-scoped-suggestions'" in html
         )
 
     script = (ROOT / "static" / "script.js").read_text(encoding="utf-8")
@@ -277,6 +280,16 @@ def test_browser_matcher_matches_python(tmp_path):
         ("waitlist", "mlis", 6),
         ("e-portfolio", "both", 6),
         ("isda 160", "mlis", 6),
+        ("isda 160", "isda", 6),
+        ("can i", "mlis", 6),
+        ("how", "mlis", 8),
+        ("how", "both", 6),
+        ("what is", "both", 6),
+        ("what", "mara", 8),
+        ("what", "msis", 8),
+        ("what is isda", "both", 6),
+        ("core courses", "both", 6),
+        ("how", "unknown", 6),
     ):
         ranked = rank_question_suggestions(
             query, questions, program=program, limit=limit
