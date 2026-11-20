@@ -908,8 +908,8 @@ class DocumentProcessor:
     ) -> List[Document]:
         """Split documents into chunks optimised for advising-style Q&A retrieval.
 
-        A document may set metadata ``atomic_section`` to a heading. The
-        paragraph that contains that heading is emitted as one chunk, and the
+        A document may set metadata ``atomic_section`` to a heading (or a list
+        of headings). Each paragraph that contains one is emitted as one chunk, and the
         text before and after it is split at ``chunk_size``. The BS ISDA core
         list is longer than 600 characters; splitting it would leave some
         catalog titles out of every retrieved chunk. That one core chunk gets
@@ -933,9 +933,9 @@ class DocumentProcessor:
     def _split_one_document(
         self, document: Document, chunk_size: int, chunk_overlap: int
     ) -> List[Document]:
-        heading = self._atomic_section_heading(document)
+        headings = self._atomic_section_headings(document)
         header = self._retrieval_header(document)
-        if not heading:
+        if not headings:
             # A header with no atomic section would land on every fragment.
             # Leave those chunks as published text.
             return self._character_split([document], chunk_size, chunk_overlap)
@@ -961,7 +961,10 @@ class DocumentProcessor:
             )
 
         for piece in pieces:
-            if _paragraph_has_heading(piece, heading):
+            heading = next(
+                (item for item in headings if _paragraph_has_heading(piece, item)), ""
+            )
+            if heading:
                 flush_pending()
                 content = piece.strip("\n")
                 if heading == CORE_SECTION_HEADING:
@@ -975,11 +978,13 @@ class DocumentProcessor:
         return chunks
 
     @staticmethod
-    def _atomic_section_heading(document: Document) -> str:
+    def _atomic_section_headings(document: Document) -> List[str]:
+        """One heading, or a list such as a roadmap's ``Year 1`` .. ``Year 4``."""
         raw = (document.metadata or {}).get("atomic_section")
-        if not isinstance(raw, str):
-            return ""
-        return raw.strip()
+        items = [raw] if isinstance(raw, str) else raw
+        if not isinstance(items, list):
+            return []
+        return [item.strip() for item in items if isinstance(item, str) and item.strip()]
 
     @staticmethod
     def _retrieval_header(document: Document) -> str:

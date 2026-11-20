@@ -23,6 +23,7 @@ try:
         apply_catalog_metadata,
         catalog_recency_rerank_enabled,
         include_authoritative_course_pages,
+        include_requested_course_pages,
         reorder_documents,
         reorder_ids,
     )
@@ -31,6 +32,7 @@ except ImportError:  # pragma: no cover - src/ on sys.path
         apply_catalog_metadata,
         catalog_recency_rerank_enabled,
         include_authoritative_course_pages,
+        include_requested_course_pages,
         reorder_documents,
         reorder_ids,
     )
@@ -57,6 +59,11 @@ except ImportError:  # pragma: no cover
         program_document_priority,
         selected_programs,
     )
+
+try:
+    from .roadmaps import include_roadmap_chunks
+except ImportError:  # pragma: no cover
+    from roadmaps import include_roadmap_chunks
 
 try:
     from .summary_chunks import is_summary_metadata, summary_chunks_enabled
@@ -242,6 +249,60 @@ def course_codes_in_query(
             seen.add(code)
             found.append(code)
     return found
+
+
+# A course list that names the department once: "ISDA 130 and 131",
+# "INFO 200, 202", "ISDA 20A/20B". A number followed by a unit word
+# ("ISDA 130 and 20 units") is a quantity, not a course.
+_LIST_JOINER = r"\s*(?:,\s*(?:and|or)\b|,|/|&|\band\b|\bor\b)\s*"
+_LIST_NUMBER = (
+    r"\d{2,3}[A-Za-z]?(?![A-Za-z0-9%])"
+    r"(?!\s*(?:units?|credits?|hours?|years?|semesters?|weeks?|days?|"
+    r"percent|students?)\b)"
+)
+_SHARED_PREFIX_LIST = re.compile(
+    r"(?<![A-Za-z0-9])([A-Za-z]{2,6})(\s*)(\d{2,3}[A-Za-z]?)(?![A-Za-z0-9])"
+    rf"((?:{_LIST_JOINER}{_LIST_NUMBER})+)"
+)
+_LIST_TAIL = re.compile(rf"({_LIST_JOINER})(\d{{2,3}}[A-Za-z]?)")
+# Department prefixes of the course pages in the corpus.
+COURSE_DEPARTMENTS = ("ISDA", "INFO", "INFM", "MARA", "LIBR")
+
+
+def expand_shared_prefix_course_codes(
+    text: str, departments: Sequence[str] = COURSE_DEPARTMENTS
+) -> str:
+    """Repeat the department on bare numbers that continue a course list.
+
+    ``Can I take ISDA 130 and 131?`` becomes ``Can I take ISDA 130 and
+    ISDA 131?``. Without it, ``131`` never matches the ``isda131`` token of
+    the ISDA 131 course page. Only supported departments are expanded.
+    """
+    if not isinstance(text, str):
+        return ""
+    allowed = {str(department).strip().upper() for department in departments}
+
+    def replace(match: re.Match) -> str:
+        department = match.group(1)
+        if department.upper() not in allowed:
+            return match.group(0)
+        tail = _LIST_TAIL.sub(
+            lambda item: f"{item.group(1)}{department} {item.group(2)}",
+            match.group(4),
+        )
+        return f"{department}{match.group(2)}{match.group(3)}{tail}"
+
+    return _SHARED_PREFIX_LIST.sub(replace, text)
+
+
+def requested_course_codes(query: str) -> list[str]:
+    """Canonical codes (``isda131``) a question names, lists included."""
+    return [
+        canonical_course_code(*code.split(" ", 1))
+        for code in course_codes_in_query(
+            expand_shared_prefix_course_codes(query), COURSE_DEPARTMENTS
+        )
+    ]
 
 
 def compact_course_codes(text: str) -> str:
@@ -609,7 +670,7 @@ def _page_records(
 
 
 # Department prefixes whose course codes mark a question as exact.
-_SPREAD_EXEMPT_DEPARTMENTS = ("ISDA", "INFO", "INFM", "MARA", "LIBR")
+_SPREAD_EXEMPT_DEPARTMENTS = COURSE_DEPARTMENTS
 
 
 def topic_spread_applies(query: str) -> bool:
@@ -656,7 +717,9 @@ def hybrid_retrieve(
     k = _clamp_k(k)
     if vector_store is None or not isinstance(query, str) or not query.strip():
         return []
+    query = expand_shared_prefix_course_codes(query)
     spread = topic_spread_applies(query)
+    requested = requested_course_codes(query)
     query = expand_graduation_application_query(query)
     try:
         records, hidden_summaries = without_hidden_summaries(
@@ -697,8 +760,14 @@ def hybrid_retrieve(
             if spread:
                 lexical_ids = _spread_ids(lexical_ids, by_id, k)
             lexical = _documents_for_ids(lexical_ids, by_id, k)
-            return include_authoritative_course_pages(
+            lexical = include_authoritative_course_pages(
                 lexical, _page_records(records), k
+            )
+            lexical = include_requested_course_pages(
+                lexical, _page_records(records), requested, k
+            )
+            return include_roadmap_chunks(
+                lexical, _page_records(records), query, program, k
             )
         # Fuse the whole candidate pool, then let the current catalog take
         # the better slots of an older catalog for the same course or program.
@@ -718,8 +787,16 @@ def hybrid_retrieve(
             # chunks already in their final order.
             fused = _spread_ids(fused, by_id, k)
         fused_hits = _documents_for_ids(fused, by_id, k)
-        return include_authoritative_course_pages(
+        fused_hits = include_authoritative_course_pages(
             fused_hits, _page_records(records), k
+        )
+        # A question that names two or more courses gets each course page.
+        fused_hits = include_requested_course_pages(
+            fused_hits, _page_records(records), requested, k
+        )
+        # A course-planning question gets the matching roadmap's semester plan.
+        return include_roadmap_chunks(
+            fused_hits, _page_records(records), query, program, k
         )
     except Exception as error:
         print(f"Hybrid retrieval failed; using vector search: {error}")

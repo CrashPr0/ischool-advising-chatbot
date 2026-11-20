@@ -543,3 +543,55 @@ def test_catalog_msis_snapshot_uses_separate_ischool_ingestion():
     html = '<main><h1>Informatics, MS</h1><p>Parser fixture only.</p></main>'
     assert extract_program_snapshot(html, 'https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=1',
                                     '2027-09-01', '2027-2028', 'MSIS') == ''
+
+
+def test_refreshed_roadmap_keeps_its_semester_plan_in_one_chunk(tmp_path):
+    """A linked ISDA roadmap page gets roadmap chunking metadata on refresh."""
+    from src.document_processor import DocumentProcessor
+
+    pages = _pages()
+    listing = "https://catalog.sjsu.edu/content.php?catoid=24&navoid=1"
+    roadmap = "https://catalog.sjsu.edu/preview_program.php?catoid=24&poid=21002"
+    title = "Roadmap: Information Science and Data Analytics, BS (2-Year SJSU Online Program)"
+    pages[listing] += f'<a href="{roadmap}">{title}</a>'
+    # Synthetic fixture only; it adds no roadmap claims to the corpus.
+    pages[roadmap] = f"""
+    <div id="acalog-content">
+      <h1>{title}</h1>
+      <h3>Year 1</h3>
+      <p>Fall Semester (15 units)</p><p>ISDA 101 - Sample Course</p>
+      <p>Spring Semester (15 units)</p><p>ISDA 102 - Sample Course</p>
+      <h3>Year 2</h3>
+      <p>Fall Semester (15 units)</p><p>ISDA 103 - Sample Course</p>
+      <p>Spring Semester (15 units)</p><p>ISDA 104 - Sample Course</p>
+    </div>
+    """
+    repo = _repo(tmp_path)
+    result = check_for_newer_catalog(repo, _fetch(pages), today=date(2027, 9, 1))
+    assert result.status == "updated"
+
+    docs = repo / "data" / "advising_docs"
+    found = None
+    for path in (docs / "meta").glob("web-*.yml"):
+        meta = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if meta["source_url"] == roadmap:
+            found = meta
+    assert found is not None
+    assert found["title"] == title
+    assert found["catalog_year"] == "2027-2028"
+    assert found["atomic_section"] == "Year 1"
+    assert found["retrieval_header"].startswith("BS ISDA 2-year roadmap")
+    assert roadmap in (docs / "scrape" / "seed_urls.txt").read_text(encoding="utf-8")
+
+    processor = DocumentProcessor(str(docs))
+    chunks = [
+        chunk
+        for chunk in processor.split_documents(processor.load_documents())
+        if chunk.metadata.get("source_url") == roadmap
+        and "Year 1" in chunk.page_content
+    ]
+    assert len(chunks) == 1
+    plan = chunks[0].page_content
+    assert plan.startswith(found["retrieval_header"])
+    for line in ("Year 2", "ISDA 101 - Sample Course", "ISDA 104 - Sample Course"):
+        assert line in plan

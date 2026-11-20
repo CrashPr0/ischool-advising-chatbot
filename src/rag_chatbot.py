@@ -23,6 +23,7 @@ try:
     from .config import Config
     from .program_scope import metadata_programs, normalize_program
     from .reply_suggestions import split_reply_suggestions
+    from .roadmaps import ROADMAP_PROMPT_NOTE, roadmap_prompt_note
     from .hybrid_retrieval import course_codes_in_query, is_apply_to_graduate_query
     from .llm_providers import LLMFactory, REASONING_RETRY
     from .knowledge_base import get_knowledge_base
@@ -47,6 +48,7 @@ except ImportError:  # pragma: no cover
     from config import Config
     from program_scope import metadata_programs, normalize_program
     from reply_suggestions import split_reply_suggestions
+    from roadmaps import ROADMAP_PROMPT_NOTE, roadmap_prompt_note
     from hybrid_retrieval import course_codes_in_query, is_apply_to_graduate_query
     from llm_providers import LLMFactory, REASONING_RETRY
     from knowledge_base import get_knowledge_base
@@ -741,6 +743,7 @@ def _vetted_template_texts() -> List[str]:
         _ERROR_RESPONSE,
         RAGAdvisingChatbot._missing_context_response("help"),
         RAGAdvisingChatbot._missing_context_response("帮助"),
+        ROADMAP_PROMPT_NOTE,
     ]
     for item in type(get_knowledge_base()).COMMON_QA.values():
         answer = item.get("answer") if isinstance(item, dict) else None
@@ -985,7 +988,15 @@ with that source page's title.
 exist for that prefix. If a requested INFO or ISDA number is absent from the \
 current catalog evidence, say it is not listed; do not infer course details from \
 a nearby number, and recommend checking with an advisor.
-11. Answer the question first and in full. Only when a short follow-up would \
+11. A course's "Prerequisite(s):" line names courses that must be completed \
+before that course, so it cannot be taken in the same term as one of its \
+prerequisites unless the catalog calls that course a corequisite \
+("Corequisite(s):" or "Pre/Corequisite(s):") or says it may be taken \
+concurrently. When a student asks whether two courses can be taken together, \
+check both courses' requisite lines and answer from them; if one course is a \
+prerequisite of the other, say so and give the order. Add that the student can \
+ask advising about exceptions. Never infer a requisite the sources do not state.
+12. Answer the question first and in full. Only when a short follow-up would \
 genuinely help the student (for example, narrowing a broad question to one \
 program or topic), you may end the reply with one final line in exactly this \
 form: SUGGESTIONS: ["first reply", "second reply"]. Give 2 or 3 replies the \
@@ -1181,10 +1192,14 @@ Assistant Response:""",
             mlis_core_context = mlis_core_courses_note(
                 user_message, source_context, program=program
             )
+            roadmap_context = roadmap_prompt_note(
+                retrieval_query, prompt_docs, program=program
+            )
             context = (
                 program_context
                 + _prior_turns_context(prior_turns)
                 + mlis_core_context
+                + roadmap_context
                 + source_context
             )
 
