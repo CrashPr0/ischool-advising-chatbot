@@ -24,6 +24,11 @@ try:
     from .program_scope import metadata_programs, normalize_program
     from .reply_suggestions import split_reply_suggestions
     from .roadmaps import ROADMAP_PROMPT_NOTE, roadmap_prompt_note
+    from .catalog_prerequisites import (
+        catalog_prerequisite_note,
+        load_table_courses,
+        table_path_for_docs,
+    )
     from .hybrid_retrieval import course_codes_in_query, is_apply_to_graduate_query
     from .llm_providers import LLMFactory, REASONING_RETRY
     from .knowledge_base import get_knowledge_base
@@ -49,6 +54,11 @@ except ImportError:  # pragma: no cover
     from program_scope import metadata_programs, normalize_program
     from reply_suggestions import split_reply_suggestions
     from roadmaps import ROADMAP_PROMPT_NOTE, roadmap_prompt_note
+    from catalog_prerequisites import (
+        catalog_prerequisite_note,
+        load_table_courses,
+        table_path_for_docs,
+    )
     from hybrid_retrieval import course_codes_in_query, is_apply_to_graduate_query
     from llm_providers import LLMFactory, REASONING_RETRY
     from knowledge_base import get_knowledge_base
@@ -995,7 +1005,12 @@ prerequisites unless the catalog calls that course a corequisite \
 concurrently. When a student asks whether two courses can be taken together, \
 check both courses' requisite lines and answer from them; if one course is a \
 prerequisite of the other, say so and give the order. Add that the student can \
-ask advising about exceptions. Never infer a requisite the sources do not state.
+ask advising about exceptions. Never infer a requisite the sources do not state. \
+A "Catalog prerequisite data" block, when present, is copied from the official \
+catalog course pages of the courses the student named: use its verbatim \
+requisite lines for prerequisite, corequisite, and course-order questions and \
+cite its Source URL. "None listed" means the course page prints no requisite \
+line; say the catalog lists none rather than adding one.
 12. Answer the question first and in full. Only when a short follow-up would \
 genuinely help the student (for example, narrowing a broad question to one \
 program or topic), you may end the reply with one final line in exactly this \
@@ -1195,15 +1210,21 @@ Assistant Response:""",
             roadmap_context = roadmap_prompt_note(
                 retrieval_query, prompt_docs, program=program
             )
+            # Requisites of every course the question names, straight from
+            # the structured catalog table, whatever retrieval ranked.
+            prerequisite_context, prerequisite_docs = self._prerequisite_context(
+                retrieval_query, program
+            )
             context = (
                 program_context
                 + _prior_turns_context(prior_turns)
                 + mlis_core_context
                 + roadmap_context
+                + prerequisite_context
                 + source_context
             )
 
-            if not prompt_docs:
+            if not prompt_docs and not prerequisite_docs:
                 response_data["response"] = self._missing_context_response(user_message)
                 response_data["source"] = "fallback"
                 response_data["confidence"] = 0.2
@@ -1243,7 +1264,7 @@ Assistant Response:""",
                 # keeps a source_url from a chunk that ordering summarized.
                 cleaned, dropped, stripped_urls = _apply_link_allowlist(
                     str(response_text)[:response_limit],
-                    list(prompt_docs) + list(retrieved_docs),
+                    list(prompt_docs) + list(retrieved_docs) + prerequisite_docs,
                 )
                 cleaned = _strip_document_labels(cleaned)
                 cleaned = mark_passed_graduation_deadlines(
@@ -1504,6 +1525,35 @@ Assistant Response:""",
             "corpus, so I can't verify it as a current INFO course or infer its "
             f"details. Please check with an [iSchool advisor]({advising_url})."
         )
+
+    def _prerequisite_context(self, query: str, program=None) -> tuple:
+        """The "Catalog prerequisite data" block and one Document per entry.
+
+        The table sits next to the corpus (``data/catalog_prerequisites.json``
+        for ``data/advising_docs``); a corpus without one adds nothing. The
+        Documents only let the link allowlist keep the entries' source URLs.
+        """
+        docs_root = getattr(getattr(self, "doc_processor", None), "docs_path", "")
+        if not docs_root:
+            return "", []
+        try:
+            courses = load_table_courses(table_path_for_docs(docs_root))
+            text, entries = catalog_prerequisite_note(query, program, courses)
+        except Exception:
+            logger.exception("Catalog prerequisite data could not be read")
+            return "", []
+        documents = [
+            Document(
+                page_content="\n".join(entry.get("requisite_lines") or []),
+                metadata={
+                    "source_url": entry.get("source_url", ""),
+                    "title": f"{entry.get('code', '')} - {entry.get('title', '')}",
+                },
+            )
+            for entry in entries
+            if entry.get("source_url")
+        ]
+        return text, documents
 
     def _build_context(self, query: str, documents: List) -> str:
         """Build context string from retrieved document chunks."""

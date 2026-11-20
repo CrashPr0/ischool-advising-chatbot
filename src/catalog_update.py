@@ -30,8 +30,28 @@ from bs4 import BeautifulSoup
 import yaml
 
 try:
+    from .catalog_prerequisites import (
+        ALLOWLIST_FILENAME,
+        TABLE_FILENAME,
+        CorpusPage,
+        build_table,
+        completeness_report,
+        load_allowlist,
+        load_corpus_pages,
+        write_table,
+    )
     from .catalog_recency import academic_year_start, load_catalog_identity
 except ImportError:  # pragma: no cover
+    from catalog_prerequisites import (
+        ALLOWLIST_FILENAME,
+        TABLE_FILENAME,
+        CorpusPage,
+        build_table,
+        completeness_report,
+        load_allowlist,
+        load_corpus_pages,
+        write_table,
+    )
     from catalog_recency import academic_year_start, load_catalog_identity
 
 LOGGER = logging.getLogger(__name__)
@@ -50,7 +70,7 @@ CATALOG_TOPICS = [
 ]
 
 _COURSE_TEXT = re.compile(
-    r"^(?:INFO|ISDA|MARA|MSIS)\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE
+    r"^(?:INFM|INFO|ISDA|LIBR|MARA|MSIS)\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE
 )
 _ISDA_COURSE_TEXT = re.compile(r"^ISDA\s+\d{2,3}[A-Za-z]?\b", re.IGNORECASE)
 _SHOW_COURSE = re.compile(
@@ -103,9 +123,11 @@ class CatalogCheckResult:
     previous_year: str = ""
     files: list[str] = field(default_factory=list)
     msis_program_urls: list[str] = field(default_factory=list)
+    missing_course_codes: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {
+            "missing_course_codes": list(self.missing_course_codes),
             "status": self.status,
             "message": self.message,
             "catoid": self.catoid,
@@ -1019,8 +1041,57 @@ def check_for_newer_catalog(
         records.append(_snapshot_record(url, text, title, current.year))
 
     docs_root = repo_root / "data" / "advising_docs"
+    # Prerequisite table for the corpus as it would be after this refresh.
+    # Every iSchool course a requirement page or roadmap names needs a
+    # catalog course page (or a reviewed allowlist entry); otherwise nothing
+    # is written and no pull request is opened.
+    years = dict(identity["years_by_catoid"])
+    years.update({edition.catoid: edition.year for edition in editions})
+    years[current.catoid] = current.year
+    pages = {page.source_url: page for page in load_corpus_pages(docs_root)}
+    for record in records:
+        pages[record["url"]] = CorpusPage(
+            doc_id=record["doc_id"],
+            source_url=record["url"],
+            title=record["title"],
+            text=record["text"],
+            catalog_year=record["catalog_year"],
+        )
+    prerequisite_table = build_table(
+        pages.values(), years=years, current_catoid=current.catoid
+    )
+    try:
+        allowlist = load_allowlist(repo_root / "data" / ALLOWLIST_FILENAME)
+    except (OSError, ValueError) as error:
+        return CatalogCheckResult(
+            status="incomplete",
+            message=f"Prerequisite allowlist could not be read ({error}). No pull request.",
+            catoid=current.catoid,
+            year=current.year,
+            previous_catoid=previous_catoid,
+            previous_year=previous_year,
+        )
+    report = completeness_report(prerequisite_table, pages.values(), allowlist)
+    if not report.ok:
+        message = (
+            f"Catalog {current.year} (catoid {current.catoid}) refresh is "
+            "incomplete. No files were written. No pull request.\n"
+            + report.message()
+        )
+        LOGGER.error("%s", message)
+        return CatalogCheckResult(
+            status="incomplete",
+            message=message,
+            catoid=current.catoid,
+            year=current.year,
+            previous_catoid=previous_catoid,
+            previous_year=previous_year,
+            missing_course_codes=list(report.missing),
+        )
+
     for record in records:
         _write_snapshot(docs_root, record, retrieved_at)
+    write_table(repo_root / "data" / TABLE_FILENAME, prerequisite_table)
     _merge_manifest(docs_root, records)
     _append_seeds(
         docs_root,
@@ -1046,6 +1117,7 @@ def check_for_newer_catalog(
         [
             "data/advising_docs/scrape/manifest.json",
             "data/advising_docs/scrape/seed_urls.txt",
+            f"data/{TABLE_FILENAME}",
             *settings,
         ]
     )

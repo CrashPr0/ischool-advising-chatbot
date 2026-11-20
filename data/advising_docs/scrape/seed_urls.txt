@@ -115,3 +115,8 @@ https://www.sjsu.edu/online/programs/library-and-information-science-masters-deg
 https://www.sjsu.edu/gape/deadlines/fall-graduation.php
 https://ischool.sjsu.edu/application-award-graduate-degree
 https://ischool.sjsu.edu/candidacy-approval-form-information
+
+# Official 2026-2027 SJSU catalog (catoid 23) course pages named by program requirement pages (prerequisite table).
+https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200279
+https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200280
+https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200281

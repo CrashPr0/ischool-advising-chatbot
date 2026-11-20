@@ -2,8 +2,10 @@
 
 The GitHub Actions workflow runs this weekly and from the Actions tab
 (workflow_dispatch). Exit status is 0 when the catalog is unchanged and when
-the site cannot be read. Files change only when a newer academic year was
-published and the ISDA pages were refreshed. This script does not push and
+the site cannot be read. It is 1 when a refresh is incomplete: a program
+requirements page or roadmap names an iSchool course with no catalog course
+page in the prerequisite table, so nothing is written. Files change only when
+a newer academic year was published and the ISDA pages were refreshed. This script does not push and
 does not open a pull request; the workflow does that after pytest passes.
 """
 
@@ -119,7 +121,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     write_result(result, args.result, args.pr_body)
     print(result.message)
-    return 0
+    # A refresh that would ship requirement pages naming courses with no
+    # catalog course page fails the workflow instead of passing quietly.
+    return 1 if result.status == "incomplete" else 0
 
 
 if __name__ == "__main__":
