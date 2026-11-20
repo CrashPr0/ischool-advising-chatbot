@@ -558,6 +558,35 @@ def core_heading(text: str) -> str:
     return ""
 
 
+_ROADMAP_YEAR_LINE = re.compile(r"^Year (\d)$", re.MULTILINE)
+_YEAR_WORDS = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
+
+
+def roadmap_retrieval_metadata(title: str, text: str, programs: list[str]) -> dict:
+    """Keep a catalog roadmap's semester plan in one retrieval chunk.
+
+    A roadmap page (title ``Roadmap: ...``) prints ``Year 1`` .. ``Year N``
+    headings. The paragraph holding ``Year 1`` becomes one atomic chunk, and
+    its retrieval header names the plan length taken from the last heading.
+    Other pages return an empty dict.
+    """
+    if not (title or "").casefold().startswith("roadmap:"):
+        return {}
+    years = [int(number) for number in _ROADMAP_YEAR_LINE.findall(text or "")]
+    if not years:
+        return {}
+    count = max(years)
+    label = "BS ISDA" if "ISDA" in programs else " / ".join(programs)
+    word = _YEAR_WORDS.get(count, str(count))
+    return {
+        "atomic_section": "Year 1",
+        "retrieval_header": (
+            f"{label} {count}-year roadmap ({word}-year plan) - which classes to "
+            f"take each semester to graduate in {word} years"
+        ),
+    }
+
+
 def _doc_id(url: str) -> str:
     return f"web-{sha256(url.encode('utf-8')).hexdigest()[:16]}"
 
@@ -584,6 +613,8 @@ def _snapshot_record(
         record["atomic_section"] = heading
     elif title.endswith("Course Descriptions"):
         record["atomic_section"] = title
+    elif "preview_program.php" in url:
+        record.update(roadmap_retrieval_metadata(title, content, record["programs"]))
     return record
 
 
@@ -609,6 +640,8 @@ def _write_snapshot(docs_root: Path, record: dict, retrieved_at: str) -> None:
         metadata["catalog_year"] = record["catalog_year"]
     if record.get("atomic_section"):
         metadata["atomic_section"] = record["atomic_section"]
+    if record.get("retrieval_header"):
+        metadata["retrieval_header"] = record["retrieval_header"]
     meta_path.write_text(
         yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False),
         encoding="utf-8",

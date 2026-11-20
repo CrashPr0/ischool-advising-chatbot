@@ -421,6 +421,51 @@
       ]
     },
     {
+      "doc_id": "web-0a91b8a5d4fd4ed4",
+      "source_url": "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19291",
+      "title": "Roadmap: Information Science and Data Analytics, BS (2-Year SJSU Online Program)",
+      "content_sha256": "27b4b6fd8615bf4c67d4adf2227f57ab7dec51c3777797ce03287c365cc70b63",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-4de8bf6cbb2ede01",
+      "source_url": "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19292",
+      "title": "Roadmap: Information Science and Data Analytics, BS",
+      "content_sha256": "86e798bd40b9acb827fa59db1ae43da30b881589e05399bae0f710a5dd8e4c89",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-151232d6a6d78b11",
+      "source_url": "https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19293",
+      "title": "Roadmap: Information Science and Data Analytics, BS (3-Year SJSU Online Program)",
+      "content_sha256": "ec668b2045a66bd19bfd24167d29efb50cf5bb62e4dfbc6dd66a2d6eca72e85a",
+      "programs": [
+        "ISDA"
+      ],
+      "topics": [
+        "advising",
+        "courses",
+        "degree-requirements",
+        "registration"
+      ]
+    },
+    {
       "doc_id": "web-f94879d2bc8f76ba",
       "source_url": "https://ischool.sjsu.edu/admissions",
       "title": "Admissions - SJSU - School of Information",

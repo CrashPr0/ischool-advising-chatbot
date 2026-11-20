@@ -597,6 +597,42 @@ def _current_course_pages(
     return pages
 
 
+def include_requested_course_pages(
+    documents: Sequence[Document],
+    records: Sequence[tuple[str, str, dict]],
+    codes: Sequence[str],
+    k: int,
+) -> list[Document]:
+    """Keep the current catalog page of every course a question names.
+
+    "Can I take ISDA 130 and ISDA 131 together?" is answered by both course
+    pages' requisite lines. Ranking can return only one of them, so with two
+    or more codes (``isda130`` form) each course page that exists in
+    ``records`` is put first, in the question's order, and the rest of the
+    fused list fills the remaining slots. A code with no current catalog page
+    adds nothing. Fewer than two codes, or every page already retrieved,
+    leaves the list unchanged.
+    """
+    chosen = list(documents)
+    wanted_codes = list(dict.fromkeys(code for code in codes if code))
+    if k <= 0 or len(wanted_codes) < 2 or not records:
+        return chosen
+    pages = _current_course_pages(records)
+    wanted = [pages[code] for code in wanted_codes if code in pages][:k]
+    if not wanted:
+        return chosen
+    wanted_text = {page.page_content for page in wanted}
+    present = {
+        doc.page_content: doc for doc in chosen if doc.page_content in wanted_text
+    }
+    if len(present) == len(wanted_text):
+        return chosen
+    # A hit that already holds the page keeps its own metadata.
+    pinned = [present.get(page.page_content, page) for page in wanted]
+    rest = [doc for doc in chosen if doc.page_content not in wanted_text]
+    return (pinned + rest)[: max(k, len(pinned))]
+
+
 def _is_current_catalog_document(document: Document) -> bool:
     metadata = getattr(document, "metadata", None) or {}
     return bool(metadata.get("catoid")) and metadata_is_current(metadata)

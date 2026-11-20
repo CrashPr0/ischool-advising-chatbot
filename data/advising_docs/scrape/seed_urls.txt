@@ -66,6 +66,14 @@ https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200282
 https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19052
 https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19100
 
+# Official 2026-2027 SJSU catalog roadmaps for the BS ISDA: 2-Year and 3-Year
+# SJSU Online Program roadmaps and the 4-year roadmap. Text is the published
+# semester-by-semester plan and roadmap notes, plus the source URL, catalog
+# year, and retrieval date. Older catoid=10 (MyRoadmaps) pages are not current.
+https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19291
+https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19293
+https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19292
+
 # Undergraduate apply-to-graduate, graduation evaluation, and commencement.
 # Registrar pages, the undergraduate MySJSU tutorial, commencement, and the
 # 2026-2027 catalog graduation requirements. Term deadlines stay as published.

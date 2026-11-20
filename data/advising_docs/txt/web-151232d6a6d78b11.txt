@@ -1,0 +1,46 @@
+2026-2027 Academic Catalog
+Roadmap: Information Science and Data Analytics, BS (3-Year SJSU Online Program)
+Source URL: https://catalog.sjsu.edu/preview_program.php?catoid=23&poid=19293
+
+The following roadmap is a sample advising map to complete the degree program in four years. Please consult your MyPlanner and major advisor as you develop your individualized academic plan. Students must have completed 60+ units in order to enroll in GE UD courses.
+*Courses marked with an asterisk may be taken in a different semester than listed.
+
+Year 1
+Fall Semester (10 units)
+ISDA 101 - Online Learning: Tools and Strategies for Success 1 unit
+ISDA 110 - Technology, Culture, and Society 3 unit(s)
+ISDA 121 - Human Centered Cybersecurity 3 unit(s)
+100W (Recommend LLD 100WB) 3 unit(s) (WID)
+Spring Semester (10 units)
+ISDA 111 - Information and Data Science 3 unit(s)
+ISDA 130 - User Centered Interface Architecture 3 unit(s)
+Major Elective - Upper or Lower Division 1 unit
+GE Upper Division Area 2/5 3 unit(s)
+
+Year 2
+Fall Semester (10 units)
+GE Upper Division Area 3 3 unit(s)
+ISDA 120 - Information Security 3 unit(s)
+ISDA 140 - Big Data Analytics and Management 3 unit(s)
+Major Elective- Lower or Upper Division 1 unit
+Spring Semester (10 units)
+GE Upper Division Area 4 3 unit(s)
+ISDA 131 - Information Architecture 3 unit(s)
+ISDA 141 - Information Visualization 3 unit(s)
+Major Elective- Lower or Upper Division 1 unit
+
+Year 3
+Fall Semester (10 units)
+ISDA 100 - Technical Writing for Information 3 unit(s)
+ISDA 122 - Privacy, Security, Ethics 2 unit(s)
+Major Elective - Lower or Upper Division 5 unit(s)
+Spring Semester (10 units)
+ISDA 123 - Information Assurance 2 unit(s)
+ISDA 170 - The Emerging Future: Technology Issues and Trends 4 unit(s)
+Major Elective - Lower or Upper Division 4 unit(s)
+
+Roadmap Notes
+Upper or Lower Division Electives (12 units)
+Electives can be selected in consultation with an advisor from upper or lower division courses outside the department, or from approved graduate courses in the School of Information in areas, such as Health Data Analytics, Enterprise Content Management and Digital Preservation, Digital Curation, Digital Assets Management, Digital Forensics, Crisis/Disaster Informatics, Problem Solving with Data. If electives from graduate courses in the School of Information are used to meet the elective requirements, the courses can only be used for the bachelor’s degree and cannot be later applied to any graduate degree.
+A minimum of 120 units is required for this degree.
+Retrieved: 2026-11-20
