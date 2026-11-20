@@ -31,6 +31,51 @@
       ]
     },
     {
+      "doc_id": "web-6259679675e33adc",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200279",
+      "title": "INFO 202 - Information Retrieval System Design",
+      "content_sha256": "63ad48e2634ce2d07bc2d7368afa3020e30b74977ac995c24a6e9c443cf9d0a1",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-a9933c47e7f8802e",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200280",
+      "title": "INFO 203 - Online Learning: Tools and Strategies",
+      "content_sha256": "3849d8ba8bdd928b8afe93831fef475a0678c66a19e091d03ef9a3a797cf6bcc",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
+      "doc_id": "web-225446e5c653f49e",
+      "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200281",
+      "title": "INFO 204 - Information Professions",
+      "content_sha256": "08e82ae409150fb0cef2e9baedfe9e8ced483446a165b20751de260805dce837",
+      "programs": [
+        "MLIS"
+      ],
+      "topics": [
+        "advising",
+        "degree-requirements",
+        "financial-aid",
+        "registration"
+      ]
+    },
+    {
       "doc_id": "web-8eb5f38331bef2d2",
       "source_url": "https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200282",
       "title": "INFO 210 - Reference and Information Services",

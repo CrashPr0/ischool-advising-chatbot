@@ -1,0 +1,181 @@
+{
+  "description": "Reviewed iSchool course codes that program requirement pages or roadmaps name but that have no catalog course page in data/catalog_prerequisites.json. Each entry needs a reason; temporary entries are gaps to close, not accepted exceptions. See docs/catalog-prerequisites.md.",
+  "codes": {
+    "INFM 200": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/informatics-required-courses"
+      ]
+    },
+    "INFM 201": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/informatics-required-courses"
+      ]
+    },
+    "INFM 202": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/informatics-required-courses"
+      ]
+    },
+    "INFM 203": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/informatics-required-courses"
+      ]
+    },
+    "INFM 204": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/informatics-required-courses"
+      ]
+    },
+    "INFM 205": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/informatics-required-courses"
+      ]
+    },
+    "INFM 206": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/informatics-required-courses"
+      ]
+    },
+    "INFM 207": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/informatics-required-courses"
+      ]
+    },
+    "INFM 208": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/informatics-required-courses"
+      ]
+    },
+    "INFM 211": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/informatics-required-courses"
+      ]
+    },
+    "INFO 200": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mlis-required-courses"
+      ]
+    },
+    "INFO 285": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mlis-required-courses"
+      ]
+    },
+    "INFO 289": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mlis-required-courses"
+      ]
+    },
+    "INFO 299": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mlis-required-courses"
+      ]
+    },
+    "MARA 200": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses"
+      ]
+    },
+    "MARA 204": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses"
+      ]
+    },
+    "MARA 210": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses"
+      ]
+    },
+    "MARA 211": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses"
+      ]
+    },
+    "MARA 249": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses"
+      ]
+    },
+    "MARA 283": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses"
+      ]
+    },
+    "MARA 284": {
+      "reason": "Not a current requirement: the MARA Required Courses page names MARA 284 only as a former number ('This course ran as MARA 284 Seminar in Archives and Records Management ... through Spring 2021') for MARA 286 and MARA 287.",
+      "temporary": false,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses"
+      ]
+    },
+    "MARA 285": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses",
+        "https://ischool.sjsu.edu/mlis-required-courses"
+      ]
+    },
+    "MARA 286": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses"
+      ]
+    },
+    "MARA 287": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses"
+      ]
+    },
+    "MARA 289": {
+      "reason": "TEMPORARY - not yet fetched (WAF). catalog.sjsu.edu answers the 2026-2027 course listing and search pages (content.php, search_advanced.php) with an AWS WAF HTTP 202 challenge, and headless Chrome returned empty pages on 2026-11-20, so this course's catoid=23 coid could not be found. Fetch its preview_course_nopop.php page, ingest it, and remove this entry.",
+      "temporary": true,
+      "referenced_by": [
+        "https://ischool.sjsu.edu/mara-required-courses"
+      ]
+    }
+  }
+}
