@@ -21,7 +21,9 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
-_PROGRAMS = {"isda", "mlis", "both"}
+# "both" tags a program-neutral question that applies to every program.
+_PROGRAMS = {"isda", "mlis", "mara", "msis", "both"}
+_SPECIFIC_PROGRAMS = ("isda", "mlis", "mara", "msis")
 _MAX_TEXT_LENGTH = 180
 _MAX_TOPIC_LENGTH = 60
 _DEFAULT_LIMIT = 6
@@ -123,10 +125,73 @@ def _match_score(query: str, question: str) -> int:
     return score
 
 
+def normalize_selected_program(program: object) -> str:
+    """A selected program key, or ``both`` for no or an unknown selection."""
+    if isinstance(program, str) and program.strip().lower() in _PROGRAMS:
+        return program.strip().lower()
+    return "both"
+
+
+def item_programs(item: object) -> list[str]:
+    """Program tags of a catalog item. Untagged items are program-neutral."""
+    programs = item.get("programs") if isinstance(item, dict) else None
+    if not isinstance(programs, list) or not programs:
+        return ["both"]
+    return [str(name) for name in programs]
+
+
+def visible_for_program(item: object, program: object) -> bool:
+    """True when a suggestion may be shown for the selected program.
+
+    A selected program sees its own questions and program-neutral ones.
+    With no program selected every question is eligible.
+    """
+    selected = normalize_selected_program(program)
+    programs = item_programs(item)
+    return selected == "both" or "both" in programs or selected in programs
+
+
+def filter_for_program(questions: list[dict], program: object) -> list[dict]:
+    """Catalog items a student with ``program`` selected may be offered."""
+    return [item for item in questions if visible_for_program(item, program)]
+
+
 def _program_adjustment(programs: list[str], selected: str) -> int:
-    if selected == "both" or "both" in programs or selected in programs:
+    # Program-neutral questions lead when nothing is selected.
+    if "both" in programs or selected in programs:
         return 8
-    return -12
+    return 0
+
+
+def _program_bucket(programs: list[str]) -> str:
+    """``both`` for neutral items, else the one program (or a joined key)."""
+    if "both" in programs:
+        return "both"
+    return "+".join(sorted(programs))
+
+
+def _spread_programs(ranked: list[dict], limit: int) -> list[dict]:
+    """Keep one program from filling the list when no program is selected.
+
+    Each program-specific bucket gets at most a third of the slots (at least
+    one) on the first pass. Leftover slots are filled in rank order so a
+    query that only matches one program still returns its matches.
+    """
+    per_program = max(1, limit // 3)
+    chosen: list[dict] = []
+    overflow: list[dict] = []
+    used: dict[str, int] = {}
+    for item in ranked:
+        bucket = _program_bucket(item_programs(item))
+        if bucket != "both" and used.get(bucket, 0) >= per_program:
+            overflow.append(item)
+            continue
+        used[bucket] = used.get(bucket, 0) + 1
+        chosen.append(item)
+    chosen.extend(overflow)
+    chosen = chosen[:limit]
+    order = {id(item): index for index, item in enumerate(ranked)}
+    return sorted(chosen, key=lambda item: order[id(item)])
 
 
 def _clean_programs(value: object) -> list[str] | None:
@@ -239,9 +304,24 @@ def load_suggestion_catalog(path: Path | None = None) -> dict:
             seen_ids.add(suggestion_id)
         loaded.append(cleaned)
     fallback = []
+    by_program: dict[str, list[str]] = {}
     if isinstance(raw, dict):
         fallback = _clean_id_list(raw.get("fallback_starter_ids"), seen_ids)
-    return {"questions": loaded, "fallback_starter_ids": fallback}
+        configured = raw.get("fallback_starter_ids_by_program")
+        if isinstance(configured, dict):
+            by_id = {item["id"]: item for item in loaded if item.get("id")}
+            for program in _SPECIFIC_PROGRAMS:
+                # A program's starters may only name questions it can see.
+                by_program[program] = [
+                    name
+                    for name in _clean_id_list(configured.get(program), seen_ids)
+                    if visible_for_program(by_id[name], program)
+                ]
+    return {
+        "questions": loaded,
+        "fallback_starter_ids": fallback,
+        "fallback_starter_ids_by_program": by_program,
+    }
 
 
 def load_question_suggestions(path: Path | None = None) -> list[dict]:
@@ -274,8 +354,13 @@ def rank_question_suggestions(
     limit: int = _DEFAULT_LIMIT,
     popularity: dict | None = None,
 ) -> list[dict]:
-    """Return the best curated matches for a typed prefix. Pure, no I/O."""
-    selected = program if program in _PROGRAMS else "both"
+    """Return the best curated matches for a typed prefix. Pure, no I/O.
+
+    A selected program only sees its own and program-neutral questions. With
+    no program selected, neutral questions rank first and no single program
+    fills the list.
+    """
+    selected = normalize_selected_program(program)
     try:
         capped = int(limit)
     except (TypeError, ValueError):
@@ -293,13 +378,12 @@ def rank_question_suggestions(
         key = normalize_suggestion_text(text)
         if not key or key in seen:
             continue
+        if not visible_for_program(item, selected):
+            continue
         score = _match_score(query, text)
         if score <= 0:
             continue
-        programs = (
-            item.get("programs") if isinstance(item.get("programs"), list) else ["both"]
-        )
-        score += _program_adjustment([str(name) for name in programs], selected)
+        score += _program_adjustment(item_programs(item), selected)
         score += _popularity_boost(item, popularity)
         if score <= 0:
             continue
@@ -307,7 +391,10 @@ def rank_question_suggestions(
         ranked.append((score, text, item))
 
     ranked.sort(key=lambda row: (-row[0], row[1].casefold()))
-    return [item for _score, _text, item in ranked[:capped]]
+    ordered = [item for _score, _text, item in ranked]
+    if selected == "both":
+        return _spread_programs(ordered, capped)
+    return ordered[:capped]
 
 
 def suggestion_payload() -> dict:

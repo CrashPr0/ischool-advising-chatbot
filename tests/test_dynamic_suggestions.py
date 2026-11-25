@@ -79,11 +79,12 @@ def test_catalog_ids_are_stable_and_the_fallback_four_match_the_empty_chat():
     ids = [item["id"] for item in catalog["questions"]]
     assert len(ids) == len(set(ids))
     assert all(item["pinned"] is False for item in catalog["questions"])
+    # No program selected: program-neutral chips first, one per main program.
     assert catalog["fallback_starter_ids"] == [
-        _id_for("Who is my assigned ISDA advisor?"),
+        _id_for("How do I schedule an advising appointment?"),
+        _id_for("How do I add or drop a course?"),
         _id_for("What are the ISDA core courses?"),
         _id_for("What are the MLIS core courses?"),
-        _id_for("How do I add or drop a course?"),
     ]
     template = (ROOT / "templates/index.html").read_text(encoding="utf-8")
     for suggestion_id in catalog["fallback_starter_ids"]:

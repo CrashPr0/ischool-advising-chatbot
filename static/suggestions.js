@@ -79,15 +79,56 @@
     return score;
   }
 
-  function programAdjustment(programs, selected) {
-    if (
+  function itemPrograms(item) {
+    return item && Array.isArray(item.programs) && item.programs.length
+      ? item.programs.map(String)
+      : ["both"];
+  }
+
+  // A selected program sees its own and program-neutral ("both") questions.
+  function visibleForProgram(item, program) {
+    var selected = TRUE_PROGRAMS[program] ? program : "both";
+    var programs = itemPrograms(item);
+    return (
       selected === "both" ||
       programs.indexOf("both") !== -1 ||
       programs.indexOf(selected) !== -1
-    ) {
+    );
+  }
+
+  // Program-neutral questions lead when nothing is selected.
+  function programAdjustment(programs, selected) {
+    if (programs.indexOf("both") !== -1 || programs.indexOf(selected) !== -1) {
       return 8;
     }
-    return -12;
+    return 0;
+  }
+
+  function programBucket(programs) {
+    if (programs.indexOf("both") !== -1) return "both";
+    return programs.slice().sort().join("+");
+  }
+
+  // With no program selected, each program gets at most a third of the slots
+  // first; leftovers are filled in rank order.
+  function spreadPrograms(ranked, limit) {
+    var perProgram = Math.max(1, Math.floor(limit / 3));
+    var chosen = [];
+    var overflow = [];
+    var used = {};
+    ranked.forEach(function (row) {
+      var bucket = programBucket(itemPrograms(row.item));
+      var count = used[bucket] || 0;
+      if (bucket !== "both" && count >= perProgram) {
+        overflow.push(row);
+        return;
+      }
+      used[bucket] = count + 1;
+      chosen.push(row);
+    });
+    chosen = chosen.concat(overflow).slice(0, limit);
+    chosen.sort(function (left, right) { return left.order - right.order; });
+    return chosen;
   }
 
   function popularityBoost(item, popularity) {
@@ -109,10 +150,10 @@
       if (!item || typeof item.text !== "string" || !item.text.trim()) return;
       var key = normalizeSuggestionText(item.text);
       if (!key || seen[key]) return;
+      if (!visibleForProgram(item, selected)) return;
       var score = matchScore(query, item.text);
       if (score <= 0) return;
-      var programs = Array.isArray(item.programs) ? item.programs.map(String) : ["both"];
-      score += programAdjustment(programs, selected);
+      score += programAdjustment(itemPrograms(item), selected);
       score += popularityBoost(item, settings.popularity);
       if (score <= 0) return;
       seen[key] = true;
@@ -126,7 +167,9 @@
       if (leftText > rightText) return 1;
       return 0;
     });
-    return ranked.slice(0, capped).map(function (row) { return row.item; });
+    ranked.forEach(function (row, index) { row.order = index; });
+    var kept = selected === "both" ? spreadPrograms(ranked, capped) : ranked.slice(0, capped);
+    return kept.map(function (row) { return row.item; });
   }
 
   // Keyboard actions for the combobox. "none" lets the input keep its default.
@@ -157,6 +200,7 @@
   targets.forEach(function (target) {
     target.normalizeSuggestionText = normalizeSuggestionText;
     target.rankQuestionSuggestions = rankQuestionSuggestions;
+    target.suggestionVisibleForProgram = visibleForProgram;
     target.suggestionKeyAction = suggestionKeyAction;
     target.SUGGESTION_DEBOUNCE_MS = 120;
   });
