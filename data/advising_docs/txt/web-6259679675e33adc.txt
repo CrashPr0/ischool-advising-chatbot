@@ -1,0 +1,7 @@
+INFO 202 - Information Retrieval System Design
+3 unit(s)
+Prerequisite(s): Demonstrated computer literacy.
+Grading: Letter Graded
+The systems and knowledge structures that information professionals create and use to connect users with information.
+Source URL: https://catalog.sjsu.edu/preview_course_nopop.php?catoid=23&coid=200279
+Retrieved: 2026-11-20
